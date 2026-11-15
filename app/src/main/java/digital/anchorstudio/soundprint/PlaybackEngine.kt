@@ -747,6 +747,22 @@ class SoundprintPlaybackConnection(
         player.addMediaItems(insertionIndex, tracks.map(MusicTrack::toSoundprintMediaItem))
     }
 
+    /** Replace only the upcoming tracks, keeping the currently playing item untouched. */
+    fun replaceUpcoming(tracks: List<MusicTrack>) {
+        val player = controller ?: return
+        val currentIndex = player.currentMediaItemIndex
+        if (currentIndex < 0) {
+            if (tracks.isNotEmpty()) playTracks(tracks)
+            return
+        }
+        for (index in player.mediaItemCount - 1 downTo currentIndex + 1) {
+            player.removeMediaItem(index)
+        }
+        if (tracks.isNotEmpty()) {
+            player.addMediaItems(currentIndex + 1, tracks.map(MusicTrack::toSoundprintMediaItem))
+        }
+    }
+
     fun removeFromQueue(index: Int) {
         val player = controller ?: return
         if (index in 0 until player.mediaItemCount) player.removeMediaItem(index)
