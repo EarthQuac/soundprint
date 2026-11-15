@@ -709,30 +709,51 @@ fun SoundprintNowPlayingScreen(
                     Spacer(Modifier.height(14.dp))
                     detailSections.forEach { (sectionTitle, rows) ->
                         Column(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                                .background(MaterialTheme.colorScheme.surface)
-                                .padding(12.dp)
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
+                                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.14f), RoundedCornerShape(18.dp))
+                                .padding(13.dp)
                         ) {
-                            Text(
-                                sectionTitle,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.2.sp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(Modifier.height(9.dp))
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    Modifier.size(width = 3.dp, height = 16.dp).clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                                Text(
+                                    sectionTitle,
+                                    Modifier.padding(start = 9.dp).weight(1f),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.35.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    "${rows.size} FIELDS",
+                                    fontSize = 9.sp,
+                                    letterSpacing = 0.8.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
+                                )
+                            }
+                            Spacer(Modifier.height(11.dp))
                             rows.chunked(2).forEachIndexed { rowIndex, pair ->
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     pair.forEach { (label, value) ->
                                         Column(
-                                            Modifier.weight(1f).clip(RoundedCornerShape(11.dp))
-                                                .background(MaterialTheme.colorScheme.background)
-                                                .padding(horizontal = 10.dp, vertical = 9.dp)
+                                            Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
+                                                .background(MaterialTheme.colorScheme.surface)
+                                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.13f), RoundedCornerShape(12.dp))
+                                                .padding(horizontal = 11.dp, vertical = 10.dp)
                                         ) {
-                                            Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                                            Text(
+                                                label.uppercase(),
+                                                fontSize = 9.sp,
+                                                letterSpacing = 0.45.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1
+                                            )
                                             Text(
                                                 value.ifBlank { "Unknown" },
-                                                Modifier.padding(top = 3.dp),
+                                                Modifier.padding(top = 4.dp),
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = MaterialTheme.colorScheme.onSurface,
@@ -743,7 +764,7 @@ fun SoundprintNowPlayingScreen(
                                     }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
-                                if (rowIndex != rows.chunked(2).lastIndex) Spacer(Modifier.height(7.dp))
+                                if (rowIndex != rows.chunked(2).lastIndex) Spacer(Modifier.height(8.dp))
                             }
                         }
                         if (sectionTitle != detailSections.last().first) Spacer(Modifier.height(9.dp))
