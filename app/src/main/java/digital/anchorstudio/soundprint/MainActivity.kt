@@ -447,7 +447,7 @@ class MainActivity : ComponentActivity() {
                         onDismissRequest = { finishArtworkImportChoice(pending, false) },
                         title = { Text("Use custom artwork?") },
                         text = {
-                            Text("Soundprint can save one of its bundled covers to songs that do not contain embedded artwork. Embedded album covers always take priority. If you choose No, songs still show a built-in fallback cover in the player.")
+                            Text("Soundprint can save one of its bundled covers to songs that do not contain embedded artwork. Embedded album covers always take priority. If you choose No, songs still show built-in fallback covers in your library, queue and player.")
                         },
                         confirmButton = {
                             TextButton(onClick = { finishArtworkImportChoice(pending, true) }) { Text("Yes, use artwork") }
@@ -1634,6 +1634,15 @@ private fun SettingsScreen(
     var replaceQueue by remember { mutableStateOf(false) }
     var autoAdd by remember { mutableStateOf(true) }
     var customArtwork by remember { mutableStateOf(artworkPreferences.getBoolean("custom_artwork_enabled", true)) }
+    DisposableEffect(artworkPreferences) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "custom_artwork_enabled") {
+                customArtwork = artworkPreferences.getBoolean("custom_artwork_enabled", true)
+            }
+        }
+        artworkPreferences.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { artworkPreferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
     var ignoreShortTracks by remember { mutableStateOf(false) }
     var clearDialog by remember { mutableStateOf(false) }
     var historyDialog by remember { mutableStateOf(false) }
