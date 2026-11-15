@@ -154,7 +154,7 @@ class ClapOnnxEngine(context: Context) : AutoCloseable {
     private fun readEmbeddingCache(file: File): List<FloatArray>? = runCatching {
         if (!file.isFile) return null
         java.io.DataInputStream(file.inputStream().buffered()).use { input ->
-            if (input.readUTF() != CLAP_MODEL_VERSION) return null
+            if (input.readUTF() != CLAP_PROFILE_VERSION) return null
             val count = input.readInt()
             if (count != SoundprintMood.entries.size) return null
             val dimension = input.readInt()
@@ -164,7 +164,7 @@ class ClapOnnxEngine(context: Context) : AutoCloseable {
 
     private fun writeEmbeddingCache(file: File, embeddings: List<FloatArray>) {
         java.io.DataOutputStream(file.outputStream().buffered()).use { output ->
-            output.writeUTF(CLAP_MODEL_VERSION)
+            output.writeUTF(CLAP_PROFILE_VERSION)
             output.writeInt(embeddings.size)
             output.writeInt(embeddings.firstOrNull()?.size ?: 0)
             embeddings.forEach { vector -> vector.forEach(output::writeFloat) }
