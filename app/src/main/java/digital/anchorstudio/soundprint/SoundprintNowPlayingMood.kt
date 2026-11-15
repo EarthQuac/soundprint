@@ -73,7 +73,8 @@ private val playerMoodChoices = listOf(
     PlayerMoodChoice("focus", "Focus", "focus", "brain"),
     PlayerMoodChoice("late-night", "Late night", "late-night", "moon"),
     PlayerMoodChoice("romantic", "Romantic", "romantic", "heart"),
-    PlayerMoodChoice("sad", "Melancholy", "melancholy", "cloud-rain")
+    PlayerMoodChoice("sad", "Melancholy", "melancholy", "cloud-rain"),
+    PlayerMoodChoice("intense", "Intense", "intense", "zap")
 )
 
 @Composable
@@ -93,7 +94,6 @@ fun SoundprintNowPlayingMoodSection(
     var corrections by remember { mutableStateOf(emptyMap<String, String>()) }
     var moodStatus by remember { mutableStateOf<String?>(null) }
     var showSongStatuses by remember { mutableStateOf(false) }
-    var queuedByMood by remember { mutableStateOf(emptyMap<String, Set<String>>()) }
 
     LaunchedEffect(scanner) {
         scanner.refreshSummary()
@@ -130,25 +130,22 @@ fun SoundprintNowPlayingMoodSection(
                 if (correction == targetMood.id) song to 1f else null
             } else {
                 val score = profiles[song.id]?.score(targetMood) ?: return@mapNotNull null
-                if (score >= 0.72f) song to score else null
+                if (score >= 0.45f) song to score else null
             }
         }.sortedByDescending { it.second }.take(20)
     }
     val recommendationIds = recommendations.map { it.first.id }
 
+    // Selecting a mood replaces the upcoming queue instead of silently leaving
+    // tracks from the previously selected mood mixed in. The current song stays put.
+    LaunchedEffect(selectedMood?.id, recommendationIds) {
+        if (selectedMood != null) {
+            playback.replaceUpcoming(recommendations.map { it.first })
+        }
+    }
+
     LaunchedEffect(selectedMood?.id, recommendationIds, scan.pending, scan.running, scan.modelDownloadRequired, scan.failed) {
         val mood = selectedMood ?: return@LaunchedEffect
-        val existingPlayer = playback.controller
-        val existingQueueIds = existingPlayer?.let { player ->
-            (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }.toSet()
-        }.orEmpty()
-        val alreadyQueued = queuedByMood[mood.id].orEmpty()
-        val newMatches = recommendations.filter { it.first.id !in existingQueueIds && it.first.id !in alreadyQueued }
-        if (newMatches.isNotEmpty()) {
-            playback.enqueue(newMatches.map { it.first }, next = true)
-            queuedByMood = queuedByMood + (mood.id to (alreadyQueued + newMatches.map { it.first.id }))
-        }
-
         val unanalysed = tracks.count { song ->
             song.id != currentTrackId &&
                 profiles[song.id] == null &&
@@ -157,14 +154,12 @@ fun SoundprintNowPlayingMoodSection(
         }
         moodStatus = when {
             scan.modelDownloadRequired -> "Download the offline CLAP model once to start matching your songs."
-            newMatches.isNotEmpty() && unanalysed > 0 ->
-                "Added " + newMatches.size + " matching songs. Checking " + unanalysed + " songs without saved CLAP profiles; new matches will join your queue automatically."
-            newMatches.isNotEmpty() ->
-                "Added " + newMatches.size + " matching songs to your queue."
+            recommendations.isNotEmpty() && unanalysed > 0 ->
+                "Queue updated with " + recommendations.size + " matching songs. Checking " + unanalysed + " songs without saved CLAP profiles; new matches will join automatically."
+            recommendations.isNotEmpty() ->
+                "Queue updated with " + recommendations.size + " matching songs for " + mood.label + "."
             scan.running && unanalysed > 0 ->
                 "Checking " + unanalysed + " songs without saved CLAP profiles. New matches will join your queue automatically."
-            recommendations.isNotEmpty() ->
-                recommendations.size.toString() + " matching " + (if (recommendations.size == 1) "song is" else "songs are") + " already in your queue."
             scan.failed > 0 && !scan.running ->
                 "Some songs need attention. Retry the failed scans below."
             scan.pending == 0 && !scan.running ->
