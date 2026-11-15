@@ -662,22 +662,28 @@ fun SoundprintNowPlayingScreen(
                 val lastPlayed = track?.lastPlayedAt
                 val dateAdded = if (addedAt > 0L) java.text.DateFormat.getDateInstance().format(java.util.Date(addedAt)) else "Unknown"
                 val lastPlayedLabel = lastPlayed?.let { java.text.DateFormat.getDateTimeInstance().format(java.util.Date(it)) } ?: "Not played yet"
-                val detailRows = listOf(
-                    "Title" to title,
-                    "Artist" to artist,
-                    "Album" to album,
-                    "Genre" to genre,
-                    "Duration" to if (duration > 0L) formatPlayerTime(duration) else "Indexing…",
-                    "Format" to format,
-                    "Encoding / codec" to codec,
-                    "Bitrate" to if ((track?.bitrate ?: 0) > 0) "${track!!.bitrate} kbps" else "Not available",
-                    "Sample rate" to if (sampleRate > 0) "${"%.3f".format(java.util.Locale.getDefault(), sampleRate / 1000.0).trimEnd('0').trimEnd('.')} kHz" else "Not available",
-                    "Channels" to when (channels) { 1 -> "Mono (1)"; in 2..Int.MAX_VALUE -> "$channels channels"; else -> "Not available" },
-                    "File size" to fileSize,
-                    "Date added" to dateAdded,
-                    "Last played" to lastPlayedLabel,
-                    "Times played" to (track?.playCount?.toString() ?: "0"),
-                    "Folder" to (track?.folder?.takeIf { it.isNotBlank() } ?: "Unknown")
+                val detailSections = listOf(
+                    "TRACK" to listOf(
+                        "Title" to title,
+                        "Artist" to artist,
+                        "Album" to album,
+                        "Genre" to genre,
+                        "Duration" to if (duration > 0L) formatPlayerTime(duration) else "Indexing…",
+                        "Date added" to dateAdded
+                    ),
+                    "AUDIO" to listOf(
+                        "Format" to format,
+                        "Encoding / codec" to codec,
+                        "Bitrate" to if ((track?.bitrate ?: 0) > 0) "${track!!.bitrate} kbps" else "Not available",
+                        "Sample rate" to if (sampleRate > 0) "${"%.3f".format(java.util.Locale.getDefault(), sampleRate / 1000.0).trimEnd('0').trimEnd('.')} kHz" else "Not available",
+                        "Channels" to when (channels) { 1 -> "Mono (1)"; in 2..Int.MAX_VALUE -> "$channels channels"; else -> "Not available" },
+                        "File size" to fileSize
+                    ),
+                    "LIBRARY" to listOf(
+                        "Last played" to lastPlayedLabel,
+                        "Times played" to (track?.playCount?.toString() ?: "0"),
+                        "Folder" to (track?.folder?.takeIf { it.isNotBlank() } ?: "Unknown")
+                    )
                 )
                 Column(Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -700,23 +706,47 @@ fun SoundprintNowPlayingScreen(
                             }
                         }
                     }
-                    Spacer(Modifier.height(12.dp))
-                    detailRows.chunked(2).forEach { pair ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            pair.forEach { (label, value) ->
-                                Column(
-                                    Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.background)
-                                        .padding(10.dp)
-                                ) {
-                                    Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                                    Text(value.ifBlank { "Unknown" }, Modifier.padding(top = 2.dp), fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.height(14.dp))
+                    detailSections.forEach { (sectionTitle, rows) ->
+                        Column(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                                .background(MaterialTheme.colorScheme.surface)
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                sectionTitle,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.2.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(9.dp))
+                            rows.chunked(2).forEachIndexed { rowIndex, pair ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    pair.forEach { (label, value) ->
+                                        Column(
+                                            Modifier.weight(1f).clip(RoundedCornerShape(11.dp))
+                                                .background(MaterialTheme.colorScheme.background)
+                                                .padding(horizontal = 10.dp, vertical = 9.dp)
+                                        ) {
+                                            Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                                            Text(
+                                                value.ifBlank { "Unknown" },
+                                                Modifier.padding(top = 3.dp),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
+                                if (rowIndex != rows.chunked(2).lastIndex) Spacer(Modifier.height(7.dp))
                             }
-                            if (pair.size == 1) Spacer(Modifier.weight(1f))
                         }
-                        if (pair != detailRows.chunked(2).last()) Spacer(Modifier.height(8.dp))
+                        if (sectionTitle != detailSections.last().first) Spacer(Modifier.height(9.dp))
                     }
                 }
                         }
@@ -838,8 +868,16 @@ fun SoundprintNowPlayingScreen(
     if (customizerOpen) {
         ArtworkCustomizerDialog(
             discStyle = discStyle,
+            discFinish = discFinish,
+            spin = spin,
+            spinSpeed = spinSpeed,
+            tonearm = tonearm,
             ambientGlow = ambientGlow,
             onDiscStyle = { discStyle = it },
+            onDiscFinish = { discFinish = it },
+            onSpin = { spin = it },
+            onSpinSpeed = { spinSpeed = it },
+            onTonearm = { tonearm = it },
             onAmbientGlow = { ambientGlow = it },
             onDismiss = { customizerOpen = false }
         )
@@ -1249,32 +1287,117 @@ private fun AuraListeningStage(mood:String,preset:String,onPreset:(String)->Unit
 @Composable
 private fun ArtworkCustomizerDialog(
     discStyle: PlayerDiscStyle,
+    discFinish: PlayerDiscFinish,
+    spin: Boolean,
+    spinSpeed: Int,
+    tonearm: Boolean,
     ambientGlow: Boolean,
     onDiscStyle: (PlayerDiscStyle) -> Unit,
+    onDiscFinish: (PlayerDiscFinish) -> Unit,
+    onSpin: (Boolean) -> Unit,
+    onSpinSpeed: (Int) -> Unit,
+    onTonearm: (Boolean) -> Unit,
     onAmbientGlow: (Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         ApplyCadenceDialogWindow(blurRadiusDp = 2.dp)
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .42f)).clickable(onClick = onDismiss), contentAlignment = if (LocalConfiguration.current.screenWidthDp < 600) Alignment.BottomCenter else Alignment.Center) {
-            Surface(onClick = {}, modifier = Modifier.fillMaxWidth().widthIn(max = 400.dp).padding(horizontal = 12.dp, vertical = 12.dp).shadow(24.dp, RoundedCornerShape(26.dp)), shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        Box(
+            Modifier.fillMaxSize().background(Color.Black.copy(alpha = .42f)).clickable(onClick = onDismiss),
+            contentAlignment = if (LocalConfiguration.current.screenWidthDp < 600) Alignment.BottomCenter else Alignment.Center
+        ) {
+            Surface(
+                onClick = {},
+                modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp)
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                    .shadow(24.dp, RoundedCornerShape(26.dp)),
+                shape = RoundedCornerShape(26.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp
+            ) {
+                Column(
+                    Modifier.padding(18.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) { Text("Artwork", fontSize = 17.sp, fontWeight = FontWeight.SemiBold); Text("Keep the player look simple.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        IconButton(onClick = onDismiss, modifier = Modifier.size(34.dp)) { Icon(Icons.Filled.Close, "Close artwork options", modifier = Modifier.size(18.dp)) }
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text("PLAYER STYLE", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                            FilterChip(selected = discStyle != PlayerDiscStyle.NONE, onClick = { onDiscStyle(PlayerDiscStyle.VINYL) }, label = { Text("Vinyl") }, modifier = Modifier.weight(1f))
-                            FilterChip(selected = discStyle == PlayerDiscStyle.NONE, onClick = { onDiscStyle(PlayerDiscStyle.NONE) }, label = { Text("Album cover") }, modifier = Modifier.weight(1f))
+                        Column(Modifier.weight(1f)) {
+                            Text("Customize artwork", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Make the player feel like yours.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        IconButton(onClick = onDismiss, modifier = Modifier.size(34.dp)) {
+                            Icon(Icons.Filled.Close, "Close artwork options", modifier = Modifier.size(18.dp))
                         }
                     }
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) { Text("Ambient glow", fontSize = 13.sp, fontWeight = FontWeight.Medium); Text("Soft colour from the album artwork", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        Switch(checked = ambientGlow, onCheckedChange = onAmbientGlow)
+                    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text("PLAYER STYLE", fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        listOf(
+                            PlayerDiscStyle.VINYL to ("Vinyl" to "Classic rotating record"),
+                            PlayerDiscStyle.CD to ("CD" to "Iridescent compact disc"),
+                            PlayerDiscStyle.ARTWORK to ("Artwork" to "Full circular album art"),
+                            PlayerDiscStyle.NONE to ("Album cover" to "Square cover, no disc")
+                        ).forEach { (style, copy) ->
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                                    .background(if (discStyle == style) MaterialTheme.colorScheme.primary.copy(alpha = .09f) else MaterialTheme.colorScheme.background)
+                                    .clickable { onDiscStyle(style) }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(copy.first, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(copy.second, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                if (discStyle == style) Icon(Icons.Filled.CheckCircle, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            }
+                        }
                     }
-                    Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = CircleShape) { Text("Done", fontWeight = FontWeight.SemiBold) }
+                    if (discStyle == PlayerDiscStyle.VINYL || discStyle == PlayerDiscStyle.CD) {
+                        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            Text("FINISH", fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                                listOf(
+                                    PlayerDiscFinish.CLASSIC to "Classic",
+                                    PlayerDiscFinish.PRISMATIC to "Prismatic",
+                                    PlayerDiscFinish.MIDNIGHT to "Midnight"
+                                ).forEach { (finish, label) ->
+                                    FilterChip(
+                                        selected = discFinish == finish,
+                                        onClick = { onDiscFinish(finish) },
+                                        label = { Text(label, fontSize = 11.sp) },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("MOTION", fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        PlayerToggle("Spin while playing", "Pause rotation when playback stops", spin, onSpin)
+                        if (spin) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text("Speed", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                Spacer(Modifier.weight(1f))
+                                listOf(8 to "Slow", 4 to "Normal", 2 to "Fast").forEach { (speed, label) ->
+                                    FilterChip(
+                                        selected = spinSpeed == speed,
+                                        onClick = { onSpinSpeed(speed) },
+                                        label = { Text(label, fontSize = 10.sp) },
+                                        modifier = Modifier.padding(start = 3.dp)
+                                    )
+                                }
+                            }
+                        }
+                        if (discStyle == PlayerDiscStyle.VINYL) {
+                            PlayerToggle("Turntable arm", "Show the arm on the record", tonearm, onTonearm)
+                        }
+                    }
+                    PlayerToggle("Ambient glow", "Soft colour drawn from the album artwork", ambientGlow, onAmbientGlow)
+                    Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = CircleShape) {
+                        Text("Done", fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
