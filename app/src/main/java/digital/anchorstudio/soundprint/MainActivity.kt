@@ -225,6 +225,14 @@ class MainActivity : ComponentActivity() {
                     libraryStatus = "$label could not be queued: ${error.message ?: "Check the selected file permissions and try again."}"
                 }
             }
+            fun finishArtworkImportChoice(pending: PendingArtworkImport, useArtwork: Boolean) {
+                preferences.edit().putBoolean("custom_artwork_enabled", useArtwork).apply()
+                pendingArtworkImport = null
+                pending.enqueue(useArtwork)
+                scope.launch {
+                    withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(useArtwork) }
+                }
+            }
             val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
                 if (uri != null) pendingArtworkImport = PendingArtworkImport { useArtwork ->
                     enqueueMusicImport("Folder import") {
@@ -436,25 +444,16 @@ class MainActivity : ComponentActivity() {
                 )
                 pendingArtworkImport?.let { pending ->
                     AlertDialog(
-                        onDismissRequest = {
-                            pendingArtworkImport = null
-                            pending.enqueue(false)
-                        },
+                        onDismissRequest = { finishArtworkImportChoice(pending, false) },
                         title = { Text("Use custom artwork?") },
                         text = {
                             Text("Soundprint can save one of its bundled covers to songs that do not contain embedded artwork. Embedded album covers always take priority. If you choose No, songs still show a built-in fallback cover in the player.")
                         },
                         confirmButton = {
-                            TextButton(onClick = {
-                                pendingArtworkImport = null
-                                pending.enqueue(true)
-                            }) { Text("Yes, use artwork") }
+                            TextButton(onClick = { finishArtworkImportChoice(pending, true) }) { Text("Yes, use artwork") }
                         },
                         dismissButton = {
-                            TextButton(onClick = {
-                                pendingArtworkImport = null
-                                pending.enqueue(false)
-                            }) { Text("No, thanks") }
+                            TextButton(onClick = { finishArtworkImportChoice(pending, false) }) { Text("No, thanks") }
                         }
                     )
                 }
