@@ -109,7 +109,8 @@ class LyricsLookupRepository(
                     val title = item.optString("title").trim()
                     val artist = item.optJSONObject("artist")?.optString("name").orEmpty().trim()
                     if (title.isBlank() || artist.isBlank()) continue
-                    val album = item.optJSONObject("album")?.optString("title").orEmpty()
+                    val albumInfo = item.optJSONObject("album")
+                    val album = albumInfo?.optString("title").orEmpty()
                     val candidate = LyricsLookupCandidate(
                         title = title,
                         artist = artist,
@@ -118,7 +119,7 @@ class LyricsLookupRepository(
                         syncedLyrics = null,
                         plainLyrics = null,
                         provider = "Music catalog",
-                        releaseYear = extractReleaseYear(item.optString("release_date").ifBlank { item.optString("releaseDate") })
+                        releaseYear = extractReleaseYear(item.optString("release_date").ifBlank { item.optString("releaseDate").ifBlank { albumInfo?.optString("release_date").orEmpty() } })
                     )
                     val key = normalize(title) + "|" + normalize(artist) + "|" + normalize(album)
                     found.putIfAbsent(key, candidate)
