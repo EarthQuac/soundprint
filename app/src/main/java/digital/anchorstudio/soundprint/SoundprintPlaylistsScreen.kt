@@ -1,5 +1,6 @@
 package digital.anchorstudio.soundprint
 
+import androidx.compose.ui.res.painterResource
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -710,9 +711,15 @@ internal fun NativeArtwork(uri: String?, seed: String, modifier: Modifier = Modi
     }
     Box(modifier.clip(RoundedCornerShape(radius.dp)).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
         val loadedBitmap = bitmap
-        if (loadedBitmap != null) Image(loadedBitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        else {
-            androidx.compose.material3.Icon(Icons.Filled.MusicNote, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f), modifier = Modifier.size(25.dp))
+        if (loadedBitmap != null) {
+            Image(loadedBitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        } else {
+            Image(
+                painter = painterResource(SoundprintArtwork.resourceFor(seed)),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
         }
     }
 }
