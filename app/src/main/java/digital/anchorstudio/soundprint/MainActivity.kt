@@ -208,6 +208,7 @@ class MainActivity : ComponentActivity() {
             var libraryTrackCount by remember { mutableIntStateOf(0) }
             var librarySources by remember { mutableStateOf(emptyList<MusicLibrarySource>()) }
             var libraryStatus by remember { mutableStateOf("Checking your saved music locations…") }
+            var importUiProgress by remember { mutableStateOf<SoundprintImportUiProgress?>(null) }
             var pendingArtworkImport by remember { mutableStateOf<PendingArtworkImport?>(null) }
             val scope = rememberCoroutineScope()
             suspend fun refreshLibraryState() {
@@ -288,8 +289,22 @@ class MainActivity : ComponentActivity() {
                         if (workInfos.isNotEmpty()) {
                             val active = workInfos.lastOrNull { !it.state.isFinished }
                             if (active != null) {
+                                val data = active.progress
+                                importUiProgress = SoundprintImportUiProgress(
+                                    stage = data.getString(SoundprintMusicImportQueue.PROGRESS_STAGE)
+                                        ?: if (active.state == WorkInfo.State.ENQUEUED) "Queued" else "Preparing",
+                                    currentTitle = data.getString(SoundprintMusicImportQueue.PROGRESS_TITLE).orEmpty(),
+                                    total = data.getInt(SoundprintMusicImportQueue.PROGRESS_TOTAL, 0),
+                                    visited = data.getInt(SoundprintMusicImportQueue.PROGRESS_VISITED, 0),
+                                    imported = data.getInt(SoundprintMusicImportQueue.PROGRESS_IMPORTED, 0),
+                                    updated = data.getInt(SoundprintMusicImportQueue.PROGRESS_UPDATED, 0),
+                                    skipped = data.getInt(SoundprintMusicImportQueue.PROGRESS_SKIPPED, 0),
+                                    errors = data.getInt(SoundprintMusicImportQueue.PROGRESS_ERRORS, 0),
+                                    waiting = active.state == WorkInfo.State.ENQUEUED
+                                )
                                 libraryStatus = "Music import is running in the background. You can safely leave Soundprint."
                             } else {
+                                importUiProgress = null
                                 val latest = workInfos.last()
                                 val seenBefore = preferences.getString("last_handled_import_work", null) == latest.id.toString()
                                 if (!seenBefore) preferences.edit().putString("last_handled_import_work", latest.id.toString()).apply()
@@ -304,6 +319,8 @@ class MainActivity : ComponentActivity() {
                                     else -> Unit
                                 }
                             }
+                        } else {
+                            importUiProgress = null
                         }
                     }
             }
@@ -442,6 +459,15 @@ class MainActivity : ComponentActivity() {
                 SoundprintToastHost(
                     Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 12.dp)
                 )
+                importUiProgress?.let { progress ->
+                    SoundprintImportProgressBanner(
+                        progress = progress,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .statusBarsPadding()
+                            .padding(top = 68.dp, start = 16.dp, end = 16.dp)
+                    )
+                }
                 pendingArtworkImport?.let { pending ->
                     AlertDialog(
                         onDismissRequest = { finishArtworkImportChoice(pending, false) },
