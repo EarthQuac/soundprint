@@ -44,7 +44,8 @@ data class LibraryScanProgress(
     val errors: Int,
     val total: Int = 0,
     val updated: Int = 0,
-    val currentTitle: String = ""
+    val currentTitle: String = "",
+    val stage: String = "Importing tracks"
 )
 data class LibraryScanResult(val visited: Int, val imported: Int, val updated: Int, val skipped: Int, val unavailable: Int, val errors: List<LibraryScanError>)
 data class LibraryScanError(val uri: String?, val message: String)
@@ -633,14 +634,29 @@ class MusicLibraryRepository(context:Context) {
         var skipped=0
         var traversalFailed=false
 
-        // Discover the audio files first so folder imports can show an accurate
-        // total and remaining count instead of an indefinite progress spinner.
+        // Report activity immediately. Folder discovery can itself take time on
+        // cloud-backed SAF providers, so never leave the UI looking idle.
         val audioFiles=mutableListOf<DocumentFile>()
         val directories=ArrayDeque<DocumentFile>()
+        var scannedDirectories=0
+        onProgress(LibraryScanProgress(
+            sourceName = root.name ?: "Music folder",
+            visited = 0, imported = 0, skipped = 0, errors = 0,
+            total = 0, updated = 0,
+            currentTitle = "Preparing folder scan",
+            stage = "Scanning folders"
+        ))
         directories.add(root)
         while(directories.isNotEmpty()) {
             coroutineContext.ensureActive()
             val directory=directories.removeLast()
+            onProgress(LibraryScanProgress(
+                sourceName = root.name ?: "Music folder",
+                visited = 0, imported = 0, skipped = skipped, errors = errors.size,
+                total = 0, updated = 0,
+                currentTitle = "Scanning folders · $scannedDirectories checked · ${audioFiles.size} audio files found",
+                stage = "Scanning folders"
+            ))
             val children=try { directory.listFiles().toList() }
             catch(cancel:CancellationException) { throw cancel }
             catch(error:Exception) {
@@ -650,13 +666,28 @@ class MusicLibraryRepository(context:Context) {
                 traversalFailed=true
                 continue
             }
+            scannedDirectories++
             children.forEach { child ->
                 coroutineContext.ensureActive()
                 if(child.isDirectory) directories.add(child)
                 else if(child.isFile && runCatching { isSupported(child) }.getOrDefault(false)) audioFiles.add(child)
             }
+            onProgress(LibraryScanProgress(
+                sourceName = root.name ?: "Music folder",
+                visited = 0, imported = 0, skipped = skipped, errors = errors.size,
+                total = 0, updated = 0,
+                currentTitle = "Scanning folders · $scannedDirectories checked · ${audioFiles.size} audio files found",
+                stage = "Scanning folders"
+            ))
         }
 
+        onProgress(LibraryScanProgress(
+            sourceName = root.name ?: "Music folder",
+            visited = 0, imported = 0, skipped = skipped, errors = errors.size,
+            total = audioFiles.size, updated = 0,
+            currentTitle = "Found ${audioFiles.size} audio files",
+            stage = "Importing tracks"
+        ))
         audioFiles.forEach { child ->
             coroutineContext.ensureActive()
             visited++
