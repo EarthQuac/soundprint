@@ -13,9 +13,9 @@ data class SoundprintGenreSuggestion(
 object SoundprintGenreInference {
     val genres = listOf(
         "Alternative", "Ambient", "Blues", "Classical", "Country", "Dance",
-        "Dream Pop", "Electronic", "Folk", "Funk", "Gospel", "Hip-Hop",
+        "Classic Rock", "Dream Pop", "Electronic", "Folk", "Funk", "Gospel", "Hard Rock", "Hip-Hop",
         "House", "Indie", "Jazz", "Metal", "Pop", "Punk", "R&B",
-        "Reggae", "Rock", "Soul", "Soundtrack", "Synth-pop", "Techno",
+        "Reggae", "Rock", "Shoegaze", "Soul", "Soundtrack", "Synth-pop", "Techno",
         "Trip-hop"
     )
 
