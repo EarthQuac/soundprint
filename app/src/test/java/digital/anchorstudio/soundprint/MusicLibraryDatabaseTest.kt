@@ -237,4 +237,38 @@ class MusicLibraryDatabaseTest {
         assertTrue(migrated.readableDatabase.rawQuery("SELECT 1 FROM track_sources WHERE track_id='legacy' AND source_uri='legacy-folder'", null).use { it.moveToFirst() })
         migrated.close()
     }
+    @Test fun batchMetadataEditUpdatesOnlySelectedTracksAndOnlyFilledFields() {
+        val db = MusicLibraryDatabase(context)
+        val first = track("content://music/batch-one")
+        val second = track("content://music/batch-two")
+        val untouched = track("content://music/batch-three")
+        db.upsert(first)
+        db.upsert(second)
+        db.upsert(untouched)
+        db.setFavorite(first.id, true)
+        db.markPlayed(first.id)
+
+        val changed = db.updateTracksMetadata(
+            ids = listOf(first.id, second.id, first.id),
+            artist = "NF",
+            album = "The Search",
+            genre = null
+        )
+
+        assertEquals(2, changed)
+        listOf(first.id, second.id).forEach { id ->
+            val updated = db.findById(id)!!
+            assertEquals("NF", updated.artist)
+            assertEquals("The Search", updated.album)
+            assertEquals("Track", updated.title)
+            assertEquals("Electronic", updated.genre)
+        }
+        val unchanged = db.findById(untouched.id)!!
+        assertEquals("Artist", unchanged.artist)
+        assertEquals("Album", unchanged.album)
+        assertTrue(db.findById(first.id)!!.isFavorite)
+        assertEquals(1, db.findById(first.id)!!.playCount)
+        db.close()
+    }
+
 }
