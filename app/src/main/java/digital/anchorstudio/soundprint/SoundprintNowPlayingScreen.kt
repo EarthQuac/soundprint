@@ -1403,8 +1403,19 @@ private fun ArtworkCustomizerDialog(
                         }
                     }
                     PlayerToggle("Ambient glow", "Soft colour drawn from the album artwork", ambientGlow, onAmbientGlow)
-                    Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = CircleShape) {
-                        Text("Done", fontWeight = FontWeight.SemiBold)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = {
+                            onDiscStyle(PlayerDiscStyle.VINYL)
+                            onDiscFinish(PlayerDiscFinish.CLASSIC)
+                            onSpin(true)
+                            onSpinSpeed(4)
+                            onTonearm(true)
+                            onAmbientGlow(true)
+                        }) { Text("Reset") }
+                        Spacer(Modifier.weight(1f))
+                        Button(onClick = onDismiss, shape = CircleShape) {
+                            Text("Done", fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
             }
