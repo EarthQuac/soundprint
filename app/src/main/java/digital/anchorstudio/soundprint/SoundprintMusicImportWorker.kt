@@ -71,6 +71,14 @@ object SoundprintMusicImportQueue {
 
     internal const val NOTIFICATION_ID = 4107
     internal const val INPUT_ID = INPUT_REQUEST_ID
+    internal const val PROGRESS_STAGE = "progress_stage"
+    internal const val PROGRESS_TITLE = "progress_title"
+    internal const val PROGRESS_TOTAL = "progress_total"
+    internal const val PROGRESS_VISITED = "progress_visited"
+    internal const val PROGRESS_IMPORTED = "progress_imported"
+    internal const val PROGRESS_UPDATED = "progress_updated"
+    internal const val PROGRESS_SKIPPED = "progress_skipped"
+    internal const val PROGRESS_ERRORS = "progress_errors"
 }
 
 class SoundprintMusicImportWorker(
@@ -104,14 +112,33 @@ class SoundprintMusicImportWorker(
                 true
             ))
 
+            setProgress(workDataOf(
+                SoundprintMusicImportQueue.PROGRESS_STAGE to "Preparing",
+                SoundprintMusicImportQueue.PROGRESS_TITLE to "Getting your music ready",
+                SoundprintMusicImportQueue.PROGRESS_TOTAL to 0,
+                SoundprintMusicImportQueue.PROGRESS_VISITED to 0,
+                SoundprintMusicImportQueue.PROGRESS_IMPORTED to 0,
+                SoundprintMusicImportQueue.PROGRESS_UPDATED to 0,
+                SoundprintMusicImportQueue.PROGRESS_SKIPPED to 0,
+                SoundprintMusicImportQueue.PROGRESS_ERRORS to 0
+            ))
             val repository = MusicLibraryRepository.getInstance(applicationContext)
+            val publishProgress: (LibraryScanProgress) -> Unit = { progress ->
+                notifications.update(progress)
+                setProgressAsync(workDataOf(
+                    SoundprintMusicImportQueue.PROGRESS_STAGE to progress.stage,
+                    SoundprintMusicImportQueue.PROGRESS_TITLE to progress.currentTitle,
+                    SoundprintMusicImportQueue.PROGRESS_TOTAL to progress.total,
+                    SoundprintMusicImportQueue.PROGRESS_VISITED to progress.visited,
+                    SoundprintMusicImportQueue.PROGRESS_IMPORTED to progress.imported,
+                    SoundprintMusicImportQueue.PROGRESS_UPDATED to progress.updated,
+                    SoundprintMusicImportQueue.PROGRESS_SKIPPED to progress.skipped,
+                    SoundprintMusicImportQueue.PROGRESS_ERRORS to progress.errors
+                ))
+            }
             val result = when (type) {
-                "folder" -> repository.importTree(uris.single(), useCustomArtwork) { progress ->
-                    notifications.update(progress)
-                }
-                "files" -> repository.importFiles(uris, useCustomArtwork) { progress ->
-                    notifications.update(progress)
-                }
+                "folder" -> repository.importTree(uris.single(), useCustomArtwork, publishProgress)
+                "files" -> repository.importFiles(uris, useCustomArtwork, publishProgress)
                 else -> throw IllegalArgumentException("Unknown music import type.")
             }
             notifications.complete(result)
