@@ -1511,7 +1511,7 @@ private fun SoundprintGenrePicker(
 }
 
 @Composable
-private fun SoundprintGenreMenu(
+internal fun SoundprintGenreMenu(
     value: String,
     suggestions: List<SoundprintGenreSuggestion>,
     onSelect: (String) -> Unit,
