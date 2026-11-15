@@ -23,15 +23,15 @@ object SoundprintMusicImportQueue {
     private const val UNIQUE_WORK = "soundprint_music_import_queue"
     private const val INPUT_REQUEST_ID = "request_id"
 
-    fun enqueueFolder(context: Context, treeUri: Uri): UUID =
-        enqueue(context, "folder", listOf(treeUri))
+    fun enqueueFolder(context: Context, treeUri: Uri, useCustomArtwork: Boolean = true): UUID =
+        enqueue(context, "folder", listOf(treeUri), useCustomArtwork)
 
-    fun enqueueFiles(context: Context, uris: List<Uri>): UUID {
+    fun enqueueFiles(context: Context, uris: List<Uri>, useCustomArtwork: Boolean = true): UUID {
         require(uris.isNotEmpty()) { "Choose at least one audio file." }
-        return enqueue(context, "files", uris.distinctBy(Uri::toString))
+        return enqueue(context, "files", uris.distinctBy(Uri::toString), useCustomArtwork)
     }
 
-    private fun enqueue(context: Context, type: String, uris: List<Uri>): UUID {
+    private fun enqueue(context: Context, type: String, uris: List<Uri>, useCustomArtwork: Boolean): UUID {
         val app = context.applicationContext
         // Some providers only hand out temporary grants; that is fine while the import runs.
         uris.forEach { uri ->
@@ -49,6 +49,7 @@ object SoundprintMusicImportQueue {
         val temporary = File(directory, "$id.json.tmp")
         val payload = JSONObject()
             .put("type", type)
+            .put("useCustomArtwork", useCustomArtwork)
             .put("uris", JSONArray().apply { uris.forEach { put(it.toString()) } })
         temporary.writeText(payload.toString(), Charsets.UTF_8)
         check(temporary.renameTo(destination)) { "Could not save the music import request." }
@@ -89,6 +90,7 @@ class SoundprintMusicImportWorker(
             }
             val payload = JSONObject(requestFile.readText(Charsets.UTF_8))
             val type = payload.getString("type")
+            val useCustomArtwork = payload.optBoolean("useCustomArtwork", true)
             val urisJson = payload.getJSONArray("uris")
             val uris = buildList {
                 for (index in 0 until urisJson.length()) add(Uri.parse(urisJson.getString(index)))
@@ -104,10 +106,10 @@ class SoundprintMusicImportWorker(
 
             val repository = MusicLibraryRepository.getInstance(applicationContext)
             val result = when (type) {
-                "folder" -> repository.importTree(uris.single()) { progress ->
+                "folder" -> repository.importTree(uris.single(), useCustomArtwork) { progress ->
                     notifications.update(progress)
                 }
-                "files" -> repository.importFiles(uris) { progress ->
+                "files" -> repository.importFiles(uris, useCustomArtwork) { progress ->
                     notifications.update(progress)
                 }
                 else -> throw IllegalArgumentException("Unknown music import type.")
