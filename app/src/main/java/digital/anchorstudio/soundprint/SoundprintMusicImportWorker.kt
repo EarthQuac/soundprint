@@ -54,15 +54,26 @@ object SoundprintMusicImportQueue {
         temporary.writeText(payload.toString(), Charsets.UTF_8)
         check(temporary.renameTo(destination)) { "Could not save the music import request." }
 
-        val request = OneTimeWorkRequestBuilder<SoundprintMusicImportWorker>()
-            .setInputData(workDataOf(INPUT_REQUEST_ID to id.toString()))
-            .addTag(UNIQUE_WORK)
-            .build()
-        WorkManager.getInstance(app).enqueueUniqueWork(
-            UNIQUE_WORK,
-            ExistingWorkPolicy.APPEND_OR_REPLACE,
-            request
-        )
+        // Show feedback immediately. WorkManager may take time to start a foreground
+        // worker (especially when another import is already running or the device is idle).
+        val notifications = SoundprintImportNotifications(app)
+        notifications.queued(type)
+
+        try {
+            val request = OneTimeWorkRequestBuilder<SoundprintMusicImportWorker>()
+                .setInputData(workDataOf(INPUT_REQUEST_ID to id.toString()))
+                .addTag(UNIQUE_WORK)
+                .build()
+            WorkManager.getInstance(app).enqueueUniqueWork(
+                UNIQUE_WORK,
+                ExistingWorkPolicy.APPEND_OR_REPLACE,
+                request
+            )
+        } catch (error: Exception) {
+            destination.delete()
+            notifications.failed(error.message ?: "Soundprint couldn't queue this music import.")
+            throw error
+        }
         return id
     }
 

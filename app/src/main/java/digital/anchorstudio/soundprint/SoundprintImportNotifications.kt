@@ -61,6 +61,18 @@ class SoundprintImportNotifications(context: Context) {
         }
     }
 
+    /** Posted synchronously when the user taps Import, before WorkManager is scheduled. */
+    fun queued(kind: String) {
+        val label = if (kind == "folder") "Folder selected" else "Audio files selected"
+        post(ongoingNotification(
+            "Import queued",
+            "$label · Starting in the background",
+            0,
+            0,
+            true
+        ))
+    }
+
     fun update(progress: LibraryScanProgress) {
         val total = progress.total
         val completed = progress.visited.coerceAtLeast(0)
