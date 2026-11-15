@@ -1350,7 +1350,7 @@ private fun SongsScreen(
     onImportFiles: () -> Unit,
     onBack: () -> Unit
 ) {
-    SongsLibraryScreen(libraryManager, playback, onImportFiles, onBack)
+    SoundprintSongsLibraryScreen(libraryManager, playback, onImportFiles, onBack)
 }
 
 @Composable
