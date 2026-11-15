@@ -14,7 +14,7 @@ import com.google.android.play.core.assetpacks.AssetPackStateUpdateListener
 import com.google.android.play.core.assetpacks.model.AssetPackStatus
 
 const val CLAP_MODEL_VERSION = "larger-clap-music-speech-56bcfdb-v1"
-const val CLAP_PROFILE_VERSION = "larger-clap-music-speech-56bcfdb-mel80db-v2"
+const val CLAP_PROFILE_VERSION = "larger-clap-music-speech-56bcfdb-mel80db-v3"
 private const val CLAP_AUDIO_MODEL_SHA256 = "021dd4fb962b4ed20cc3a6730b09e0ccf9f9c49931047032118a3b64828513a6"
 private const val CLAP_TEXT_MODEL_SHA256 = "8f9f29c5f6adee917553d4b3a70729c731c0d18b88efca0ae67c1a1fc278f3b6"
 
@@ -36,7 +36,7 @@ enum class SoundprintMood(val id: String, val title: String, val prompt: String)
     MELANCHOLY("melancholy","Melancholy","bittersweet wistful melancholy music with a reflective emotional tone"),
     CONFIDENT("confident","Confident","bold self-assured confident music with a strong commanding presence"),
     NOSTALGIC("nostalgic","Nostalgic","nostalgic sentimental music that evokes memories and the feeling of looking back"),
-    INTENSE("intense","Intense","intense powerful high-impact music with dramatic energy and force")
+    INTENSE("intense","Intense","intense high-impact music with explosive energy, aggressive powerful sound, hard-hitting drums, pounding bass, forceful vocals, fast driving rhythms, distorted guitars, dramatic build-ups, and the commanding energy of heavy rock, metal, intense electronic music, or action soundtracks")
 }
 
 data class ClapMoodProfile(
