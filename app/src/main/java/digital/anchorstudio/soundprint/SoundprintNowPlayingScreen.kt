@@ -394,7 +394,7 @@ fun SoundprintNowPlayingScreen(
                                 if (discStyle == PlayerDiscStyle.ARTWORK) TrackArtwork(artwork, title, Modifier.fillMaxSize().clip(CircleShape), seed = trackId)
                                 else Box(Modifier.fillMaxWidth(.34f).aspectRatio(1f).clip(CircleShape)
                                     .border(4.dp, Color.Black.copy(alpha=.70f), CircleShape)) {
-                                    TrackArtwork(artwork, title, Modifier.fillMaxSize().clip(CircleShape))
+                                    TrackArtwork(artwork, title, Modifier.fillMaxSize().clip(CircleShape), seed = trackId)
                                 }
                                 if (discStyle == PlayerDiscStyle.VINYL) {
                                     Box(Modifier.fillMaxSize(.84f))
