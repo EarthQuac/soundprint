@@ -60,11 +60,22 @@ object SoundprintGenreInference {
     fun suggest(profile: ClapMoodProfile?, lyrics: String): List<SoundprintGenreSuggestion> {
         val scores = linkedMapOf<String, Float>()
         val evidence = linkedMapOf<String, MutableSet<String>>()
+        // Direct audio-to-genre similarity is the primary signal. Mood is only
+        // a weak prior because mood and genre are not interchangeable.
+        profile?.scores?.forEach { (key, score) ->
+            if (key.startsWith("genre:")) {
+                val genre = key.removePrefix("genre:")
+                if (genre in genres) {
+                    scores[genre] = (scores[genre] ?: 0f) + score.coerceIn(0f, 1f)
+                    evidence.getOrPut(genre) { linkedSetOf() }.add("CLAP audio model")
+                }
+            }
+        }
         profile?.scores?.forEach { (mood, score) ->
             moodGenres[mood].orEmpty().forEachIndexed { index, genre ->
                 val weight = score.coerceIn(0f, 1f) * (1f / (1f + index * .35f))
-                scores[genre] = (scores[genre] ?: 0f) + weight * .62f
-                evidence.getOrPut(genre) { linkedSetOf() }.add("CLAP mood: $mood")
+                scores[genre] = (scores[genre] ?: 0f) + weight * .12f
+                evidence.getOrPut(genre) { linkedSetOf() }.add("CLAP mood")
             }
         }
         val normalizedLyrics = lyrics.lowercase()
@@ -75,7 +86,7 @@ object SoundprintGenreInference {
                         .containsMatchIn(normalizedLyrics)
                 }
                 if (hits > 0) {
-                    scores[genre] = (scores[genre] ?: 0f) + (hits.coerceAtMost(4) * .34f)
+                    scores[genre] = (scores[genre] ?: 0f) + (hits.coerceAtMost(4) * .16f)
                     evidence.getOrPut(genre) { linkedSetOf() }.add("Lyric themes")
                 }
             }

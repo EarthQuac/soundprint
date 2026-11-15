@@ -25,6 +25,23 @@ class SoundprintGenreInferenceTest {
         assertTrue(suggestions.first().evidence.contains("Lyric themes"))
     }
 
+
+    @Test fun directClapGenrePredictionLeadsTheSuggestions() {
+        val profile = ClapMoodProfile(
+            trackId = "track",
+            sourceSize = 1L,
+            sourceModifiedAt = 1L,
+            modelVersion = CLAP_PROFILE_VERSION,
+            analyzedAt = 1L,
+            scores = mapOf("genre:Metal" to 1f, "genre:Rock" to .42f, "intense" to .3f)
+        )
+
+        val suggestions = SoundprintGenreInference.suggest(profile, "")
+
+        assertEquals("Metal", suggestions.first().genre)
+        assertTrue(suggestions.first().evidence.contains("CLAP audio model"))
+    }
+
     @Test fun lyricsCanSuggestGenreBeforeClapProfileExists() {
         val suggestions = SoundprintGenreInference.suggest(
             null,

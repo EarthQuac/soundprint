@@ -14,7 +14,7 @@ import com.google.android.play.core.assetpacks.AssetPackStateUpdateListener
 import com.google.android.play.core.assetpacks.model.AssetPackStatus
 
 const val CLAP_MODEL_VERSION = "larger-clap-music-speech-56bcfdb-v1"
-const val CLAP_PROFILE_VERSION = "larger-clap-music-speech-56bcfdb-mel80db-v3"
+const val CLAP_PROFILE_VERSION = "larger-clap-music-speech-56bcfdb-mel80db-zero-shot-genres-v4"
 private const val CLAP_AUDIO_MODEL_SHA256 = "021dd4fb962b4ed20cc3a6730b09e0ccf9f9c49931047032118a3b64828513a6"
 private const val CLAP_TEXT_MODEL_SHA256 = "8f9f29c5f6adee917553d4b3a70729c731c0d18b88efca0ae67c1a1fc278f3b6"
 

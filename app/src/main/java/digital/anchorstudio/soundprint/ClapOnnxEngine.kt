@@ -41,14 +41,14 @@ class ClapOnnxEngine(context: Context) : AutoCloseable {
     private val app = context.applicationContext
     private val environment = OrtEnvironment.getEnvironment()
     private var audioSession: OrtSession? = null
-    private var textEmbeddings: List<FloatArray> = emptyList()
+    private var textEmbeddings = ClapTextEmbeddings(emptyList(), emptyList())
     private val modelManager = ClapModelManager(app)
 
     suspend fun prepare(onProgress: (ClapModelInstallProgress) -> Unit = {}) = withContext(Dispatchers.IO) {
         val files = modelManager.install(onProgress)
         // Play-delivered model assets are read-only. Keep the small derived
         // embedding cache in app cache storage, never beside the model weights.
-        val cache = File(app.cacheDir, "clap/$CLAP_MODEL_VERSION/mood-text-embeddings.bin")
+        val cache = File(app.cacheDir, "clap/$CLAP_MODEL_VERSION/genre-text-embeddings.bin")
         cache.parentFile?.mkdirs()
         textEmbeddings = readEmbeddingCache(cache) ?: createTextEmbeddings(files).also { writeEmbeddingCache(cache, it) }
         audioSession?.close()
@@ -57,7 +57,11 @@ class ClapOnnxEngine(context: Context) : AutoCloseable {
     }
 
     suspend fun analyse(track: MusicTrack, onInferenceStart: () -> Unit = {}): Map<String, Float> {
-        check(audioSession != null && textEmbeddings.size == SoundprintMood.entries.size) {
+        check(
+            audioSession != null &&
+                textEmbeddings.moods.size == SoundprintMood.entries.size &&
+                textEmbeddings.genres.size == SoundprintGenreInference.genres.size
+        ) {
             "The CLAP model has not been prepared."
         }
         val waveform = ClapPcmDecoder(app).decodeCenterWindow(track)
@@ -99,19 +103,20 @@ class ClapOnnxEngine(context: Context) : AutoCloseable {
                     val outputName = session.outputNames.firstOrNull { it.contains("audio_embeds") }
                         ?: session.outputNames.first()
                     val output = result.get(outputName).get() as OnnxTensor
-                    val audioVector = flatten(output.value).also { check(it.size == textEmbeddings.first().size) {
+                    val audioVector = flatten(output.value).also { check(it.size == textEmbeddings.moods.first().size) {
                         "CLAP returned an unexpected audio embedding size."
                     } }
                     val audioNorm = normalize(audioVector)
-                    val logits = textEmbeddings.map { dot(audioNorm, it) * 14.285714f }
-                    val maxLogit = logits.maxOrNull() ?: error("CLAP returned no mood scores.")
-                    val exponentials = logits.map { exp((it - maxLogit).toDouble()).toFloat() }
-                    val total = exponentials.sum().coerceAtLeast(1e-12f)
-                    val probabilities = exponentials.map { it / total }
-                    val highest = probabilities.maxOrNull()?.coerceAtLeast(1e-12f) ?: 1f
-                    SoundprintMood.entries.mapIndexed { index, mood ->
-                        mood.id to (probabilities[index] / highest).coerceIn(0f, 1f)
-                    }.toMap()
+                    val moodScores = relativeScores(audioNorm, textEmbeddings.moods)
+                    val genreScores = relativeScores(audioNorm, textEmbeddings.genres)
+                    buildMap {
+                        SoundprintMood.entries.forEachIndexed { index, mood ->
+                            put(mood.id, moodScores[index])
+                        }
+                        SoundprintGenreInference.genres.forEachIndexed { index, genre ->
+                            put("genre:$genre", genreScores[index])
+                        }
+                    }
                 }
             } finally {
                 inputs.values.forEach { runCatching { it.close() } }
@@ -119,23 +124,23 @@ class ClapOnnxEngine(context: Context) : AutoCloseable {
         }
     }
 
-    private suspend fun createTextEmbeddings(files: ClapModelFiles): List<FloatArray> = withContext(Dispatchers.IO) {
+    private suspend fun createTextEmbeddings(files: ClapModelFiles): ClapTextEmbeddings = withContext(Dispatchers.IO) {
         val tokenizer = ClapRobertaTokenizer(files.vocabulary, files.merges)
         val options = OrtSession.SessionOptions().apply { setIntraOpNumThreads(2) }
         environment.createSession(files.textModel.absolutePath, options).use { session ->
-            SoundprintMood.entries.map { mood ->
-                coroutineContext.ensureActive()
-                val tokenIds = tokenizer.encode(mood.prompt)
-                val ids = OnnxTensor.createTensor(environment, LongBuffer.wrap(tokenIds), longArrayOf(1, tokenIds.size.toLong()))
-                val mask = OnnxTensor.createTensor(environment, LongBuffer.wrap(LongArray(tokenIds.size) { 1L }), longArrayOf(1, tokenIds.size.toLong()))
+            fun embed(prompt: String): FloatArray {
+                val tokenIds = tokenizer.encode(prompt)
+                val shape = longArrayOf(1, tokenIds.size.toLong())
+                val ids = OnnxTensor.createTensor(environment, LongBuffer.wrap(tokenIds), shape)
+                val mask = OnnxTensor.createTensor(environment, LongBuffer.wrap(LongArray(tokenIds.size) { 1L }), shape)
                 val inputs = linkedMapOf<String, OnnxTensor>()
                 try {
                     session.inputInfo.keys.forEach { name ->
                         when {
                             name.contains("input_ids") -> inputs[name] = ids
                             name.contains("attention_mask") -> inputs[name] = mask
-                            name.contains("token_type_ids") -> inputs[name] = OnnxTensor.createTensor(environment, LongBuffer.wrap(LongArray(tokenIds.size)), longArrayOf(1, tokenIds.size.toLong()))
-                            name.contains("position_ids") -> inputs[name] = OnnxTensor.createTensor(environment, LongBuffer.wrap(LongArray(tokenIds.size) { it.toLong() + 2L }), longArrayOf(1, tokenIds.size.toLong()))
+                            name.contains("token_type_ids") -> inputs[name] = OnnxTensor.createTensor(environment, LongBuffer.wrap(LongArray(tokenIds.size)), shape)
+                            name.contains("position_ids") -> inputs[name] = OnnxTensor.createTensor(environment, LongBuffer.wrap(LongArray(tokenIds.size) { it.toLong() + 2L }), shape)
                             else -> error("Unsupported CLAP text input: $name")
                         }
                     }
@@ -148,26 +153,56 @@ class ClapOnnxEngine(context: Context) : AutoCloseable {
                     inputs.values.distinct().forEach { runCatching { it.close() } }
                 }
             }
+
+            val moods = SoundprintMood.entries.map { mood ->
+                coroutineContext.ensureActive()
+                embed(mood.prompt)
+            }
+            // LAION's published GTZAN zero-shot example uses this exact prompt
+            // family: "This audio is a <genre> song."
+            val genres = SoundprintGenreInference.genres.map { genre ->
+                coroutineContext.ensureActive()
+                embed("This audio is a ${genre.lowercase()} song.")
+            }
+            ClapTextEmbeddings(moods, genres)
         }
     }
 
-    private fun readEmbeddingCache(file: File): List<FloatArray>? = runCatching {
+    private fun relativeScores(audioEmbedding: FloatArray, prompts: List<FloatArray>): List<Float> {
+        val logits = prompts.map { dot(audioEmbedding, it) * 14.285714f }
+        val maxLogit = logits.maxOrNull() ?: error("CLAP returned no text prompts.")
+        val exponentials = logits.map { exp((it - maxLogit).toDouble()).toFloat() }
+        val total = exponentials.sum().coerceAtLeast(1e-12f)
+        val probabilities = exponentials.map { it / total }
+        val highest = probabilities.maxOrNull()?.coerceAtLeast(1e-12f) ?: 1f
+        return probabilities.map { (it / highest).coerceIn(0f, 1f) }
+    }
+
+    private fun readEmbeddingCache(file: File): ClapTextEmbeddings? = runCatching {
         if (!file.isFile) return null
         java.io.DataInputStream(file.inputStream().buffered()).use { input ->
             if (input.readUTF() != CLAP_PROFILE_VERSION) return null
-            val count = input.readInt()
-            if (count != SoundprintMood.entries.size) return null
+            val moodCount = input.readInt()
+            val genreCount = input.readInt()
             val dimension = input.readInt()
-            List(count) { FloatArray(dimension) { input.readFloat() } }
+            if (moodCount != SoundprintMood.entries.size ||
+                genreCount != SoundprintGenreInference.genres.size || dimension <= 0
+            ) return null
+            val moods = List(moodCount) { FloatArray(dimension) { input.readFloat() } }
+            val genres = List(genreCount) { FloatArray(dimension) { input.readFloat() } }
+            ClapTextEmbeddings(moods, genres)
         }
     }.getOrNull()
 
-    private fun writeEmbeddingCache(file: File, embeddings: List<FloatArray>) {
+    private fun writeEmbeddingCache(file: File, embeddings: ClapTextEmbeddings) {
         java.io.DataOutputStream(file.outputStream().buffered()).use { output ->
             output.writeUTF(CLAP_PROFILE_VERSION)
-            output.writeInt(embeddings.size)
-            output.writeInt(embeddings.firstOrNull()?.size ?: 0)
-            embeddings.forEach { vector -> vector.forEach(output::writeFloat) }
+            output.writeInt(embeddings.moods.size)
+            output.writeInt(embeddings.genres.size)
+            output.writeInt(embeddings.moods.firstOrNull()?.size ?: 0)
+            (embeddings.moods + embeddings.genres).forEach { vector ->
+                vector.forEach(output::writeFloat)
+            }
         }
     }
 
