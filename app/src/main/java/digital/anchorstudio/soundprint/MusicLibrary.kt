@@ -600,7 +600,7 @@ class MusicLibraryRepository(context:Context) {
                 val file=DocumentFile.fromSingleUri(app,uri)
                 if(file==null || !file.exists() || !file.canRead()) { db.markSourceMissing(rawUri);unavailable++ }
                 else {
-                    val track=readMetadata(file,rawUri)
+                    val track=readMetadata(file,rawUri,isCustomArtworkEnabled())
                     val canonical=track.contentHash?.let { db.findCanonicalByHash(it,track.uri) }
                     if(db.upsert(track.copy(duplicateOf=canonical))) imported++ else updated++
                 }
