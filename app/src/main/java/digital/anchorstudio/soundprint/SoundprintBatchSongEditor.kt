@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -99,7 +100,15 @@ internal fun SoundprintSongsLibraryScreen(
         }
         androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
         Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-            SearchBox(query, { query = it }, "Search songs, artists, albums…")
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(15.dp),
+                placeholder = { Text("Search songs, artists, albums…", fontSize = 12.sp) },
+                leadingIcon = { Icon(Icons.Filled.Search, null, modifier = Modifier.size(18.dp)) }
+            )
             if (selectedIds.isNotEmpty()) {
                 Surface(
                     Modifier.fillMaxWidth().padding(top = 10.dp),
