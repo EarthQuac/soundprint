@@ -14,7 +14,8 @@ data class LyricsLookupResult(
     val synced: Boolean,
     val matchedTitle: String,
     val matchedArtist: String,
-    val matchedAlbum: String
+    val matchedAlbum: String,
+    val releaseYear: Int = 0
 )
 
 data class LyricsLookupCandidate(
@@ -24,7 +25,8 @@ data class LyricsLookupCandidate(
     val durationSeconds: Double,
     val syncedLyrics: String?,
     val plainLyrics: String?,
-    val provider: String = "LRCLIB"
+    val provider: String = "LRCLIB",
+    val releaseYear: Int = 0
 )
 
 /**
@@ -90,7 +92,8 @@ class LyricsLookupRepository(
                         album = item.optString("albumName"),
                         durationSeconds = item.optDouble("duration", 0.0).coerceAtLeast(0.0),
                         syncedLyrics = item.optString("syncedLyrics").takeIf { it.isNotBlank() },
-                        plainLyrics = item.optString("plainLyrics").takeIf { it.isNotBlank() }
+                        plainLyrics = item.optString("plainLyrics").takeIf { it.isNotBlank() },
+                        releaseYear = extractReleaseYear(item.optString("releaseDate").ifBlank { item.optString("release_date") })
                     )
                     val key = normalize(title) + "|" + normalize(artist) + "|" + normalize(candidate.album)
                     found.putIfAbsent(key, candidate)
@@ -114,7 +117,8 @@ class LyricsLookupRepository(
                         durationSeconds = item.optDouble("duration", 0.0).coerceAtLeast(0.0),
                         syncedLyrics = null,
                         plainLyrics = null,
-                        provider = "Music catalog"
+                        provider = "Music catalog",
+                        releaseYear = extractReleaseYear(item.optString("release_date").ifBlank { item.optString("releaseDate") })
                     )
                     val key = normalize(title) + "|" + normalize(artist) + "|" + normalize(album)
                     found.putIfAbsent(key, candidate)
@@ -267,7 +271,8 @@ class LyricsLookupRepository(
             synced = synced != null,
             matchedTitle = title,
             matchedArtist = artist,
-            matchedAlbum = album
+            matchedAlbum = album,
+            releaseYear = extractReleaseYear(item.optString("releaseDate").ifBlank { item.optString("release_date") })
         )
     }
 
@@ -303,6 +308,8 @@ class LyricsLookupRepository(
             connection.disconnect()
         }
     }
+
+    private fun extractReleaseYear(value: String): Int = Regex("(19|20)\\\\d{2}").find(value)?.value?.toIntOrNull() ?: 0
 
     private fun normalize(value: String): String = value
         .lowercase(Locale.ROOT)
