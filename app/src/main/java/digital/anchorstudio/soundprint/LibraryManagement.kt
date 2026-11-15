@@ -220,12 +220,12 @@ class MusicLibraryManager(context:Context) {
     suspend fun ensureArtwork(id:String)=repository.ensureArtwork(id)
     suspend fun setCustomArtworkEnabled(enabled:Boolean)=repository.setCustomArtworkEnabled(enabled)
     fun saveClapMoodProfile(track:MusicTrack,scores:Map<String,Float>) =
-        repository.saveClapMoodProfile(track,CLAP_MODEL_VERSION,scores)
+        repository.saveClapMoodProfile(track,CLAP_PROFILE_VERSION,scores)
     fun clapMoodProfile(track:MusicTrack):ClapMoodProfile? =
-        repository.clapMoodProfile(track,CLAP_MODEL_VERSION)
+        repository.clapMoodProfile(track,CLAP_PROFILE_VERSION)
     fun clearClapMoodProfile(trackId:String) = repository.clearClapMoodProfile(trackId)
     fun clapMoodProfiles():Map<String,ClapMoodProfile> =
-        repository.tracks().mapNotNull { track -> repository.clapMoodProfile(track,CLAP_MODEL_VERSION)?.let { track.id to it } }.toMap()
+        repository.tracks().mapNotNull { track -> repository.clapMoodProfile(track,CLAP_PROFILE_VERSION)?.let { track.id to it } }.toMap()
     fun clapAudioRuleProfiles():Map<String,AudioRuleProfile> {
         val energyWeights=mapOf(
             "workout" to .95,"upbeat" to .78,"chill" to .25,"focus" to .30,"sleep" to .05,
