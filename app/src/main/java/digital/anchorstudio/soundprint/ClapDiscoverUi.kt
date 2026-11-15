@@ -478,7 +478,7 @@ fun ClapDiscoverScreen(
             if (corrected != null) return@mapNotNull null
             val profile = profiles[track.id] ?: return@mapNotNull null
             val score = profile.score(mood)
-            if (score < 0.72f) null else track to score
+            if (score < 0.45f) null else track to score
         }.sortedByDescending { it.second }.take(30)
     }.orEmpty()
 
