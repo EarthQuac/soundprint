@@ -287,7 +287,8 @@ class MainActivity : ComponentActivity() {
                     .getWorkInfosForUniqueWorkFlow("soundprint_music_import_queue")
                     .collect { workInfos ->
                         if (workInfos.isNotEmpty()) {
-                            val active = workInfos.lastOrNull { !it.state.isFinished }
+                            val active = workInfos.lastOrNull { it.state == WorkInfo.State.RUNNING }
+                                ?: workInfos.lastOrNull { !it.state.isFinished }
                             if (active != null) {
                                 val data = active.progress
                                 importUiProgress = SoundprintImportUiProgress(
