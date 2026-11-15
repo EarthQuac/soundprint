@@ -238,6 +238,40 @@ class MusicLibraryDatabase(context: Context) :
         }
         writableDatabase.update("tracks",values,"id=?",arrayOf(track.id))
     }
+    fun updateTracksMetadata(
+        ids:List<String>,
+        title:String? = null,
+        artist:String? = null,
+        album:String? = null,
+        genre:String? = null
+    ):Int {
+        val selected=ids.distinct().filter { it.isNotBlank() }
+        if(selected.isEmpty()) return 0
+        val values=ContentValues()
+        title?.trim()?.takeIf { it.isNotEmpty() }?.let { values.put("title",it) }
+        artist?.trim()?.takeIf { it.isNotEmpty() }?.let { values.put("artist",it) }
+        album?.trim()?.takeIf { it.isNotEmpty() }?.let { values.put("album",it) }
+        genre?.trim()?.takeIf { it.isNotEmpty() }?.let { values.put("genre",it) }
+        if(values.size()==0) return 0
+        val db=writableDatabase
+        var changed=0
+        db.beginTransaction()
+        try {
+            selected.chunked(900).forEach { batch ->
+                val placeholders=batch.joinToString(",") { "?" }
+                changed += db.update(
+                    "tracks",
+                    values,
+                    "id IN ($placeholders) AND is_available=1 AND id NOT IN(SELECT track_id FROM soundprint_trash)",
+                    batch.toTypedArray()
+                )
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        return changed
+    }
     fun resetPlayStats(id:String) {
         writableDatabase.execSQL("UPDATE tracks SET play_count=0,last_played_at=NULL WHERE id=?",arrayOf(id))
     }
@@ -879,6 +913,8 @@ class MusicLibraryRepository(context:Context) {
     fun recentlyPlayed(limit:Int=50)=db.recentlyPlayed(limit)
     fun track(id:String)=db.findById(id)
     fun updateTrack(track:MusicTrack)=db.updateTrack(track)
+    fun updateSongsMetadata(ids:List<String>,title:String?=null,artist:String?=null,album:String?=null,genre:String?=null)=
+        db.updateTracksMetadata(ids,title,artist,album,genre)
     fun resetPlayStats(id:String)=db.resetPlayStats(id)
     fun toggleFavorite(id:String)=db.toggleFavorite(id)
     fun setFavorite(id:String,favorite:Boolean)=db.setFavorite(id,favorite)
