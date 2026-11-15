@@ -149,7 +149,7 @@ class ClapOnnxEngine(context: Context) : AutoCloseable {
                             else -> error("Unsupported CLAP text input: $name")
                         }
                     }
-                    session.run(inputs).use { result ->
+                    return session.run(inputs).use { result ->
                         val outputName = session.outputNames.firstOrNull { it.contains("text_embeds") }
                             ?: session.outputNames.first()
                         normalize(flatten((result.get(outputName).get() as OnnxTensor).value))
