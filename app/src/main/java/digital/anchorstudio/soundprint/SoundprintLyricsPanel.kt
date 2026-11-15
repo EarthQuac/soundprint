@@ -143,7 +143,9 @@ fun SoundprintLyricsPanel(
     position: Long,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
-    seek: (Long) -> Unit
+    seek: (Long) -> Unit,
+    onLyricsChanged: (String) -> Unit = {},
+    onMetadataMatch: (String, String, String, Int) -> Unit = { _, _, _, _ -> }
 ) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("soundprint_now_playing", 0) }
@@ -187,6 +189,7 @@ fun SoundprintLyricsPanel(
 
     LaunchedEffect(trackId) {
         lyrics = prefs.getString("lyrics:$trackId", "").orEmpty()
+        onLyricsChanged(lyrics)
         source = prefs.getString("lyrics-source:$trackId", "").orEmpty()
         matchedTitle = prefs.getString("lyrics-match-title:$trackId", "").orEmpty()
         matchedArtist = prefs.getString("lyrics-match-artist:$trackId", "").orEmpty()
@@ -227,6 +230,10 @@ fun SoundprintLyricsPanel(
         matchedArtist = foundArtist
         matchedAlbum = foundAlbum
         draft = value
+        onLyricsChanged(value)
+        if (foundTitle.isNotBlank() || foundArtist.isNotBlank() || foundAlbum.isNotBlank() || foundYear > 0) {
+            onMetadataMatch(foundTitle, foundArtist, foundAlbum, foundYear)
+        }
         prefs.edit()
             .putString("lyrics:$trackId", value)
             .putString("lyrics-source:$trackId", origin)
@@ -274,7 +281,8 @@ fun SoundprintLyricsPanel(
                             synced = candidate.syncedLyrics != null,
                             matchedTitle = candidate.title,
                             matchedArtist = candidate.artist,
-                            matchedAlbum = candidate.album
+                            matchedAlbum = candidate.album,
+                            releaseYear = candidate.releaseYear
                         )
                     } else {
                         repository.search(
@@ -293,7 +301,8 @@ fun SoundprintLyricsPanel(
                         found.source + if (found.synced) " · Synced" else " · Plain text",
                         found.matchedTitle,
                         found.matchedArtist,
-                        found.matchedAlbum
+                        found.matchedAlbum,
+                        found.releaseYear
                     )
                     matches = emptyList()
                 }
