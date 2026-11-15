@@ -18,4 +18,15 @@ class ClapFeatureExtractorTest {
     fun repeatPadRejectsEmptyAudio() {
         ClapFeatureExtractor.repeatPad(floatArrayOf(),10)
     }
+
+    @Test fun clapMelFeaturesStayWithinTheExpectedEightyDbRange() {
+        val samples = FloatArray(48_000 * 10) { index ->
+            (0.2 * kotlin.math.sin(2.0 * Math.PI * 440.0 * index / 48_000.0)).toFloat()
+        }
+        val features = ClapFeatureExtractor.extract(samples)
+        val peak = features.maxOrNull() ?: error("No CLAP features returned")
+        val floor = features.minOrNull() ?: error("No CLAP features returned")
+        assert(floor >= peak - 80.001f)
+        assert(features.all { it.isFinite() })
+    }
 }
