@@ -190,6 +190,8 @@ private fun palette(name: String, dark: Boolean): SoundprintPalette = when (name
     else -> if (dark) AmberDark else AmberLight
 }
 
+private data class PendingArtworkImport(val enqueue: (Boolean) -> Unit)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -206,6 +208,7 @@ class MainActivity : ComponentActivity() {
             var libraryTrackCount by remember { mutableIntStateOf(0) }
             var librarySources by remember { mutableStateOf(emptyList<MusicLibrarySource>()) }
             var libraryStatus by remember { mutableStateOf("Checking your saved music locations…") }
+            var pendingArtworkImport by remember { mutableStateOf<PendingArtworkImport?>(null) }
             val scope = rememberCoroutineScope()
             suspend fun refreshLibraryState() {
                 val snapshot = withContext(Dispatchers.IO) {
@@ -223,18 +226,24 @@ class MainActivity : ComponentActivity() {
                 }
             }
             val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
-                if (uri != null) enqueueMusicImport("Folder import") {
-                    SoundprintMusicImportQueue.enqueueFolder(applicationContext, uri)
+                if (uri != null) pendingArtworkImport = PendingArtworkImport { useArtwork ->
+                    enqueueMusicImport("Folder import") {
+                        SoundprintMusicImportQueue.enqueueFolder(applicationContext, uri, useArtwork)
+                    }
                 }
             }
             val singleFilePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-                if (uri != null) enqueueMusicImport("File import") {
-                    SoundprintMusicImportQueue.enqueueFiles(applicationContext, listOf(uri))
+                if (uri != null) pendingArtworkImport = PendingArtworkImport { useArtwork ->
+                    enqueueMusicImport("File import") {
+                        SoundprintMusicImportQueue.enqueueFiles(applicationContext, listOf(uri), useArtwork)
+                    }
                 }
             }
             val filesPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-                if (uris.isNotEmpty()) enqueueMusicImport("File import") {
-                    SoundprintMusicImportQueue.enqueueFiles(applicationContext, uris)
+                if (uris.isNotEmpty()) pendingArtworkImport = PendingArtworkImport { useArtwork ->
+                    enqueueMusicImport("File import") {
+                        SoundprintMusicImportQueue.enqueueFiles(applicationContext, uris, useArtwork)
+                    }
                 }
             }
             val backupSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -425,6 +434,30 @@ class MainActivity : ComponentActivity() {
                 SoundprintToastHost(
                     Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 12.dp)
                 )
+                pendingArtworkImport?.let { pending ->
+                    AlertDialog(
+                        onDismissRequest = {
+                            pendingArtworkImport = null
+                            pending.enqueue(false)
+                        },
+                        title = { Text("Use custom artwork?") },
+                        text = {
+                            Text("Soundprint can save one of its bundled covers to songs that do not contain embedded artwork. Embedded album covers always take priority. If you choose No, songs still show a built-in fallback cover in the player.")
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                pendingArtworkImport = null
+                                pending.enqueue(true)
+                            }) { Text("Yes, use artwork") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = {
+                                pendingArtworkImport = null
+                                pending.enqueue(false)
+                            }) { Text("No, thanks") }
+                        }
+                    )
+                }
                 }
                 }
             }
@@ -1595,11 +1628,13 @@ private fun SettingsScreen(
     var resume by remember { mutableStateOf(true) }
     var rememberPosition by remember { mutableStateOf(true) }
     val settingsContext = LocalContext.current
+    val settingsScope = rememberCoroutineScope()
+    val artworkPreferences = remember(settingsContext) { settingsContext.getSharedPreferences("soundprint_native_preferences", 0) }
     val playbackPrefs = remember(settingsContext) { settingsContext.getSharedPreferences("soundprint_playback_options", 0) }
     var seekSeconds by remember { mutableIntStateOf(playbackPrefs.getInt("double_tap_seek_seconds", 10).coerceIn(5, 60)) }
     var replaceQueue by remember { mutableStateOf(false) }
     var autoAdd by remember { mutableStateOf(true) }
-    var customArtwork by remember { mutableStateOf(true) }
+    var customArtwork by remember { mutableStateOf(artworkPreferences.getBoolean("custom_artwork_enabled", true)) }
     var ignoreShortTracks by remember { mutableStateOf(false) }
     var clearDialog by remember { mutableStateOf(false) }
     var historyDialog by remember { mutableStateOf(false) }
@@ -1701,7 +1736,17 @@ private fun SettingsScreen(
             }
             if (matches("library custom artwork add music your music rescan folders audio tag editor playback history backup restore ignore clips clear library recycle bin")) {
                 SettingsSection("LIBRARY") {
-                    SettingsToggleRow("Custom artwork", "Show Soundprint artwork only when a song has no embedded cover. Turn this off anytime to remove Soundprint artwork from your library.", customArtwork) { customArtwork = it }
+                    SettingsToggleRow(
+                        "Custom artwork",
+                        "Save Soundprint covers for songs without embedded art. Embedded covers always win; the player still shows a fallback cover when this is off.",
+                        customArtwork
+                    ) { enabled ->
+                        customArtwork = enabled
+                        artworkPreferences.edit().putBoolean("custom_artwork_enabled", enabled).apply()
+                        settingsScope.launch {
+                            withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(enabled) }
+                        }
+                    }
                     SettingsActionRow("Your music", "$libraryTrackCount songs stored on this device", "Add folder", onClick = onImportMusic)
                     SettingsActionRow("Import audio files", "Choose individual audio files from your device", "Import", onClick = onImportFiles)
                     SettingsActionRow("Rescan folders", "Recover saved locations and check for new or changed songs", "Rescan", onClick = onRescan)
