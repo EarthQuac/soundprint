@@ -818,6 +818,8 @@ private fun HomeScreen(
     onOpenPro: () -> Unit,
     onOpenSongs: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var editGenreSuggestions by remember { mutableStateOf(emptyList<SoundprintGenreSuggestion>()) }
     var searchOpen by remember { mutableStateOf(false) }
     var refreshVersion by remember { mutableIntStateOf(0) }
     var playlistTrack by remember { mutableStateOf<MusicTrack?>(null) }
@@ -828,6 +830,14 @@ private fun HomeScreen(
     var editArtist by remember { mutableStateOf("") }
     var editAlbum by remember { mutableStateOf("") }
     var editGenre by remember { mutableStateOf("") }
+    LaunchedEffect(editTrack?.id) {
+        val selected = editTrack
+        editGenreSuggestions = if (selected == null) emptyList() else withContext(Dispatchers.IO) {
+            val lyrics = context.getSharedPreferences("soundprint_now_playing", 0)
+                .getString("lyrics:${selected.id}", "").orEmpty()
+            SoundprintGenreInference.suggest(libraryManager.clapMoodProfile(selected), lyrics)
+        }
+    }
     var recycleConfirmationTrack by remember { mutableStateOf<MusicTrack?>(null) }
     var selectedArtist by remember { mutableStateOf<String?>(null) }
     if (searchOpen) {
@@ -1065,7 +1075,7 @@ private fun HomeScreen(
                     androidx.compose.material3.OutlinedTextField(editTitle, { editTitle = it }, label = { Text("Title") }, singleLine = true)
                     androidx.compose.material3.OutlinedTextField(editArtist, { editArtist = it }, label = { Text("Artist") }, singleLine = true)
                     androidx.compose.material3.OutlinedTextField(editAlbum, { editAlbum = it }, label = { Text("Album") }, singleLine = true)
-                    androidx.compose.material3.OutlinedTextField(editGenre, { editGenre = it }, label = { Text("Genre") }, singleLine = true)
+                    SoundprintGenreMenu(value = editGenre, suggestions = editGenreSuggestions, onSelect = { editGenre = it })
                 }
             },
             confirmButton = {
