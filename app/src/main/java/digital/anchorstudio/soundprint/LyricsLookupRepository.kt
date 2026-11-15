@@ -309,7 +309,7 @@ class LyricsLookupRepository(
         }
     }
 
-    private fun extractReleaseYear(value: String): Int = Regex("(19|20)\\\\d{2}").find(value)?.value?.toIntOrNull() ?: 0
+    private fun extractReleaseYear(value: String): Int = Regex("""(19|20)\d{2}""").find(value)?.value?.toIntOrNull() ?: 0
 
     private fun normalize(value: String): String = value
         .lowercase(Locale.ROOT)
