@@ -130,7 +130,7 @@ fun SoundprintNowPlayingMoodSection(
                 if (correction == targetMood.id) song to 1f else null
             } else {
                 val score = profiles[song.id]?.score(targetMood) ?: return@mapNotNull null
-                if (score >= 0.45f) song to score else null
+                if (score >= 0.30f) song to score else null
             }
         }.sortedByDescending { it.second }.take(20)
     }
@@ -140,7 +140,16 @@ fun SoundprintNowPlayingMoodSection(
     // tracks from the previously selected mood mixed in. The current song stays put.
     LaunchedEffect(selectedMood?.id, recommendationIds) {
         if (selectedMood != null) {
-            playback.replaceUpcoming(recommendations.map { it.first })
+            // The player service can still be connecting when a mood is tapped.
+            // Wait for its MediaController instead of dropping the first queue update.
+            var attempts = 0
+            while (playback.controller == null && attempts < 100) {
+                delay(100L)
+                attempts++
+            }
+            if (playback.controller != null) {
+                playback.replaceUpcoming(recommendations.map { it.first })
+            }
         }
     }
 
