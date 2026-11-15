@@ -222,7 +222,8 @@ fun SoundprintLyricsPanel(
         origin: String,
         foundTitle: String = "",
         foundArtist: String = "",
-        foundAlbum: String = ""
+        foundAlbum: String = "",
+        foundYear: Int = 0
     ) {
         lyrics = value
         source = origin
@@ -245,6 +246,7 @@ fun SoundprintLyricsPanel(
 
     fun clearLyrics() {
         lyrics = ""
+        onLyricsChanged("")
         source = ""
         matchedTitle = ""
         matchedArtist = ""
