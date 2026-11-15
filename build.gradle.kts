@@ -79,11 +79,18 @@ val prepareClapModelAssets by tasks.registering {
         File(root, "clap/MODEL-NOTICE.txt").apply {
             parentFile.mkdirs()
             writeText(
-                "Soundprint includes Xenova/larger_clap_music_and_speech quantized ONNX weights. " +
-                    "Model license: Apache License 2.0. Source: https://huggingface.co/Xenova/larger_clap_music_and_speech " +
-                    "Pinned revision: 56bcfdb. Inference is performed locally on this device."
+                "Soundprint includes the quantized ONNX export of LAION's larger_clap_music_and_speech model. " +
+                    "The upstream model is licensed under the Apache License, Version 2.0. " +
+                    "Upstream model card: https://huggingface.co/laion/larger_clap_music_and_speech " +
+                    "ONNX export: https://huggingface.co/Xenova/larger_clap_music_and_speech " +
+                    "Pinned export revision: 56bcfdb. Soundprint uses CLAP for on-device zero-shot audio mood and genre ranking. " +
+                    "Inference is performed locally on this device."
             )
         }
+        // Apache 2.0 section 4(a) requires recipients to receive a copy of the license.
+        File(root, "clap/LICENSE.txt").writeText(
+            URL("https://www.apache.org/licenses/LICENSE-2.0.txt").readText()
+        )
     }
 }
 
