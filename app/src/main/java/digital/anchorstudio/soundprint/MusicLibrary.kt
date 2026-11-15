@@ -502,15 +502,23 @@ class MusicLibraryRepository(context:Context) {
     private val db=MusicLibraryDatabase.getInstance(app)
     private val artworkDir=java.io.File(app.filesDir,"music-artwork")
 
-    suspend fun importTree(treeUri:Uri,onProgress:(LibraryScanProgress)->Unit={}):LibraryScanResult = withContext(Dispatchers.IO) {
+    suspend fun importTree(
+        treeUri:Uri,
+        useCustomArtwork:Boolean = isCustomArtworkEnabled(),
+        onProgress:(LibraryScanProgress)->Unit={}
+    ):LibraryScanResult = withContext(Dispatchers.IO) {
         runCatching { app.contentResolver.takePersistableUriPermission(treeUri,android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         val root=DocumentFile.fromTreeUri(app,treeUri) ?: throw IllegalArgumentException("Android could not open the selected folder.")
         if(!hasPersistedReadPermission(treeUri)) throw SecurityException("Folder permission is not persisted. Re-select the folder to grant access.")
         if(!root.canRead()) throw SecurityException("Soundprint cannot read this folder. Re-select it to grant access.")
-        scanRoot(root,treeUri.toString(),onProgress)
+        scanRoot(root,treeUri.toString(),onProgress,useCustomArtwork)
     }
 
-    suspend fun importFiles(fileUris:List<Uri>,onProgress:(LibraryScanProgress)->Unit={}):LibraryScanResult = withContext(Dispatchers.IO) {
+    suspend fun importFiles(
+        fileUris:List<Uri>,
+        useCustomArtwork:Boolean = isCustomArtworkEnabled(),
+        onProgress:(LibraryScanProgress)->Unit={}
+    ):LibraryScanResult = withContext(Dispatchers.IO) {
         val errors=mutableListOf<LibraryScanError>();var visited=0;var imported=0;var updated=0;var skipped=0
         val selected=fileUris.distinctBy { it.toString() }
         selected.forEach { uri ->
@@ -533,7 +541,7 @@ class MusicLibraryRepository(context:Context) {
                 ))
                 if(file==null || !file.isFile || !isSupported(file)) skipped++
                 else {
-                    val track=readMetadata(file,uri.toString())
+                    val track=readMetadata(file,uri.toString(),useCustomArtwork)
                     currentTitle = track.title
                     val canonical=track.contentHash?.let { db.findCanonicalByHash(it,track.uri) }
                     if(db.upsert(track.copy(duplicateOf=canonical))) imported++ else updated++
@@ -616,7 +624,7 @@ class MusicLibraryRepository(context:Context) {
     private fun hasPersistedReadPermission(uri:Uri):Boolean =
         app.contentResolver.persistedUriPermissions.any { it.uri==uri && it.isReadPermission }
 
-    private suspend fun scanRoot(root:DocumentFile,sourceUri:String,onProgress:(LibraryScanProgress)->Unit):LibraryScanResult {
+    private suspend fun scanRoot(root:DocumentFile,sourceUri:String,onProgress:(LibraryScanProgress)->Unit,useCustomArtwork:Boolean = isCustomArtworkEnabled()):LibraryScanResult {
         val scanId=UUID.randomUUID().toString()
         val errors=mutableListOf<LibraryScanError>()
         var visited=0
@@ -664,7 +672,7 @@ class MusicLibraryRepository(context:Context) {
                 currentTitle = currentTitle
             ))
             try {
-                val track=readMetadata(child,sourceUri)
+                val track=readMetadata(child,sourceUri,useCustomArtwork)
                 currentTitle=track.title
                 val canonical=track.contentHash?.let { db.findCanonicalByHash(it,track.uri) }
                 if(db.upsert(track.copy(duplicateOf=canonical),scanId)) imported++ else updated++
@@ -701,7 +709,7 @@ class MusicLibraryRepository(context:Context) {
         return mime.startsWith("audio/") || ext in AUDIO_EXTENSIONS
     }
 
-    private suspend fun readMetadata(file:DocumentFile,sourceUri:String?):MusicTrack {
+    private suspend fun readMetadata(file:DocumentFile,sourceUri:String?,useCustomArtwork:Boolean):MusicTrack {
         val uri=file.uri;val retriever=MediaMetadataRetriever()
         val old=db.findByUri(uri.toString())
         var title=old?.title ?: file.name?.substringBeforeLast('.')?.takeIf { it.isNotBlank() } ?: "Unknown title"
@@ -750,9 +758,13 @@ class MusicLibraryRepository(context:Context) {
             ?: MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.name?.substringAfterLast('.')?.lowercase(Locale.ROOT).orEmpty())
             ?: "application/octet-stream"
         val hash=if(old!=null && old.sizeBytes==file.length().coerceAtLeast(0) && old.modifiedAt==file.lastModified().coerceAtLeast(0)) old.contentHash else hashContent(uri)
-        val artwork=embeddedArt?.let { cacheArtwork(it,uri.toString()) } ?: old?.artworkUri
+        val trackId=old?.id ?: UUID.nameUUIDFromBytes(uri.toString().toByteArray()).toString()
+        val previousNonCustomArtwork=old?.artworkUri?.takeUnless { SoundprintArtwork.isBundledUri(app,it) }
+        val artwork=embeddedArt?.let { cacheArtwork(it,uri.toString()) }
+            ?: previousNonCustomArtwork
+            ?: if(useCustomArtwork) SoundprintArtwork.uri(app,trackId) else null
         return MusicTrack(
-            id=old?.id ?: UUID.nameUUIDFromBytes(uri.toString().toByteArray()).toString(),
+            id=trackId,
             uri=uri.toString(),title=title.trim().ifBlank { "Unknown title" },artist=artist.trim().ifBlank { "Unknown artist" },
             album=album.trim().ifBlank { "Unknown album" },albumArtist=albumArtist.trim(),genre=genre.trim(),
             durationMs=duration.coerceAtLeast(0),trackNumber=trackNumber.coerceAtLeast(0),year=year.coerceAtLeast(0),
@@ -796,6 +808,30 @@ class MusicLibraryRepository(context:Context) {
         } finally {
             runCatching { retriever.release() }
         }
+    }
+
+    private fun isCustomArtworkEnabled():Boolean =
+        app.getSharedPreferences("soundprint_native_preferences",Context.MODE_PRIVATE)
+            .getBoolean("custom_artwork_enabled",true)
+
+    suspend fun setCustomArtworkEnabled(enabled:Boolean):Int = withContext(Dispatchers.IO) {
+        var changed=0
+        db.tracks().forEach { track ->
+            coroutineContext.ensureActive()
+            if (!enabled) {
+                if (SoundprintArtwork.isBundledUri(app,track.artworkUri)) {
+                    db.updateTrack(track.copy(artworkUri=null))
+                    changed++
+                }
+            } else {
+                val withEmbedded=ensureArtwork(track.id) ?: track
+                if (withEmbedded.artworkUri.isNullOrBlank()) {
+                    db.updateTrack(withEmbedded.copy(artworkUri=SoundprintArtwork.uri(app,track.id)))
+                    changed++
+                }
+            }
+        }
+        changed
     }
 
     private fun cacheArtwork(bytes:ByteArray,uri:String):String? = runCatching {
