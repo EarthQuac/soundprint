@@ -317,7 +317,7 @@ fun SoundprintNowPlayingScreen(
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         if (ambientGlow && artwork != null) {
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().fillMaxHeight(.55f).alpha(.25f)) {
-                TrackArtwork(artwork, title, Modifier.fillMaxSize().blur(42.dp))
+                TrackArtwork(artwork, title, Modifier.fillMaxSize().blur(42.dp), seed = trackId)
             }
         }
         LazyColumn(
@@ -369,7 +369,7 @@ fun SoundprintNowPlayingScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         if (discStyle == PlayerDiscStyle.NONE) {
-                            TrackArtwork(artwork, title, Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)))
+                            TrackArtwork(artwork, title, Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)), seed = trackId)
                         } else {
                             if (discStyle == PlayerDiscStyle.VINYL && tonearm) {
                                 BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -391,7 +391,7 @@ fun SoundprintNowPlayingScreen(
                                 .background(discBrush(discStyle, discFinish))
                                 .then(if (spin && playing) Modifier.rotate(rotation) else Modifier),
                                 contentAlignment = Alignment.Center) {
-                                if (discStyle == PlayerDiscStyle.ARTWORK) TrackArtwork(artwork, title, Modifier.fillMaxSize().clip(CircleShape))
+                                if (discStyle == PlayerDiscStyle.ARTWORK) TrackArtwork(artwork, title, Modifier.fillMaxSize().clip(CircleShape), seed = trackId)
                                 else Box(Modifier.fillMaxWidth(.34f).aspectRatio(1f).clip(CircleShape)
                                     .border(4.dp, Color.Black.copy(alpha=.70f), CircleShape)) {
                                     TrackArtwork(artwork, title, Modifier.fillMaxSize().clip(CircleShape))
@@ -804,7 +804,7 @@ fun SoundprintNowPlayingScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text((index + 1).toString().padStart(2, '0'), modifier = Modifier.width(25.dp), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .75f), fontWeight = FontWeight.Medium)
-                            TrackArtwork(queuedTrack.artworkUri, queuedTrack.title, Modifier.size(42.dp).clip(RoundedCornerShape(10.dp)))
+                            TrackArtwork(queuedTrack.artworkUri, queuedTrack.title, Modifier.size(42.dp).clip(RoundedCornerShape(10.dp)), seed = queuedTrack.id)
                             Column(Modifier.weight(1f).padding(start = 11.dp, end = 8.dp)) {
                                 Text(queuedTrack.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(queuedTrack.artist, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -852,7 +852,7 @@ fun SoundprintNowPlayingScreen(
                             color = if (index == currentIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.SemiBold
                         )
-                        TrackArtwork(item.artworkUri, item.title, Modifier.size(42.dp).clip(RoundedCornerShape(10.dp)))
+                        TrackArtwork(item.artworkUri, item.title, Modifier.size(42.dp).clip(RoundedCornerShape(10.dp)), seed = item.id)
                         Column(Modifier.weight(1f).padding(start = 10.dp, end = 6.dp)) {
                             Text(item.title, fontSize = 12.sp, fontWeight = if (index == currentIndex) FontWeight.Bold else FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(if (index == currentIndex) "Now playing · ${item.artist}" else item.artist, fontSize = 10.sp, color = if (index == currentIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -1087,7 +1087,7 @@ private fun SoundprintFloatingDialog(
 }
 
 @Composable
-private fun TrackArtwork(uri: String?, title: String, modifier: Modifier = Modifier) {
+private fun TrackArtwork(uri: String?, title: String, modifier: Modifier = Modifier, seed: String = title) {
     val context = LocalContext.current
     var bitmap by remember(uri) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(uri) {
@@ -1100,8 +1100,16 @@ private fun TrackArtwork(uri: String?, title: String, modifier: Modifier = Modif
         }
     }
     val loadedBitmap = bitmap
-    if (loadedBitmap != null) Image(loadedBitmap.asImageBitmap(), title, modifier, contentScale = ContentScale.Crop)
-    else Box(modifier.background(Brush.linearGradient(listOf(Color(0xFF47382D),Color(0xFF171513)))),contentAlignment=Alignment.Center){Icon(Icons.Filled.MusicNote,null,tint=Color.White.copy(alpha=.8f),modifier=Modifier.size(52.dp))}
+    if (loadedBitmap != null) {
+        Image(loadedBitmap.asImageBitmap(), title, modifier, contentScale = ContentScale.Crop)
+    } else {
+        Image(
+            painter = painterResource(SoundprintArtwork.resourceFor(seed)),
+            contentDescription = title,
+            modifier = modifier,
+            contentScale = ContentScale.Crop
+        )
+    }
 }
 
 @Composable
@@ -1156,7 +1164,7 @@ fun SoundprintMiniPlayer(
                         .padding(end = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TrackArtwork(artworkUri, title, Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)))
+                    TrackArtwork(artworkUri, title, Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)), seed = trackId)
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
