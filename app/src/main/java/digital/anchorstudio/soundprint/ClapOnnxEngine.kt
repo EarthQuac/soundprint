@@ -33,10 +33,15 @@ import kotlin.math.sqrt
 import org.json.JSONObject
 
 /**
- * Native CLAP inference. The 18 text embeddings are generated once from the
- * bundled prompt set and cached against the pinned model version. Audio is
- * decoded by Android MediaCodec and passed directly to ONNX Runtime.
+ * Native CLAP inference. Mood and zero-shot genre text embeddings are generated
+ * once from the pinned prompt set and cached against the model/profile version.
+ * Genre predictions are acoustic model similarities, not lyric keyword guesses.
  */
+private data class ClapTextEmbeddings(
+    val moods: List<FloatArray>,
+    val genres: List<FloatArray>
+)
+
 class ClapOnnxEngine(context: Context) : AutoCloseable {
     private val app = context.applicationContext
     private val environment = OrtEnvironment.getEnvironment()
