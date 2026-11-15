@@ -334,6 +334,7 @@ internal object ClapFeatureExtractor {
         val real = DoubleArray(FFT_SIZE)
         val imaginary = DoubleArray(FFT_SIZE)
         val output = FloatArray(FRAMES * MEL_BANDS)
+        var maxDecibels = Float.NEGATIVE_INFINITY
         for (frame in 0 until FRAMES) {
             val start = frame * HOP - FFT_SIZE / 2
             for (i in 0 until FFT_SIZE) {
@@ -351,9 +352,15 @@ internal object ClapFeatureExtractor {
             for (mel in 0 until MEL_BANDS) {
                 var energy = 0.0
                 for (bin in power.indices) energy += power[bin] * filters[mel][bin]
-                output[frame * MEL_BANDS + mel] = (10.0 * kotlin.math.log10(max(1e-10, energy))).toFloat()
+                val decibels = (10.0 * kotlin.math.log10(max(1e-10, energy))).toFloat()
+                output[frame * MEL_BANDS + mel] = decibels
+                if (decibels > maxDecibels) maxDecibels = decibels
             }
         }
+        // Match the CLAP feature extractor's 80 dB dynamic-range floor.
+        // Without this clamp, silence/padding bins can be far outside training-time inputs.
+        val minimumDecibels = maxDecibels - 80f
+        for (index in output.indices) output[index] = max(output[index], minimumDecibels)
         return output
     }
 
