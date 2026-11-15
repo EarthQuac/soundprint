@@ -447,7 +447,7 @@ class MainActivity : ComponentActivity() {
                         onDismissRequest = { finishArtworkImportChoice(pending, false) },
                         title = { Text("Use custom artwork?") },
                         text = {
-                            Text("Soundprint can save one of its bundled covers to songs that do not contain embedded artwork. Embedded album covers always take priority. If you choose No, songs still show built-in fallback covers in your library, queue and player.")
+                            Text("Yes assigns a bundled Soundprint cover only when a song has no embedded cover. No skips assigning new bundled covers. Embedded covers and artwork already saved in your library are kept either way; songs without a saved cover still display a visual fallback in the library, queue and player.")
                         },
                         confirmButton = {
                             TextButton(onClick = { finishArtworkImportChoice(pending, true) }) { Text("Yes, use artwork") }
