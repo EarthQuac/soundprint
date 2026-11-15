@@ -63,13 +63,21 @@ class SoundprintImportNotifications(context: Context) {
 
     fun update(progress: LibraryScanProgress) {
         val total = progress.total
-        val completed = (progress.visited).coerceAtLeast(0)
+        val completed = progress.visited.coerceAtLeast(0)
         val finished = (progress.imported + progress.updated).coerceAtLeast(0)
         val left = (total - progress.visited).coerceAtLeast(0)
         val percent = if (total > 0) (progress.visited * 100 / total).coerceIn(0, 100) else 0
-        val title = progress.currentTitle.ifBlank { progress.sourceName.ifBlank { "Your music" } }
-        val summary = "$percent% · ✓ $finished added or updated · $left left" +
-            if (progress.skipped > 0) " · ${progress.skipped} skipped" else ""
+        val title = when (progress.stage) {
+            "Scanning folders" -> "Finding music"
+            "Importing tracks" -> progress.currentTitle.ifBlank { progress.sourceName.ifBlank { "Your music" } }
+            else -> progress.stage
+        }
+        val summary = if (total <= 0) {
+            progress.currentTitle.ifBlank { "Preparing your music library…" }
+        } else {
+            "$percent% · ✓ $finished added or updated · $left left" +
+                if (progress.skipped > 0) " · ${progress.skipped} skipped" else ""
+        }
         post(ongoingNotification(title, summary, total, completed, total <= 0))
     }
 
