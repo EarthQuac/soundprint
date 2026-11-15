@@ -114,6 +114,7 @@ fun SoundprintNowPlayingScreen(
     var artist by remember { mutableStateOf("") }
     var album by remember { mutableStateOf("") }
     var genre by remember { mutableStateOf("") }
+    var year by remember { mutableIntStateOf(0) }
     var artwork by remember { mutableStateOf<String?>(null) }
     var duration by remember { mutableLongStateOf(0L) }
     var position by remember { mutableLongStateOf(0L) }
@@ -173,7 +174,7 @@ fun SoundprintNowPlayingScreen(
     LaunchedEffect(trackId) {
         val loaded = withContext(Dispatchers.IO) { library.ensureArtwork(trackId) ?: library.song(trackId) }
         if (loaded != null) {
-            title = loaded.title; artist = loaded.artist; album = loaded.album; genre = loaded.genre
+            title = loaded.title; artist = loaded.artist; album = loaded.album; genre = loaded.genre; year = loaded.year
             artwork = loaded.artworkUri
             duration = max(duration, loaded.durationMs)
         }
@@ -197,6 +198,19 @@ fun SoundprintNowPlayingScreen(
     var editArtist by remember(artist) { mutableStateOf(artist) }
     var editAlbum by remember(album) { mutableStateOf(album) }
     var editGenre by remember(genre) { mutableStateOf(genre) }
+    var editYear by remember(year) { mutableStateOf(year.takeIf { it > 0 }?.toString().orEmpty()) }
+    var lyricsForGenre by remember(trackId) { mutableStateOf("") }
+    var clapGenreProfile by remember(trackId) { mutableStateOf<ClapMoodProfile?>(null) }
+    LaunchedEffect(trackId) {
+        lyricsForGenre = playerPrefs.getString("lyrics:$trackId", "").orEmpty()
+        while (true) {
+            clapGenreProfile = withContext(Dispatchers.IO) { library.song(trackId)?.let { library.clapMoodProfile(it) } }
+            delay(1800L)
+        }
+    }
+    val genreSuggestions = remember(clapGenreProfile, lyricsForGenre) {
+        SoundprintGenreInference.suggest(clapGenreProfile, lyricsForGenre)
+    }
     var playlistOpen by remember { mutableStateOf(false) }
     var playlists by remember { mutableStateOf(emptyList<ManagedPlaylist>()) }
     var infoOpen by remember { mutableStateOf(false) }
@@ -241,7 +255,7 @@ fun SoundprintNowPlayingScreen(
     LaunchedEffect(trackId) { favorite = withContext(Dispatchers.IO) { library.isFavorite(trackId) } }
     val track = produceState<MusicTrack?>(null, trackId, title, artist, album, genre, artwork, duration) {
         val loaded = withContext(Dispatchers.IO) { library.ensureArtwork(trackId) ?: library.song(trackId) }
-        value = loaded?.copy(title = title, artist = artist, album = album, genre = genre, artworkUri = artwork ?: loaded.artworkUri, durationMs = duration)
+        value = loaded?.copy(title = title, artist = artist, album = album, genre = genre, year = year, artworkUri = artwork ?: loaded.artworkUri, durationMs = duration)
     }.value
     val queueTracks = produceState(emptyList<Pair<Int, MusicTrack>>(), queueIds, currentIndex) {
         val upcoming = queueIds.mapIndexedNotNull { index, id -> if (index > currentIndex) index to id else null }
@@ -417,7 +431,7 @@ fun SoundprintNowPlayingScreen(
                         Text(title.ifBlank { "Nothing playing" }, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text("$artist · $album", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    IconButton(onClick = { editTitle=title; editArtist=artist; editAlbum=album; editGenre=genre; editOpen=true }) { Icon(Icons.Filled.Edit, "Edit song info", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    IconButton(onClick = { editTitle=title; editArtist=artist; editAlbum=album; editGenre=genre; editYear=year.takeIf { it > 0 }?.toString().orEmpty(); editOpen=true }) { Icon(Icons.Filled.Edit, "Edit song info", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                     IconButton(onClick = { library.toggleFavorite(trackId); favorite = library.isFavorite(trackId) }) {
                         Icon(Icons.Filled.Favorite, "Add to favorites", tint = if (favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -668,6 +682,7 @@ fun SoundprintNowPlayingScreen(
                         "Artist" to artist,
                         "Album" to album,
                         "Genre" to genre,
+                        "Year" to if (year > 0) year.toString() else "Unknown",
                         "Duration" to if (duration > 0L) formatPlayerTime(duration) else "Indexing…",
                         "Date added" to dateAdded
                     ),
@@ -751,15 +766,19 @@ fun SoundprintNowPlayingScreen(
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 maxLines = 1
                                             )
-                                            Text(
-                                                value.ifBlank { "Unknown" },
-                                                Modifier.padding(top = 4.dp),
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
+                                            if (label == "Genre") {
+                                                SoundprintGenreMenu(
+                                                    value = value,
+                                                    suggestions = genreSuggestions,
+                                                    onSelect = { selected ->
+                                                        genre = selected
+                                                        library.updateSongMetadata(trackId, title, artist, album, selected, year)
+                                                    },
+                                                    modifier = Modifier.padding(top = 2.dp)
+                                                )
+                                            } else {
+                                                Text(value.ifBlank { "Unknown" }, Modifier.padding(top = 4.dp), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                            }
                                         }
                                     }
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
@@ -787,7 +806,16 @@ fun SoundprintNowPlayingScreen(
                         position = position,
                         expanded = lyricsExpanded,
                         onExpandedChange = { lyricsExpanded = it },
-                        seek = { target -> controller?.seekTo(target) }
+                        seek = { target -> controller?.seekTo(target) },
+                        onLyricsChanged = { lyricsForGenre = it },
+                        onMetadataMatch = { matchedTitle, matchedArtist, matchedAlbum, matchedYear ->
+                            val nextTitle = matchedTitle.ifBlank { title }
+                            val nextArtist = matchedArtist.ifBlank { artist }
+                            val nextAlbum = matchedAlbum.ifBlank { album }
+                            val nextYear = matchedYear.takeIf { it in 1000..2100 } ?: year
+                            library.updateSongMetadata(trackId, nextTitle, nextArtist, nextAlbum, genre, nextYear)
+                            title = nextTitle; artist = nextArtist; album = nextAlbum; year = nextYear
+                        }
                     )
                 }
             }
@@ -911,11 +939,13 @@ fun SoundprintNowPlayingScreen(
             TextButton(onClick = { editOpen = false }) { Text("Cancel") }
             Spacer(Modifier.weight(1f))
             Button(onClick = {
-                library.updateSongMetadata(trackId, editTitle, editArtist, editAlbum, editGenre)
+                val parsedYear = editYear.toIntOrNull()?.takeIf { it in 1000..2100 } ?: year
+                library.updateSongMetadata(trackId, editTitle, editArtist, editAlbum, editGenre, parsedYear)
                 title = editTitle
                 artist = editArtist
                 album = editAlbum
                 genre = editGenre
+                year = parsedYear
                 editOpen = false
             }) { Text("Save changes") }
         }
@@ -924,7 +954,8 @@ fun SoundprintNowPlayingScreen(
             OutlinedTextField(editTitle, { editTitle = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             OutlinedTextField(editArtist, { editArtist = it }, label = { Text("Artist") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             OutlinedTextField(editAlbum, { editAlbum = it }, label = { Text("Album") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            OutlinedTextField(editGenre, { editGenre = it }, label = { Text("Genre") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            SoundprintGenrePicker(editGenre, { editGenre = it }, genreSuggestions, Modifier.fillMaxWidth())
+            OutlinedTextField(editYear, { editYear = it.filter(Char::isDigit).take(4) }, label = { Text("Release year") }, modifier = Modifier.fillMaxWidth(), singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
         }
     }
     if (sleepOpen) SoundprintFloatingDialog(
@@ -1439,6 +1470,73 @@ private fun ArtworkCustomizerDialog(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun SoundprintGenrePicker(
+    value: String,
+    onValueChange: (String) -> Unit,
+    suggestions: List<SoundprintGenreSuggestion>,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier) {
+        OutlinedTextField(
+            value = value, onValueChange = {}, readOnly = true,
+            label = { Text("Genre") },
+            trailingIcon = { Icon(Icons.Filled.ExpandMore, null) },
+            modifier = Modifier.fillMaxWidth().clickable { expanded = true },
+            singleLine = true
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.heightIn(max = 360.dp)) {
+            if (suggestions.isNotEmpty()) {
+                DropdownMenuItem(text = { Text("SUGGESTED FROM SOUND + LYRICS", fontSize = 10.sp, fontWeight = FontWeight.Bold) }, onClick = {}, enabled = false)
+                suggestions.forEach { suggestion ->
+                    DropdownMenuItem(
+                        text = { Column { Text(suggestion.genre, fontWeight = FontWeight.SemiBold); Text(suggestion.evidence, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+                        onClick = { onValueChange(suggestion.genre); expanded = false }
+                    )
+                }
+                DropdownMenuItem(text = { Text("ALL GENRES", fontSize = 10.sp, fontWeight = FontWeight.Bold) }, onClick = {}, enabled = false)
+            }
+            SoundprintGenreInference.genres.forEach { option ->
+                DropdownMenuItem(text = { Text(option) }, onClick = { onValueChange(option); expanded = false })
+            }
+        }
+    }
+}
+
+@Composable
+private fun SoundprintGenreMenu(
+    value: String,
+    suggestions: List<SoundprintGenreSuggestion>,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier) {
+        TextButton(onClick = { expanded = true }, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp)) {
+            Text(value.ifBlank { "Suggest a genre" }, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                color = if (value.isBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Icon(Icons.Filled.ExpandMore, null, modifier = Modifier.size(15.dp))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.heightIn(max = 360.dp)) {
+            if (suggestions.isNotEmpty()) {
+                DropdownMenuItem(text = { Text("SUGGESTED · SOUND + LYRICS", fontSize = 10.sp, fontWeight = FontWeight.Bold) }, onClick = {}, enabled = false)
+                suggestions.forEach { suggestion ->
+                    DropdownMenuItem(
+                        text = { Column { Text(suggestion.genre, fontWeight = FontWeight.SemiBold); Text(suggestion.evidence, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+                        onClick = { onSelect(suggestion.genre); expanded = false }
+                    )
+                }
+            }
+            SoundprintGenreInference.genres.forEach { option ->
+                DropdownMenuItem(text = { Text(option) }, onClick = { onSelect(option); expanded = false })
             }
         }
     }
