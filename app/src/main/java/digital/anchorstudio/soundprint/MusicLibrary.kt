@@ -429,7 +429,7 @@ class MusicLibraryDatabase(context: Context) :
     }
     fun twinSenseFingerprint(trackId:String,sourceSize:Long,sourceModifiedAt:Long):TwinSenseFingerprint? =
         readableDatabase.rawQuery("SELECT * FROM soundprint_fingerprints WHERE track_id=? AND source_size=? AND source_modified_at=? AND fingerprint_version=?",
-            arrayOf(trackId,sourceSize.toString(),sourceModifiedAt.toString(),"1")).use { c ->
+            arrayOf(trackId,sourceSize.toString(),sourceModifiedAt.toString(),"2")).use { c ->
             if(!c.moveToFirst()) null else TwinSenseFingerprint(
                 trackId=c.getString(c.getColumnIndexOrThrow("track_id")),
                 sourceSize=c.getLong(c.getColumnIndexOrThrow("source_size")),
