@@ -54,6 +54,7 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
     var mode by remember { mutableStateOf("sign-in") }
     var message by remember { mutableStateOf<String?>(null) }
     var messageError by remember { mutableStateOf(false) }
+    val authSessionState by supabase.auth.sessionStatus.collectAsState()
 
     suspend fun refreshAccount() {
         val user = supabase.auth.currentUserOrNull()
@@ -72,7 +73,7 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(authSessionState) {
         try { refreshAccount() }
         catch (_: Exception) {
             message = "Couldn't restore your saved session. Check your connection and try again."
