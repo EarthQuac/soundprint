@@ -871,7 +871,7 @@ private fun HomeScreen(
     }
     val libraryTracks = loadedLibraryTracks.orEmpty()
     var recentlyPlayedTracks by remember { mutableStateOf<List<MusicTrack>>(emptyList()) }
-    var homeAlbums by remember { mutableStateOf<List<MusicAlbum>>(emptyList()) }
+    var homeAlbums by remember { mutableStateOf<List<LibraryAlbum>>(emptyList()) }
     var selectedShortcut by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(libraryTrackCount, refreshVersion) {
         val homeData = withContext(Dispatchers.IO) {
@@ -1026,7 +1026,7 @@ private fun HomeScreen(
                         HomeSectionHeader("Albums", onSeeAll = { onOpenTab(2) })
                         androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(homeAlbums, key = { "${it.name}:${it.artist}" }) { album ->
-                                val albumTracks = libraryTracks.filter { it.album == album.name && (it.albumArtist.ifBlank { it.artist }) == album.artist }
+                                val albumTracks = album.tracks
                                 Column(
                                     Modifier.width(128.dp).clickable {
                                         if (albumTracks.isNotEmpty()) playback.playTracks(albumTracks)
