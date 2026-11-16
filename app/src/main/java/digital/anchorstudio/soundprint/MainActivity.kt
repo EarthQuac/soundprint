@@ -882,7 +882,8 @@ private fun HomeScreen(
     var selectedShortcut by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(libraryTrackCount, refreshVersion) {
         val homeData = withContext(Dispatchers.IO) {
-            libraryManager.recentlyPlayed(8) to libraryManager.albums().take(10)
+            libraryManager.allSongs(sort = TrackSort.LAST_PLAYED, ascending = false)
+                .filter { it.lastPlayedAt != null }.take(8) to libraryManager.albums().take(10)
         }
         recentlyPlayedTracks = homeData.first
         homeAlbums = homeData.second
