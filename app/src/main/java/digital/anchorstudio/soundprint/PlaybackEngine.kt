@@ -494,7 +494,10 @@ class SoundprintPlaybackService : MediaSessionService() {
             ?: resolved.lastIndex
         player.shuffleModeEnabled = saved.shuffleEnabled
         player.repeatMode = saved.repeatMode.toPlayerRepeatMode()
-        player.setMediaItems(resolved.map { it.second.toSoundprintMediaItem() }, restoredIndex, saved.positionMs)
+        // The saved position belongs to the saved track. If that track is gone and we fell back to a
+        // neighbour, start the neighbour from the beginning instead of at a stale offset.
+        val resumeAtMs = if (resolved[restoredIndex].first == requestedIndex) saved.positionMs else 0L
+        player.setMediaItems(resolved.map { it.second.toSoundprintMediaItem() }, restoredIndex, resumeAtMs)
         player.prepare()
         activeTrackId = player.currentMediaItem?.mediaId
         activeMediaIndex = restoredIndex

@@ -546,7 +546,8 @@ private fun SoundprintApp(
         val activePlayer = playbackConnection.controller ?: return@LaunchedEffect
         val listener = object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-                if (mediaItem != null) nowPlayingOpen = true
+                // Auto-advance must not pull the full-screen player over whatever the person is doing.
+                if (mediaItem != null && reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) nowPlayingOpen = true
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying && activePlayer.currentMediaItem != null) nowPlayingOpen = true
@@ -824,6 +825,7 @@ private fun HomeScreen(
     var refreshVersion by remember { mutableIntStateOf(0) }
     var playlistTrack by remember { mutableStateOf<MusicTrack?>(null) }
     var playlistChoices by remember { mutableStateOf(emptyList<ManagedPlaylist>()) }
+    val homeScope = rememberCoroutineScope()
     var newPlaylistName by remember { mutableStateOf("") }
     var editTrack by remember { mutableStateOf<MusicTrack?>(null) }
     var editTitle by remember { mutableStateOf("") }
@@ -846,17 +848,26 @@ private fun HomeScreen(
     }
     val openArtist = selectedArtist
     if (openArtist != null) {
+        // Reading the whole library is a database job; keep it off the UI thread.
+        val artistTracks by androidx.compose.runtime.produceState(initialValue = emptyList<MusicTrack>(), openArtist) {
+            value = withContext(Dispatchers.IO) { libraryManager.artistTracks(openArtist) }
+        }
         ArtistHomeScreen(
             artist = openArtist,
-            tracks = remember(openArtist) { libraryManager.artistTracks(openArtist) },
+            tracks = artistTracks,
             playback = playback,
             onBack = { selectedArtist = null }
         )
         return
     }
-    val libraryTracks = remember(libraryTrackCount, refreshVersion) {
-        libraryManager.allSongs(sort = TrackSort.DATE_ADDED, ascending = false)
+    // Loaded on Dispatchers.IO: querying the full library on the UI thread freezes large libraries.
+    var loadedLibraryTracks by remember { mutableStateOf<List<MusicTrack>?>(null) }
+    LaunchedEffect(libraryTrackCount, refreshVersion) {
+        loadedLibraryTracks = withContext(Dispatchers.IO) {
+            libraryManager.allSongs(sort = TrackSort.DATE_ADDED, ascending = false)
+        }
     }
+    val libraryTracks = loadedLibraryTracks.orEmpty()
     val recentTracks = libraryTracks.take(8)
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -885,7 +896,7 @@ private fun HomeScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (libraryTracks.isEmpty()) item {
+            if (loadedLibraryTracks != null && libraryTracks.isEmpty()) item {
                 Column(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
                         .background(MaterialTheme.colorScheme.surface)
@@ -970,9 +981,11 @@ private fun HomeScreen(
                                         leadingIcon = { Image(painterResource(R.drawable.lucide_plus), null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)) },
                                         onClick = {
                                             menuExpanded = false
-                                            playlistChoices = libraryManager.playlists()
-                                            newPlaylistName = ""
-                                            playlistTrack = track
+                                            homeScope.launch {
+                                                playlistChoices = withContext(Dispatchers.IO) { libraryManager.playlists() }
+                                                newPlaylistName = ""
+                                                playlistTrack = track
+                                            }
                                         }
                                     )
                                     DropdownMenuItem(
@@ -1812,8 +1825,10 @@ private fun SettingsScreen(
                         SettingsDivider()
                     }
                     SettingsActionRow("Recycle Bin", "Restore songs removed from your library within 30 days", "Open") {
-                        recycleBinEntries = libraryManager.recycleBin()
-                        recycleBinOpen = true
+                        settingsScope.launch {
+                            recycleBinEntries = withContext(Dispatchers.IO) { libraryManager.recycleBin() }
+                            recycleBinOpen = true
+                        }
                     }
                     SettingsActionRow("Audio tag editor", "Manually edit title, artist, album and genre — free for everyone", "Open")
                     SettingsActionRow("Playback history", "Clear recently played songs, play counts, listening time and streaks", "Clear") { historyDialog = true }
@@ -1859,8 +1874,12 @@ private fun SettingsScreen(
                                 Text(entry.track.artist, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                             TextButton(onClick = {
-                                libraryManager.restoreFromRecycleBin(entry.track.id)
-                                recycleBinEntries = libraryManager.recycleBin()
+                                settingsScope.launch {
+                                    recycleBinEntries = withContext(Dispatchers.IO) {
+                                        libraryManager.restoreFromRecycleBin(entry.track.id)
+                                        libraryManager.recycleBin()
+                                    }
+                                }
                             }) { Text("Restore") }
                         }
                     }

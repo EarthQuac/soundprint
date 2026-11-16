@@ -158,7 +158,8 @@ class LyricsLookupRepository(
         }
         fun stamp(seconds: Double): String {
             val cs = (seconds * 100.0).toLong().coerceAtLeast(0L)
-            return "[%02d:%02d.%02d]".format(cs / 6000L, (cs % 6000L) / 100L, cs % 100L)
+            // Locale.ROOT keeps ASCII digits; the lyrics parser only understands 0-9 in LRC timestamps.
+            return "[%02d:%02d.%02d]".format(Locale.ROOT, cs / 6000L, (cs % 6000L) / 100L, cs % 100L)
         }
         fun cleanText(value: String): String = value
             .replace(Regex("<[^>]+>"), "")

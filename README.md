@@ -12,7 +12,7 @@ The goal is to bring your music library together in one clean experience, with m
 - Albums, artists, playlists and smart playlists, plus listening statistics.
 - Mood discovery: on-device audio analysis (CLAP model) suggests music for a mood. No audio leaves the device.
 - Twinsense: finds duplicate and alternate versions of tracks with on-device audio fingerprints. Removed tracks go to a Recycle Bin for 30 days.
-- Optional lyrics lookup through LRCLIB. This is the only feature that uses the network, and it sends the song title, artist, album and length.
+- Optional lyrics lookup. This is the only feature that uses the network. It contacts LRCLIB (lrclib.net) and, as fallbacks, api.lyrics.ovh and api.betterlyrics.org (word-timed lyrics), sending the song title, artist, album and length.
 
 ## Project status
 

@@ -70,6 +70,14 @@ class MusicLibraryDatabase(context: Context) :
         if (oldVersion < 3) migrateToV3(db)
         if (oldVersion < 4) migrateToV4(db)
         if (oldVersion < 5) createSoundprintSchema(db)
+        // Idempotent safety net: databases upgraded from older versions must always have these tables,
+        // otherwise every library query that filters out trashed songs would fail.
+        ensureCoreTables(db)
+    }
+
+    private fun ensureCoreTables(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS soundprint_trash(track_id TEXT PRIMARY KEY, removed_at INTEGER NOT NULL, reason TEXT NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS audio_analysis_cache(fingerprint TEXT PRIMARY KEY, profile_json TEXT NOT NULL, source_size INTEGER NOT NULL, source_mime TEXT NOT NULL, created_at INTEGER NOT NULL)")
     }
 
     private fun createSchema(db: SQLiteDatabase) {
@@ -218,8 +226,10 @@ class MusicLibraryDatabase(context: Context) :
         if(availableOnly) clauses += "is_available=1"
         if(favoritesOnly) clauses += "is_favorite=1"
         if(query.isNotBlank()) {
-            clauses += "(title LIKE ? OR artist LIKE ? OR album LIKE ? OR album_artist LIKE ? OR genre LIKE ? OR folder LIKE ?)"
-            repeat(6) { args += "%${query.trim()}%" }
+            clauses += "(title LIKE ? ESCAPE '\\' OR artist LIKE ? ESCAPE '\\' OR album LIKE ? ESCAPE '\\' OR album_artist LIKE ? ESCAPE '\\' OR genre LIKE ? ESCAPE '\\' OR folder LIKE ? ESCAPE '\\')"
+            // Treat %, _ and \ typed by the user literally instead of as SQL wildcards.
+            val escaped = query.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            repeat(6) { args += "%$escaped%" }
         }
         val direction=if(ascending) "ASC" else "DESC"
         return readableDatabase.rawQuery("SELECT * FROM tracks WHERE ${clauses.joinToString(" AND ")} ORDER BY $order $direction",args.toTypedArray())
@@ -486,9 +496,15 @@ class MusicLibraryDatabase(context: Context) :
             val order=listOf("tracks","library_sources","library_file_sources","track_sources","playlists","playlist_tracks","soundprint_trash","soundprint_fingerprints","audio_analysis_cache","library_scan_errors")
             order.forEach { table ->
                 val rows=tables.optJSONArray(table) ?: JSONArray()
+                // Column names from the backup file end up in SQL text, so only accept real columns.
+                val knownColumns=mutableSetOf<String>()
+                db.rawQuery("PRAGMA table_info($table)",null).use { c ->
+                    while(c.moveToNext()) knownColumns += c.getString(c.getColumnIndexOrThrow("name"))
+                }
                 for(index in 0 until rows.length()) {
                     val row=rows.getJSONObject(index);val values=ContentValues()
                     row.keys().forEach { key ->
+                        if(key !in knownColumns) return@forEach
                         val value=row.opt(key)
                         when(value) {
                             null,JSONObject.NULL -> values.putNull(key)
