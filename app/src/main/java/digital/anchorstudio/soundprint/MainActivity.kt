@@ -1234,6 +1234,37 @@ private fun HomeRecentlyAddedRow(
 }
 
 @Composable
+private fun SoundprintCompactTrackMenu(
+    track: MusicTrack,
+    onAction: (String) -> Unit
+) {
+    var expanded by remember(track.id) { mutableStateOf(false) }
+    Box {
+        androidx.compose.material3.IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(
+                Icons.Filled.MoreVert,
+                contentDescription = "Song options",
+                modifier = Modifier.size(19.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(text = { Text("Play next") }, onClick = {
+                expanded = false
+                onAction("Play next")
+            })
+            DropdownMenuItem(text = { Text("Add to queue") }, onClick = {
+                expanded = false
+                onAction("Add to queue")
+            })
+        }
+    }
+}
+
+@Composable
 private fun SoundprintHomeShortcutScreen(
     title: String,
     libraryManager: MusicLibraryManager,
@@ -1330,7 +1361,12 @@ private fun ArtistHomeScreen(
                             Text(track.title, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(track.album, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        Icon(Icons.Filled.PlayArrow, null, tint = MaterialTheme.colorScheme.primary)
+                        SoundprintCompactTrackMenu(track) { action ->
+                            when (action) {
+                                "Play next" -> playback.enqueue(listOf(track), next = true)
+                                "Add to queue" -> playback.enqueue(listOf(track))
+                            }
+                        }
                     }
                 }
             }
@@ -1396,7 +1432,12 @@ private fun HomeSearchScreen(library: MusicLibraryManager, playback: SoundprintP
                                 Text(track.title, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text("${track.artist} · ${track.album}", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            Icon(Icons.Filled.PlayArrow, null, tint = MaterialTheme.colorScheme.primary)
+                            SoundprintCompactTrackMenu(track) { action ->
+                                when (action) {
+                                    "Play next" -> playback.enqueue(listOf(track), next = true)
+                                    "Add to queue" -> playback.enqueue(listOf(track))
+                                }
+                            }
                         }
                     }
                 }

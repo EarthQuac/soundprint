@@ -20,8 +20,11 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +62,7 @@ internal fun SoundprintSongsLibraryScreen(
     var query by remember { mutableStateOf("") }
     var tracks by remember { mutableStateOf(emptyList<MusicTrack>()) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selectionMode by remember { mutableStateOf(false) }
     var editorOpen by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
@@ -92,9 +96,10 @@ internal fun SoundprintSongsLibraryScreen(
                 Text("${tracks.size} songs${if (selectedIds.isNotEmpty()) " · ${selectedIds.size} selected" else " in your library"}",
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (selectedIds.isNotEmpty()) {
-                TextButton(onClick = { selectedIds = emptySet() }) { Text("Clear") }
+            if (selectionMode) {
+                TextButton(onClick = { selectedIds = emptySet(); selectionMode = false }) { Text("Cancel") }
             } else {
+                TextButton(onClick = { selectionMode = true }) { Text("Select") }
                 TextButton(onClick = onImport) { Text("Add music") }
             }
         }
@@ -177,30 +182,57 @@ internal fun SoundprintSongsLibraryScreen(
             ) {
                 items(tracks, key = { it.id }) { track ->
                     val selected = track.id in selectedIds
+                    var menuExpanded by remember(track.id) { mutableStateOf(false) }
                     Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-                            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.09f) else MaterialTheme.colorScheme.surface)
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else androidx.compose.ui.graphics.Color.Transparent)
                             .clickable {
-                                if (selectedIds.isNotEmpty()) toggleSelection(track.id)
+                                if (selectionMode) toggleSelection(track.id)
                                 else playback.playTracks(tracks, tracks.indexOfFirst { it.id == track.id })
                             }
-                            .padding(start = 5.dp, end = 12.dp, top = 7.dp, bottom = 7.dp),
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Checkbox(checked = selected, onCheckedChange = { toggleSelection(track.id) })
-                        NativeArtwork(track.artworkUri, track.id, Modifier.size(43.dp), 9)
-                        Column(Modifier.weight(1f).padding(start = 10.dp, end = 8.dp)) {
-                            Text(track.title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text("${track.artist} · ${track.album}", fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (selectionMode) {
+                            Checkbox(checked = selected, onCheckedChange = { toggleSelection(track.id) })
                         }
-                        if (!selected) {
+                        NativeArtwork(track.artworkUri, track.id, Modifier.size(48.dp), 10)
+                        Column(Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
+                            Text(track.title, fontSize = 14.sp, fontWeight = FontWeight.Medium,
+                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(
-                                formatBatchDuration(track.durationMs),
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                track.artist + if (track.album.isNotBlank() && track.album != "Unknown album") " · ${track.album}" else "",
+                                fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis
                             )
+                        }
+                        if (track.isFavorite && !selectionMode) {
+                            Icon(Icons.Filled.Favorite, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        if (!selectionMode) {
+                            Text(formatBatchDuration(track.durationMs), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Box {
+                                androidx.compose.material3.IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(36.dp)) {
+                                    Icon(Icons.Filled.MoreVert, contentDescription = "Song options", modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                    DropdownMenuItem(text = { Text("Play next") }, onClick = {
+                                        menuExpanded = false
+                                        playback.enqueue(listOf(track), next = true)
+                                    })
+                                    DropdownMenuItem(text = { Text("Add to queue") }, onClick = {
+                                        menuExpanded = false
+                                        playback.enqueue(listOf(track))
+                                    })
+                                    DropdownMenuItem(text = { Text(if (track.isFavorite) "Remove from favorites" else "Add to favorites") }, onClick = {
+                                        menuExpanded = false
+                                        library.toggleFavorite(track.id)
+                                        scope.launch { tracks = withContext(Dispatchers.IO) { library.allSongs(query = query.trim()) } }
+                                    })
+                                }
+                            }
                         }
                     }
                 }
@@ -250,6 +282,7 @@ internal fun SoundprintSongsLibraryScreen(
                             }
                             tracks = withContext(Dispatchers.IO) { library.allSongs(query = query.trim()) }
                             selectedIds = emptySet()
+                            selectionMode = false
                             status = "Updated $changed songs"
                             saving = false
                             editorOpen = false
