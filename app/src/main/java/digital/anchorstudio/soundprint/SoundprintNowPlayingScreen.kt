@@ -7,7 +7,6 @@ import android.media.audiofx.BassBoost
 import android.media.audiofx.EnvironmentalReverb
 import android.media.audiofx.Equalizer
 import android.media.audiofx.Virtualizer
-import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.Build
 import android.view.WindowManager
@@ -228,7 +227,8 @@ fun SoundprintNowPlayingScreen(
     var bass by remember { mutableFloatStateOf(0f) }
     var treble by remember { mutableFloatStateOf(0f) }
     var eqLevels by remember { mutableStateOf(List(10) { 0f }) }
-    var loudness by remember { mutableStateOf(false) }
+    var gapless by remember { mutableStateOf(playbackOptionsPrefs.getBoolean("gapless_enabled", true)) }
+    var loudness by remember { mutableStateOf(playbackOptionsPrefs.getBoolean("loudness_leveling", true)) }
     var stopAfterCurrent by remember { mutableStateOf(playbackOptionsPrefs.getBoolean("stop_after_current", false)) }
     var crossfade by remember { mutableIntStateOf(playbackOptionsPrefs.getInt("crossfade_seconds", 0).coerceIn(0, 8)) }
     val doubleTapSeekSeconds = remember { playbackOptionsPrefs.getInt("double_tap_seek_seconds", 10).coerceIn(5, 60) }
@@ -241,6 +241,12 @@ fun SoundprintNowPlayingScreen(
             sleepRemaining = (endAt - System.currentTimeMillis()).coerceAtLeast(0L)
             delay(1000L)
         }
+    }
+    LaunchedEffect(gapless) {
+        playbackOptionsPrefs.edit().putBoolean("gapless_enabled", gapless).apply()
+    }
+    LaunchedEffect(loudness) {
+        playbackOptionsPrefs.edit().putBoolean("loudness_leveling", loudness).apply()
     }
     LaunchedEffect(stopAfterCurrent) {
         playbackOptionsPrefs.edit().putBoolean("stop_after_current", stopAfterCurrent).apply()
@@ -299,13 +305,6 @@ fun SoundprintNowPlayingScreen(
     }
     LaunchedEffect(aura, auraPreset) {
         controller?.setPlaybackSpeed(if (aura && auraPreset == "Slowed + Reverb") 0.85f else 1f)
-    }
-    DisposableEffect(controller?.audioSessionId, loudness) {
-        val sessionId = controller?.audioSessionId ?: 0
-        val enhancer = if (loudness && sessionId > 0) runCatching {
-            LoudnessEnhancer(sessionId).also { it.setTargetGain(250); it.enabled = true }
-        }.getOrNull() else null
-        onDispose { runCatching { enhancer?.release() } }
     }
     DisposableEffect(controller?.audioSessionId, audioLabOpen, bass, treble, eqLevels) {
         val sessionId = controller?.audioSessionId ?: 0
@@ -543,7 +542,7 @@ fun SoundprintNowPlayingScreen(
                         Icon(Icons.Filled.SkipPrevious, "Previous track", modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onSurface)
                     }
                     FilledIconButton(
-                        onClick = { if (playing) controller?.pause() else controller?.play() },
+                        onClick = { playback.toggle() },
                         modifier = Modifier.size(64.dp),
                         shape = CircleShape
                     ) {
@@ -999,13 +998,7 @@ fun SoundprintNowPlayingScreen(
         }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Gapless playback", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                    Text("Native playlist transitions are enabled by the playback engine", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text("ON", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            }
+            PlayerToggle("Gapless playback", "Seamless transitions between queued tracks", gapless) { gapless = it }
             PlayerToggle("Loudness leveling", "Keep volume consistent", loudness) { loudness = it }
             PlayerToggle("Stop after this song", "Pause at the end of the current track", stopAfterCurrent) { stopAfterCurrent = it }
             Text("Crossfade", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)

@@ -3,6 +3,7 @@ package digital.anchorstudio.soundprint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -124,6 +125,8 @@ class SoundprintPlaybackService : MediaSessionService() {
     private var crossfadeDurationMs = 0L
     private var crossfadeBaseVolume = 1f
     private var crossfadeQueueItems: List<MediaItem> = emptyList()
+    private var loudnessEnhancer: LoudnessEnhancer? = null
+    private var loudnessSessionId = 0
     private var activeTrackId: String? = null
     private var activeOccurrenceKey: String? = null
     private var activeMediaIndex = -1
@@ -203,6 +206,7 @@ class SoundprintPlaybackService : MediaSessionService() {
                     handler.removeCallbacks(maintenance)
                     handler.postDelayed(maintenance, SAMPLE_INTERVAL_MS)
                     recordCurrentPlayIfNeeded()
+                    applyPlaybackOptions()
                     lastTrackDurationMs = player.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0L) ?: 0L
                     lastSamplePositionMs = player.currentPosition.coerceAtLeast(0L)
                     lastSampleElapsedMs = SystemClock.elapsedRealtime()
@@ -235,6 +239,7 @@ class SoundprintPlaybackService : MediaSessionService() {
             }
         }
         player.addListener(servicePlayerListener)
+        applyPlaybackOptions()
         val savedQueue = queueStore.read()
         serviceScope.launch {
             val tracks = if (savedQueue.queueIds.isEmpty()) emptyList() else withContext(Dispatchers.IO) { library.allSongs() }
@@ -262,6 +267,9 @@ class SoundprintPlaybackService : MediaSessionService() {
         if (::mediaSession.isInitialized) mediaSession.release()
         if (::player.isInitialized) player.release()
         if (::standbyPlayer.isInitialized) standbyPlayer.release()
+        runCatching { loudnessEnhancer?.release() }
+        loudnessEnhancer = null
+        loudnessSessionId = 0
         drainListeningWrites()
         // Let queued history writes finish, then stop the scope so nothing outlives the service.
         val writesRunning = synchronized(listeningWriteQueue) { listeningWriteInFlight }
@@ -364,6 +372,7 @@ class SoundprintPlaybackService : MediaSessionService() {
             player.setAudioAttributes(playbackAudioAttributes, true)
             player.addListener(servicePlayerListener)
             player.volume = crossfadeBaseVolume
+            applyPlaybackOptions()
             standbyPlayer.volume = 0f
             standbyPlayer.stop()
             standbyPlayer.clearMediaItems()
@@ -429,7 +438,10 @@ class SoundprintPlaybackService : MediaSessionService() {
         val stopAfterCurrent = playbackOptions.getBoolean(KEY_STOP_AFTER_CURRENT, false)
         // ExoPlayer playlist transitions are gapless by default; do not pause between items.
         // Stop-after-current deliberately pauses at the end boundary instead.
-        player.pauseAtEndOfMediaItems = stopAfterCurrent
+        val gaplessEnabled = playbackOptions.getBoolean(KEY_GAPLESS_ENABLED, true)
+        player.pauseAtEndOfMediaItems = stopAfterCurrent || !gaplessEnabled
+        if (::standbyPlayer.isInitialized) standbyPlayer.pauseAtEndOfMediaItems = stopAfterCurrent || !gaplessEnabled
+        applyLoudnessLeveling()
 
         val wasCrossfading = crossfadePending || crossfadeActive
         val volumeBeforeTimer = if (wasCrossfading) crossfadeBaseVolume else player.volume
@@ -462,6 +474,26 @@ class SoundprintPlaybackService : MediaSessionService() {
             player.volume = sleepBaseVolume * (remaining.toFloat() / SLEEP_FADE_MS.toFloat()).coerceIn(0f, 1f)
         } else {
             player.volume = sleepBaseVolume
+        }
+    }
+
+    private fun applyLoudnessLeveling() {
+        if (!::player.isInitialized) return
+        val enabled = playbackOptions.getBoolean(KEY_LOUDNESS_LEVELING, true)
+        val sessionId = player.audioSessionId
+        if (sessionId <= 0) return
+        if (loudnessSessionId != sessionId) {
+            runCatching { loudnessEnhancer?.release() }
+            loudnessEnhancer = runCatching {
+                LoudnessEnhancer(sessionId).also { effect ->
+                    effect.setTargetGain(250)
+                    effect.enabled = enabled
+                }
+            }.onFailure { Log.w("SoundprintPlayback", "Loudness leveling could not be attached to the audio session.", it) }
+                .getOrNull()
+            loudnessSessionId = sessionId
+        } else {
+            runCatching { loudnessEnhancer?.enabled = enabled }
         }
     }
 
@@ -643,6 +675,8 @@ class SoundprintPlaybackService : MediaSessionService() {
         const val KEY_SLEEP_ENDS_AT = "sleep_ends_at"
         const val KEY_STOP_AFTER_CURRENT = "stop_after_current"
         const val KEY_CROSSFADE_SECONDS = "crossfade_seconds"
+        const val KEY_GAPLESS_ENABLED = "gapless_enabled"
+        const val KEY_LOUDNESS_LEVELING = "loudness_leveling"
     }
 }
 
@@ -658,6 +692,9 @@ class SoundprintPlaybackConnection(
     @Volatile private var closed = false
     private data class PendingPlay(val tracks: List<MusicTrack>, val startIndex: Int, val shuffle: Boolean)
     @Volatile private var pendingPlay: PendingPlay? = null
+    private var pauseFadeRunnable: Runnable? = null
+    private var pauseFadeBaseVolume = 1f
+
     private val future = MediaController.Builder(
         context.applicationContext,
         SessionToken(context.applicationContext, ComponentName(context, SoundprintPlaybackService::class.java))
@@ -726,7 +763,52 @@ class SoundprintPlaybackConnection(
 
     fun toggle() {
         val player = controller ?: return
-        if (player.isPlaying) player.pause() else player.play()
+        if (!player.isPlaying) {
+            cancelPauseFade(restoreVolume = false)
+            player.play()
+            return
+        }
+        if (pauseFadeRunnable != null) {
+            cancelPauseFade(restoreVolume = true)
+            return
+        }
+        val options = pausePreferences
+        if (!options.getBoolean(KEY_FADE_ON_PAUSE, false)) {
+            player.pause()
+            return
+        }
+        pauseFadeBaseVolume = player.volume.coerceIn(0f, 1f)
+        val startedAt = SystemClock.elapsedRealtime()
+        val durationMs = PAUSE_FADE_DURATION_MS
+        lateinit var fade: Runnable
+        fade = Runnable {
+            if (controller !== player || !player.isPlaying) {
+                cancelPauseFade(restoreVolume = true)
+                return@Runnable
+            }
+            val progress = ((SystemClock.elapsedRealtime() - startedAt).toFloat() / durationMs).coerceIn(0f, 1f)
+            player.volume = pauseFadeBaseVolume * (1f - progress)
+            if (progress >= 1f) {
+                pauseFadeRunnable = null
+                player.pause()
+                player.volume = pauseFadeBaseVolume
+            } else {
+                mainHandler.postDelayed(fade, PAUSE_FADE_TICK_MS)
+            }
+        }
+        pauseFadeRunnable = fade
+        mainHandler.post(fade)
+    }
+
+    private val controllerContext: Context = context.applicationContext
+    private val pausePreferences: android.content.SharedPreferences by lazy {
+        controllerContext.getSharedPreferences("soundprint_playback_options", Context.MODE_PRIVATE)
+    }
+
+    private fun cancelPauseFade(restoreVolume: Boolean) {
+        pauseFadeRunnable?.let(mainHandler::removeCallbacks)
+        pauseFadeRunnable = null
+        if (restoreVolume) controller?.volume = pauseFadeBaseVolume
     }
 
     fun next() { controller?.seekToNextMediaItem() }
@@ -803,5 +885,10 @@ class SoundprintPlaybackConnection(
         if (!future.isDone) future.cancel(true)
     }
 
-    private companion object { const val PREVIOUS_RESTART_THRESHOLD_MS = 4_000L }
+    private companion object {
+        const val PREVIOUS_RESTART_THRESHOLD_MS = 4_000L
+        const val PAUSE_FADE_DURATION_MS = 320L
+        const val PAUSE_FADE_TICK_MS = 20L
+        const val KEY_FADE_ON_PAUSE = "fade_on_pause"
+    }
 }

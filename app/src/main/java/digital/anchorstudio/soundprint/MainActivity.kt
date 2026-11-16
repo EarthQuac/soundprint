@@ -1881,16 +1881,16 @@ private fun SettingsScreen(
     onClearLibrary: () -> Unit
 ) {
     var query by remember { mutableStateOf("") }
-    var gapless by remember { mutableStateOf(true) }
-    var fadeOnPause by remember { mutableStateOf(false) }
-    var loudness by remember { mutableStateOf(true) }
-    var crossfade by remember { mutableIntStateOf(0) }
-    var resume by remember { mutableStateOf(true) }
-    var rememberPosition by remember { mutableStateOf(true) }
     val settingsContext = LocalContext.current
     val settingsScope = rememberCoroutineScope()
     val artworkPreferences = remember(settingsContext) { settingsContext.getSharedPreferences("soundprint_native_preferences", 0) }
     val playbackPrefs = remember(settingsContext) { settingsContext.getSharedPreferences("soundprint_playback_options", 0) }
+    var gapless by remember { mutableStateOf(playbackPrefs.getBoolean("gapless_enabled", true)) }
+    var fadeOnPause by remember { mutableStateOf(playbackPrefs.getBoolean("fade_on_pause", false)) }
+    var loudness by remember { mutableStateOf(playbackPrefs.getBoolean("loudness_leveling", true)) }
+    var crossfade by remember { mutableIntStateOf(playbackPrefs.getInt("crossfade_seconds", 0).coerceIn(0, 8)) }
+    var resume by remember { mutableStateOf(true) }
+    var rememberPosition by remember { mutableStateOf(true) }
     var seekSeconds by remember { mutableIntStateOf(playbackPrefs.getInt("double_tap_seek_seconds", 10).coerceIn(5, 60)) }
     var replaceQueue by remember { mutableStateOf(false) }
     var autoAdd by remember { mutableStateOf(true) }
@@ -1945,20 +1945,33 @@ private fun SettingsScreen(
             }
             if (matches("audio gapless playback fade pause loudness leveling equalizer crossfade")) {
                 SettingsSection("AUDIO") {
-                    SettingsToggleRow("Gapless playback", "Preloads the next track to reduce the gap", gapless) { gapless = it }
-                    SettingsToggleRow("Fade on pause", "Short fade instead of an abrupt stop", fadeOnPause) { fadeOnPause = it }
-                    SettingsToggleRow("Loudness leveling", "Smooths playback volume between tracks", loudness) { loudness = it }
+                    SettingsToggleRow("Gapless playback", "Seamless transitions between queued tracks", gapless) {
+                        gapless = it
+                        playbackPrefs.edit().putBoolean("gapless_enabled", it).apply()
+                    }
+                    SettingsToggleRow("Fade on pause", "Short fade instead of an abrupt stop", fadeOnPause) {
+                        fadeOnPause = it
+                        playbackPrefs.edit().putBoolean("fade_on_pause", it).apply()
+                    }
+                    SettingsToggleRow("Loudness leveling", "Keep playback volume more consistent", loudness) {
+                        loudness = it
+                        playbackPrefs.edit().putBoolean("loudness_leveling", it).apply()
+                    }
                     SettingsActionRow("Equalizer", "Adjust your sound with the free 10-band EQ; Pro adds advanced audio controls", "Open Equalizer")
                     SettingsValueRow("Crossfade", if (crossfade == 0) "Off" else "$crossfade seconds") {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             listOf(0, 2, 4, 6, 8).forEach { seconds ->
                                 Box(
                                     Modifier.width(31.dp).height(30.dp).clip(RoundedCornerShape(9.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-                                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(9.dp)),
+                                        .background(if (crossfade == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                                        .border(1.dp, if (crossfade == seconds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(9.dp))
+                                        .clickable {
+                                            crossfade = seconds
+                                            playbackPrefs.edit().putInt("crossfade_seconds", seconds).apply()
+                                        },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(if (seconds == 0) "Off" else "$seconds s", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(if (seconds == 0) "Off" else "$seconds s", fontSize = 9.sp, fontWeight = if (crossfade == seconds) FontWeight.SemiBold else FontWeight.Normal, color = if (crossfade == seconds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
