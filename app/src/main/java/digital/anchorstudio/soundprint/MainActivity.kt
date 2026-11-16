@@ -1,6 +1,7 @@
 package digital.anchorstudio.soundprint
 
 import android.os.Bundle
+import io.github.jan.supabase.auth.handleDeeplinks
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
