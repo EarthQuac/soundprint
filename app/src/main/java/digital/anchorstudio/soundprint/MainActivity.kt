@@ -90,6 +90,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -102,6 +103,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -690,7 +692,7 @@ private fun SoundprintApp(
         }
     }
     LaunchedEffect(enteredLibrary, libraryTrackCount) {
-        if (enteredLibrary && libraryTrackCount > 0) clapScanner.startScan()
+        if (enteredLibrary && libraryTrackCount > 0 && clapScanner.autoScanEnabled()) clapScanner.startScan()
     }
     var selectedTab by remember { mutableIntStateOf(0) }
     var settingsOpen by remember { mutableStateOf(false) }
@@ -771,6 +773,7 @@ private fun SoundprintApp(
                         "stats" -> ListeningStatsScreen(libraryManager = libraryManager, onBack = { statsOpen = false })
                         "settings" -> SettingsScreen(
                             libraryManager = libraryManager,
+                            scanner = clapScanner,
                             themeMode = themeMode,
                             onThemeModeChange = onThemeModeChange,
                             selectedPalette = selectedPalette,
@@ -2093,6 +2096,7 @@ private fun PageTitle(title: String, subtitle: String, onBack: () -> Unit) {
 @Composable
 private fun SettingsScreen(
     libraryManager: MusicLibraryManager,
+    scanner: ClapLibraryScanner,
     themeMode: String,
     onThemeModeChange: (String) -> Unit,
     selectedPalette: String,
@@ -2135,6 +2139,9 @@ private fun SettingsScreen(
     var seekSeconds by remember { mutableIntStateOf(playbackPrefs.getInt("double_tap_seek_seconds", 10).coerceIn(5, 60)) }
     var replaceQueue by remember { mutableStateOf(playbackPrefs.getBoolean("replace_queue_on_play", false)) }
     var customArtwork by remember { mutableStateOf(artworkPreferences.getBoolean("custom_artwork_enabled", true)) }
+    val scanState by scanner.state.collectAsState()
+    var backgroundMoodScan by remember { mutableStateOf(scanner.autoScanEnabled()) }
+    LaunchedEffect(scanner) { scanner.refreshSummary() }
     DisposableEffect(artworkPreferences) {
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == "custom_artwork_enabled") {
@@ -2156,7 +2163,7 @@ private fun SettingsScreen(
             .all { token -> words.any { it.lowercase().contains(token) } }
     val settingRequesters = remember {
         listOf(
-            "theme", "palette", "gapless", "fade", "loudness", "equalizer", "crossfade",
+            "theme", "palette", "gapless", "fade", "loudness", "equalizer", "crossfade", "mood-scan",
             "resume", "remember-position", "double-tap", "replace-queue", "auto-add",
             "folder-watch", "custom-artwork", "your-music", "rescan", "tag-editor",
             "history", "backup", "restore", "ignore-clips", "clear-library",
@@ -2179,6 +2186,7 @@ private fun SettingsScreen(
         Triple("Loudness leveling", "loudness", "audio volume consistent"),
         Triple("Equalizer", "equalizer", "audio eq bass treble sound"),
         Triple("Crossfade", "crossfade", "audio transition seconds"),
+        Triple("Background mood scan", "mood-scan", "music intelligence background offline CLAP analysis progress"),
         Triple("Resume playback", "resume", "playback startup launch restore last song"),
         Triple("Remember position", "remember-position", "playback continue progress position"),
         Triple("Double-tap to seek", "double-tap", "playback skip seconds now playing"),
@@ -2229,6 +2237,7 @@ private fun SettingsScreen(
                                     when (key) {
                                         "theme", "palette" -> "Appearance"
                                         "gapless", "fade", "loudness", "equalizer", "crossfade" -> "Audio"
+                                        "mood-scan" -> "Music intelligence"
                                         "resume", "remember-position", "double-tap" -> "Playback"
                                         "replace-queue", "auto-add", "folder-watch" -> "Queue"
                                         "custom-artwork", "your-music", "rescan", "tag-editor", "history", "backup", "restore", "ignore-clips", "clear-library" -> "Library"
@@ -2361,6 +2370,26 @@ private fun SettingsScreen(
                     )
                 }
             }
+            if (matches("music intelligence background mood scan offline clap analysis")) {
+                SettingsSection("MUSIC INTELLIGENCE") {
+                    SettingsToggleRow(
+                        "Scan entire library in background",
+                        "Automatically build and save mood profiles for your songs while Soundprint is open",
+                        backgroundMoodScan,
+                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("mood-scan"))
+                    ) { enabled ->
+                        backgroundMoodScan = enabled
+                        scanner.setAutoScanEnabled(enabled)
+                    }
+                    ClapScanSettingsStatus(
+                        state = scanState,
+                        enabled = backgroundMoodScan,
+                        onStart = { scanner.startScan(allowModelDownload = true) },
+                        onPause = { scanner.pause() },
+                        onRetry = { scanner.startScan(retryFailedOnly = true, allowModelDownload = true) }
+                    )
+                }
+            }
             if (matches("library custom artwork add music your music rescan folders audio tag editor playback history backup restore ignore clips clear library recycle bin")) {
                 SettingsSection("LIBRARY") {
                     SettingsToggleRow(
@@ -2482,20 +2511,18 @@ private fun SettingsScreen(
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Column(
-                Modifier.fillMaxWidth(0.94f).widthIn(max = 560.dp)
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp).widthIn(max = 512.dp)
                     .heightIn(max = configuration.screenHeightDp.dp * 0.85f)
                     .clip(RoundedCornerShape(24.dp))
                     .background(MaterialTheme.colorScheme.surface)
                     .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.65f), RoundedCornerShape(24.dp))
-                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp)
             ) {
-                Text("Help & Info", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                Text("Practical answers for using Soundprint.", modifier = Modifier.padding(top = 4.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Help & Info", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                Text("Practical answers for using Soundprint.", modifier = Modifier.padding(top = 4.dp), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(16.dp))
-                Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     HelpInfoTopic("Add or find your music", "Settings → Library → Your music → Add folder or Import audio files. To find music in folders you have already allowed Soundprint to access, use Rescan folders. Soundprint plays your local library; adding a file does not upload it to a music service.")
                     HelpInfoTopic("Song artwork", "After importing songs, choose whether Soundprint should show its own artwork on songs that do not already contain cover art. A song’s embedded artwork always takes priority. To remove Soundprint artwork later, open Settings → Library → Custom artwork and switch it off. To use it again, switch it on there.")
                     HelpInfoTopic("Back up your library", "Settings → Library → Backup library. Soundprint creates a .json backup containing your library’s song details, playlists, favourites, listening statistics and supported analysis data. The backup does not include your original audio files, so keep those backed up separately. Large libraries create larger files; wait for the success message and keep the backup somewhere safe, preferably another device or drive.")
@@ -2507,14 +2534,71 @@ private fun SettingsScreen(
                     HelpInfoTopic("Playback volume", "The volume slider inside Soundprint adjusts player volume. Your device’s hardware/system volume is controlled separately.")
                     HelpInfoTopic("Still stuck?", "Try closing and reopening Soundprint, check that the song file is still available, and retry online features with a stable connection. Keep a recent backup before restoring or clearing your library.")
                 }
-                Spacer(Modifier.height(12.dp))
-                androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
-                Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.End) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = { helpDialog = false }) {
                         Text("Got it", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+@Composable
+private fun ClapScanSettingsStatus(
+    state: ClapLibraryScanState,
+    enabled: Boolean,
+    onStart: () -> Unit,
+    onPause: () -> Unit,
+    onRetry: () -> Unit
+) {
+    val progress = if (state.downloadingModel) state.modelPercent.coerceIn(0, 100) / 100f else state.percent / 100f
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Offline mood scan", Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                when {
+                    state.running && state.downloadingModel -> "Preparing model"
+                    state.running -> "Scanning"
+                    !enabled -> "Off"
+                    state.modelDownloadRequired -> "Setup needed"
+                    state.failed > 0 -> "Retry needed"
+                    else -> "Ready"
+                },
+                fontSize = 10.sp,
+                color = if (state.failed > 0 && !state.running) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+            )
+        }
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth().padding(top = 9.dp),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+        Text(
+            when {
+                state.downloadingModel -> "Model download · " + state.modelPercent + "%"
+                state.total > 0 -> state.completed.toString() + " of " + state.total + " tracks complete · " + state.pending + " pending · " + state.failed + " failed"
+                else -> state.message.ifBlank { "No scan has run yet." }
+            },
+            modifier = Modifier.padding(top = 7.dp),
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (state.currentTitle.isNotBlank()) {
+            Text("Now scanning · " + state.currentTitle, modifier = Modifier.padding(top = 4.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+        }
+        if (state.message.isNotBlank() && state.total > 0) {
+            Text(state.message, modifier = Modifier.padding(top = 4.dp), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            if (state.failed > 0) TextButton(onClick = onRetry) { Text("Retry failed") }
+            if (state.running) TextButton(onClick = onPause) { Text("Pause") }
+            else TextButton(onClick = onStart) { Text(if (state.modelDownloadRequired) "Download & scan" else "Scan now") }
+        }
+        if (state.modelDownloadRequired) {
+            Text("A one-time model download is required before offline mood analysis can run.", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -2639,8 +2723,8 @@ private fun SettingsValueRow(label: String, description: String, modifier: Modif
 @Composable
 private fun HelpInfoTopic(title: String, body: String) {
     Column {
-        Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-        Text(body, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+        Text(body, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
