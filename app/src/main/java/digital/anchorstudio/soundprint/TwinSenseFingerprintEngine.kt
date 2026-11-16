@@ -32,6 +32,11 @@ private const val FEATURE_BANDS = 24
 private const val FFT_SIZE = 4096
 // TwinSense fingerprints a bounded opening sample instead of retaining an entire decoded song in RAM.
 private const val MAX_PCM_SAMPLES = 4_000_000
+// TwinSense works on decoded PCM, never on the compressed file bytes. Keep both
+// the decoder buffer and the resampled analysis buffer explicitly bounded.
+private const val MAX_SOURCE_FILE_BYTES = 1_073_741_824L
+private const val MAX_RESAMPLED_SAMPLES = 12_000_000
+private const val MAX_TRACK_DURATION_MS = 12L * 60L * 60L * 1000L
 private const val MAX_SOURCE_FILE_BYTES = 1_073_741_824L
 
 data class TwinSenseFingerprint(
@@ -110,6 +115,12 @@ object TwinSenseText {
 class TwinSenseFingerprintEngine(private val context: Context) {
     suspend fun create(track: MusicTrack, onProgress: (Int) -> Unit = {}): TwinSenseFingerprint =
         withContext(Dispatchers.IO) {
+            require(track.sizeBytes in 0..MAX_SOURCE_FILE_BYTES) {
+                "TwinSense skipped this file because it is larger than 1 GB. The rest of your scan can continue safely."
+            }
+            require(track.durationMs in 0..MAX_TRACK_DURATION_MS) {
+                "TwinSense skipped this file because its reported duration is unusually large."
+            }
             val decoded = decodePcm(track, onProgress)
             val analysisRate = decoded.sampleRate.coerceAtMost(22_050)
             val mono = resampleMono(decoded.samples, decoded.sampleRate, analysisRate)
@@ -143,7 +154,7 @@ class TwinSenseFingerprintEngine(private val context: Context) {
         val samples = FloatSamples()
         var sourceRate = track.sampleRate.takeIf { it > 0 } ?: 44_100
         var channels = track.channelCount.takeIf { it > 0 } ?: 2
-        var durationUs = track.durationMs * 1000L
+        var durationUs = track.durationMs.coerceIn(0L, MAX_TRACK_DURATION_MS) * 1000L
         try {
             extractor.setDataSource(context, Uri.parse(track.uri), null)
             var audioFormat: MediaFormat? = null
@@ -208,7 +219,7 @@ class TwinSenseFingerprintEngine(private val context: Context) {
                                 val output = decoder.getOutputBuffer(outputIndex)
                                 if (output != null) appendPcm(output, info.offset, info.size, outputChannels, outputEncoding, samples)
                                 if (durationUs > 0L && info.presentationTimeUs >= 0L) {
-                                    val progress = ((info.presentationTimeUs * 100L) / durationUs).toInt().coerceIn(0, 99)
+                                    val progress = ((info.presentationTimeUs.toDouble() / durationUs.toDouble()) * 100.0).toInt().coerceIn(0, 99)
                                     if (progress != lastProgress) { lastProgress = progress; onProgress(progress) }
                                 }
                             }
@@ -255,7 +266,8 @@ class TwinSenseFingerprintEngine(private val context: Context) {
 
     private fun resampleMono(input: FloatArray, inputRate: Int, outputRate: Int): FloatArray {
         if (inputRate == outputRate) return input
-        val outputSize = (input.size.toLong() * outputRate / inputRate).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        val outputSize = (input.size.toLong() * outputRate / inputRate)
+            .coerceIn(0L, MAX_RESAMPLED_SAMPLES.toLong()).toInt()
         val output = FloatArray(outputSize)
         val ratio = inputRate.toDouble() / outputRate
         for (index in output.indices) {
