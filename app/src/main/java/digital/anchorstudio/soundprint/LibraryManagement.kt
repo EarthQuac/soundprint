@@ -216,6 +216,7 @@ class MusicLibraryManager(context:Context) {
     private val clapPreferences=context.applicationContext.getSharedPreferences("soundprint_clap_scan",Context.MODE_PRIVATE)
 
     fun allSongs(query:String="",sort:TrackSort=TrackSort.TITLE,ascending:Boolean=true)=repository.tracks(query,sort,ascending)
+    fun recentlyPlayed(limit:Int=50)=repository.recentlyPlayed(limit)
     fun song(id:String)=repository.track(id)
     suspend fun ensureArtwork(id:String)=repository.ensureArtwork(id)
     suspend fun setCustomArtworkEnabled(enabled:Boolean)=repository.setCustomArtworkEnabled(enabled)
