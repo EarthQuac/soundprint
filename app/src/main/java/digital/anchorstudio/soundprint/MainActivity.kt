@@ -540,6 +540,7 @@ private fun SoundprintApp(
     var statsOpen by remember { mutableStateOf(false) }
     var proOpen by remember { mutableStateOf(false) }
     var nowPlayingOpen by remember { mutableStateOf(false) }
+    var homeAlbumToOpen by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(playbackConnection) {
         while (playbackConnection.controller == null) delay(100)
@@ -630,10 +631,15 @@ private fun SoundprintApp(
                                 onListeningStats = { statsOpen = true },
                                 onOpenPro = { proOpen = true },
                                 onOpenSongs = { selectedTab = 1 },
-                                onOpenTab = { selectedTab = it }
+                                onOpenTab = { selectedTab = it },
+                                onOpenAlbum = { albumId -> homeAlbumToOpen = albumId; selectedTab = 2 }
                             )
                             1 -> LibraryScreen("Songs", "Your music, all in one place.", Icons.Filled.MusicNote, libraryManager, playbackConnection, onImportFiles) { selectedTab = 0 }
-                            2 -> SoundprintAlbumsScreen(libraryManager, playbackConnection, onImportFiles, libraryTrackCount)
+                            2 -> SoundprintAlbumsScreen(
+                                libraryManager, playbackConnection, onImportFiles, libraryTrackCount,
+                                initialAlbumId = homeAlbumToOpen,
+                                onInitialAlbumConsumed = { homeAlbumToOpen = null }
+                            )
                             3 -> SoundprintPlaylistsScreen(libraryManager, playbackConnection, clapScanner)
                             else -> ClapDiscoverScreen(libraryManager, clapScanner, playbackConnection) { selectedTab = 0 }
                         }
@@ -819,7 +825,8 @@ private fun HomeScreen(
     onListeningStats: () -> Unit,
     onOpenPro: () -> Unit,
     onOpenSongs: () -> Unit,
-    onOpenTab: (Int) -> Unit
+    onOpenTab: (Int) -> Unit,
+    onOpenAlbum: (String) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var editGenreSuggestions by remember { mutableStateOf(emptyList<SoundprintGenreSuggestion>()) }
@@ -1026,12 +1033,8 @@ private fun HomeScreen(
                         HomeSectionHeader("Albums", onSeeAll = { onOpenTab(2) })
                         androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(homeAlbums, key = { "${it.name}:${it.artist}" }) { album ->
-                                val albumTracks = album.tracks
                                 Column(
-                                    Modifier.width(128.dp).clickable {
-                                        if (albumTracks.isNotEmpty()) playback.playTracks(albumTracks)
-                                        else onOpenTab(2)
-                                    }
+                                    Modifier.width(128.dp).clickable { onOpenAlbum(album.id) }
                                 ) {
                                     NativeArtwork(album.artworkUri, "${album.name}:${album.artist}", Modifier.size(128.dp), 16)
                                     Text(album.name, Modifier.padding(top = 8.dp), fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)

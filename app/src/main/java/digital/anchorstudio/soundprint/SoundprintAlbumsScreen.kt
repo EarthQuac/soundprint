@@ -59,12 +59,20 @@ fun SoundprintAlbumsScreen(
     libraryManager: MusicLibraryManager,
     playback: SoundprintPlaybackConnection,
     onImportFiles: () -> Unit,
-    libraryTrackCount: Int
+    libraryTrackCount: Int,
+    initialAlbumId: String? = null,
+    onInitialAlbumConsumed: () -> Unit = {}
 ) {
     var albums by remember { mutableStateOf(emptyList<LibraryAlbum>()) }
     var query by remember { mutableStateOf("") }
     var selectedAlbumId by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(initialAlbumId) {
+        if (initialAlbumId != null) {
+            selectedAlbumId = initialAlbumId
+            onInitialAlbumConsumed()
+        }
+    }
     LaunchedEffect(libraryTrackCount) {
         albums = withContext(Dispatchers.IO) { libraryManager.albums() }
     }
