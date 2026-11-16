@@ -37,7 +37,6 @@ private const val MAX_PCM_SAMPLES = 4_000_000
 private const val MAX_SOURCE_FILE_BYTES = 1_073_741_824L
 private const val MAX_RESAMPLED_SAMPLES = 12_000_000
 private const val MAX_TRACK_DURATION_MS = 12L * 60L * 60L * 1000L
-private const val MAX_SOURCE_FILE_BYTES = 1_073_741_824L
 
 data class TwinSenseFingerprint(
     val trackId: String,
