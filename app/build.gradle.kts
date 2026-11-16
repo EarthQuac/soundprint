@@ -58,10 +58,10 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2025.10.00")
     implementation(composeBom)
 
-    implementation(platform("io.github.jan-tennert.supabase:bom:3.9.0"))
+    implementation(platform("io.github.jan-tennert.supabase:bom:3.2.3"))
     implementation("io.github.jan-tennert.supabase:auth-kt")
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
-    implementation("io.ktor:ktor-client-android:3.3.2")
+    implementation("io.ktor:ktor-client-android:3.2.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     androidTestImplementation(composeBom)
 
