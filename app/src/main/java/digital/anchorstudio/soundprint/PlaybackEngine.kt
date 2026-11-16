@@ -558,6 +558,11 @@ class SoundprintPlaybackService : MediaSessionService() {
         // A user may tap a song while the service is still loading its saved queue.
         // Never let late queue restoration replace that newly requested playback.
         if (player.mediaItemCount > 0 || player.isPlaying) return
+        if (!playbackOptions.getBoolean(KEY_RESUME_PLAYBACK, true)) {
+            queueStore.clear()
+            queueStore.clearPendingResumePrompt()
+            return
+        }
         if (saved.queueIds.isEmpty()) return
         val availableTracks = availableLibraryTracks.associateBy { it.id }
         val resolved = saved.queueIds.mapIndexedNotNull { oldIndex, id ->
@@ -734,6 +739,7 @@ class SoundprintPlaybackService : MediaSessionService() {
         const val LISTENING_FLUSH_MS = 10_000L
         const val RESUME_PROMPT_AFTER_MS = 30L * 60L * 1000L
         const val KEY_REMEMBER_POSITION = "remember_position"
+        const val KEY_RESUME_PLAYBACK = "resume_playback"
         const val MAX_LISTENING_WRITE_ATTEMPTS = 5
         const val SLEEP_FADE_MS = 15_000L
         const val CROSSFADE_TICK_MS = 50L
@@ -784,7 +790,12 @@ class SoundprintPlaybackConnection(
 
     fun playTracks(tracks: List<MusicTrack>, startIndex: Int = 0, shuffle: Boolean = false) {
         if (tracks.isEmpty() || closed) return
-        val request = PendingPlay(tracks.toList(), startIndex.coerceIn(tracks.indices), shuffle)
+        val requestedIndex = startIndex.coerceIn(tracks.indices)
+        val ignoreClips = pausePreferences.getBoolean("ignore_short_tracks", false)
+        val eligible = tracks.withIndex().filter { !ignoreClips || it.value.durationMs >= 30_000L }
+        if (eligible.isEmpty()) return
+        val mappedStartIndex = eligible.indexOfFirst { it.index >= requestedIndex }.takeIf { it >= 0 } ?: eligible.lastIndex
+        val request = PendingPlay(eligible.map { it.value }, mappedStartIndex, shuffle)
         val player = controller
         if (player == null) {
             synchronized(this) {
@@ -807,11 +818,17 @@ class SoundprintPlaybackConnection(
                 track.toSoundprintMediaItem()
             }
             player.shuffleModeEnabled = request.shuffle
-            player.setMediaItems(
-                mediaItems,
-                request.startIndex.coerceIn(request.tracks.indices),
-                0L
-            )
+            if (!pausePreferences.getBoolean("replace_queue_on_play", false) && player.mediaItemCount > 0) {
+                val firstAddedIndex = player.mediaItemCount
+                player.addMediaItems(mediaItems)
+                player.seekTo(firstAddedIndex + request.startIndex.coerceIn(request.tracks.indices), 0L)
+            } else {
+                player.setMediaItems(
+                    mediaItems,
+                    request.startIndex.coerceIn(request.tracks.indices),
+                    0L
+                )
+            }
             player.prepare()
             player.play()
         }.onFailure { error ->
@@ -888,13 +905,16 @@ class SoundprintPlaybackConnection(
 
     fun enqueue(tracks: List<MusicTrack>, next: Boolean = false) {
         if (tracks.isEmpty()) return
+        val ignoreClips = pausePreferences.getBoolean("ignore_short_tracks", false)
+        val eligibleTracks = tracks.filter { !ignoreClips || it.durationMs >= 30_000L }
+        if (eligibleTracks.isEmpty()) return
         val player = controller ?: return
         if (player.mediaItemCount == 0) {
-            playTracks(tracks)
+            playTracks(eligibleTracks)
             return
         }
         val insertionIndex = if (next) (player.currentMediaItemIndex + 1).coerceAtLeast(0) else player.mediaItemCount
-        player.addMediaItems(insertionIndex, tracks.map(MusicTrack::toSoundprintMediaItem))
+        player.addMediaItems(insertionIndex, eligibleTracks.map(MusicTrack::toSoundprintMediaItem))
     }
 
     /** Replace only the upcoming tracks, keeping the currently playing item untouched. */

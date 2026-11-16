@@ -61,6 +61,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -123,6 +125,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.documentfile.provider.DocumentFile
@@ -796,6 +801,11 @@ private fun SoundprintApp(
                                     clapScanner.clearLibraryState()
                                     playbackConnection.clearQueue()
                                     onClearLibrary()
+                                }
+                            },
+                            onClearHistory = {
+                                screenScope.launch {
+                                    withContext(Dispatchers.IO) { libraryManager.clearListeningHistory() }
                                 }
                             },
                         )
@@ -2099,6 +2109,7 @@ private fun SettingsScreen(
     onBackup: () -> Unit,
     onRestore: () -> Unit,
     onClearLibrary: () -> Unit,
+    onClearHistory: () -> Unit,
     watchedFolderName: String?,
     folderWatchEnabled: Boolean,
     folderWatchLastScan: Long,
@@ -2119,10 +2130,10 @@ private fun SettingsScreen(
     var fadeOnPause by remember { mutableStateOf(playbackPrefs.getBoolean("fade_on_pause", false)) }
     var loudness by remember { mutableStateOf(playbackPrefs.getBoolean("loudness_leveling", true)) }
     var crossfade by remember { mutableIntStateOf(playbackPrefs.getInt("crossfade_seconds", 0).coerceIn(0, 8)) }
-    var resume by remember { mutableStateOf(true) }
+    var resume by remember { mutableStateOf(playbackPrefs.getBoolean("resume_playback", true)) }
     var rememberPosition by remember { mutableStateOf(playbackPrefs.getBoolean("remember_position", true)) }
     var seekSeconds by remember { mutableIntStateOf(playbackPrefs.getInt("double_tap_seek_seconds", 10).coerceIn(5, 60)) }
-    var replaceQueue by remember { mutableStateOf(false) }
+    var replaceQueue by remember { mutableStateOf(playbackPrefs.getBoolean("replace_queue_on_play", false)) }
     var customArtwork by remember { mutableStateOf(artworkPreferences.getBoolean("custom_artwork_enabled", true)) }
     DisposableEffect(artworkPreferences) {
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -2133,22 +2144,109 @@ private fun SettingsScreen(
         artworkPreferences.registerOnSharedPreferenceChangeListener(listener)
         onDispose { artworkPreferences.unregisterOnSharedPreferenceChangeListener(listener) }
     }
-    var ignoreShortTracks by remember { mutableStateOf(false) }
+    var ignoreShortTracks by remember { mutableStateOf(playbackPrefs.getBoolean("ignore_short_tracks", false)) }
     var clearDialog by remember { mutableStateOf(false) }
     var historyDialog by remember { mutableStateOf(false) }
     var helpDialog by remember { mutableStateOf(false) }
     var recycleBinOpen by remember { mutableStateOf(false) }
     var recycleBinEntries by remember { mutableStateOf(emptyList<RecycleBinEntry>()) }
     val needle = query.trim().lowercase()
-    fun matches(vararg words: String): Boolean = needle.isEmpty() || words.any { it.lowercase().contains(needle) }
+    fun matches(vararg words: String): Boolean =
+        needle.isEmpty() || needle.split(Regex("\\s+")).filter(String::isNotBlank)
+            .all { token -> words.any { it.lowercase().contains(token) } }
+    val settingRequesters = remember {
+        listOf(
+            "theme", "palette", "gapless", "fade", "loudness", "equalizer", "crossfade",
+            "resume", "remember-position", "double-tap", "replace-queue", "auto-add",
+            "folder-watch", "custom-artwork", "your-music", "rescan", "tag-editor",
+            "history", "backup", "restore", "ignore-clips", "clear-library",
+            "replay-tutorial", "help-info", "pro", "version"
+        ).associateWith { BringIntoViewRequester() }
+    }
+    var pendingSettingNavigation by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(pendingSettingNavigation) {
+        val target = pendingSettingNavigation ?: return@LaunchedEffect
+        query = ""
+        delay(120L)
+        settingRequesters[target]?.bringIntoView()
+        pendingSettingNavigation = null
+    }
+    val settingSearchEntries = listOf(
+        Triple("Theme", "theme", "appearance light dark system"),
+        Triple("Colour palette", "palette", "appearance colors colours amber blue emerald mono"),
+        Triple("Gapless playback", "gapless", "audio seamless track transitions"),
+        Triple("Fade on pause", "fade", "audio pause stop fade"),
+        Triple("Loudness leveling", "loudness", "audio volume consistent"),
+        Triple("Equalizer", "equalizer", "audio eq bass treble sound"),
+        Triple("Crossfade", "crossfade", "audio transition seconds"),
+        Triple("Resume playback", "resume", "playback startup launch restore last song"),
+        Triple("Remember position", "remember-position", "playback continue progress position"),
+        Triple("Double-tap to seek", "double-tap", "playback skip seconds now playing"),
+        Triple("Replace queue on play", "replace-queue", "queue playlist clear append"),
+        Triple("Auto-add newly discovered songs", "auto-add", "queue import newly found audio"),
+        Triple("Folder auto-watch", "folder-watch", "queue folder monitor scan"),
+        Triple("Custom artwork", "custom-artwork", "library covers artwork"),
+        Triple("Your music", "your-music", "library add folder import audio"),
+        Triple("Rescan folders", "rescan", "library scan saved locations"),
+        Triple("Audio tag editor", "tag-editor", "library edit title artist album genre metadata"),
+        Triple("Playback history", "history", "library recently played listening statistics clear"),
+        Triple("Backup library", "backup", "library export save json"),
+        Triple("Restore backup", "restore", "library import json recover"),
+        Triple("Ignore clips under 30s", "ignore-clips", "library short tracks ringtones notifications"),
+        Triple("Clear library", "clear-library", "library remove delete music"),
+        Triple("Replay tutorial", "replay-tutorial", "tutorial walkthrough"),
+        Triple("Help & Info", "help-info", "about help guide answers"),
+        Triple("Soundprint Pro", "pro", "about premium features"),
+        Triple("Version", "version", "about app build")
+    )
+    val settingSearchResults = if (needle.isBlank()) emptyList() else settingSearchEntries.filter { (label, _, keywords) ->
+        val haystack = "$label $keywords".lowercase()
+        needle.split(Regex("\\s+")).filter(String::isNotBlank).all { token -> haystack.contains(token) }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         PageTitle("Settings", "", onBack)
         Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
             SettingsSearchBox(query, { query = it })
+            if (needle.isNotBlank()) {
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
+                ) {
+                    if (settingSearchResults.isEmpty()) {
+                        Text("No settings found. Try another search.", Modifier.padding(14.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        settingSearchResults.forEach { (label, key, _) ->
+                            Row(
+                                Modifier.fillMaxWidth().clickable { pendingSettingNavigation = key }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(label, Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                                Text(
+                                    when (key) {
+                                        "theme", "palette" -> "Appearance"
+                                        "gapless", "fade", "loudness", "equalizer", "crossfade" -> "Audio"
+                                        "resume", "remember-position", "double-tap" -> "Playback"
+                                        "replace-queue", "auto-add", "folder-watch" -> "Queue"
+                                        "custom-artwork", "your-music", "rescan", "tag-editor", "history", "backup", "restore", "ignore-clips", "clear-library" -> "Library"
+                                        "replay-tutorial" -> "Tutorial"
+                                        else -> "About"
+                                    },
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            SettingsDivider()
+                        }
+                    }
+                }
+            }
             if (matches("appearance theme colour palette amber blue emerald mono")) {
                 SettingsSection("APPEARANCE") {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    Column(Modifier.fillMaxWidth().bringIntoViewRequester(settingRequesters.getValue("theme")).padding(horizontal = 16.dp, vertical = 14.dp)) {
                         Text("Theme", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2159,7 +2257,7 @@ private fun SettingsScreen(
                         Spacer(Modifier.height(16.dp))
                         Text("Colour palette", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.height(8.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.bringIntoViewRequester(settingRequesters.getValue("palette")), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 PaletteChoice("Amber", selectedPalette == "Amber", Modifier.weight(1f)) { onPaletteChange("Amber") }
                                 PaletteChoice("Blue & white", selectedPalette == "Blue", Modifier.weight(1f)) { onPaletteChange("Blue") }
@@ -2174,20 +2272,20 @@ private fun SettingsScreen(
             }
             if (matches("audio gapless playback fade pause loudness leveling equalizer crossfade")) {
                 SettingsSection("AUDIO") {
-                    SettingsToggleRow("Gapless playback", "Seamless transitions between queued tracks", gapless) {
+                    SettingsToggleRow("Gapless playback", "Seamless transitions between queued tracks", gapless, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("gapless"))) {
                         gapless = it
                         playbackPrefs.edit().putBoolean("gapless_enabled", it).apply()
                     }
-                    SettingsToggleRow("Fade on pause", "Short fade instead of an abrupt stop", fadeOnPause) {
+                    SettingsToggleRow("Fade on pause", "Short fade instead of an abrupt stop", fadeOnPause, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("fade"))) {
                         fadeOnPause = it
                         playbackPrefs.edit().putBoolean("fade_on_pause", it).apply()
                     }
-                    SettingsToggleRow("Loudness leveling", "Keep playback volume more consistent", loudness) {
+                    SettingsToggleRow("Loudness leveling", "Keep playback volume more consistent", loudness, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("loudness"))) {
                         loudness = it
                         playbackPrefs.edit().putBoolean("loudness_leveling", it).apply()
                     }
-                    SettingsActionRow("Equalizer", "Adjust your sound with the free 10-band EQ; Pro adds advanced audio controls", "Open Equalizer")
-                    SettingsValueRow("Crossfade", if (crossfade == 0) "Off" else "$crossfade seconds") {
+                    SettingsActionRow("Equalizer", "Adjust your sound with the free 10-band EQ; Pro adds advanced audio controls", "Open Equalizer", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("equalizer")))
+                    SettingsValueRow("Crossfade", if (crossfade == 0) "Off" else "$crossfade seconds", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade"))) {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             listOf(0, 2, 4, 6, 8).forEach { seconds ->
                                 Box(
@@ -2209,12 +2307,15 @@ private fun SettingsScreen(
             }
             if (matches("playback resume position double tap seek skip seconds")) {
                 SettingsSection("PLAYBACK") {
-                    SettingsToggleRow("Resume playback", "Restore the last song when Soundprint opens", resume) { resume = it }
-                    SettingsToggleRow("Remember position", "Continue from where you stopped", rememberPosition) {
+                    SettingsToggleRow("Resume playback", "Restore the last song when Soundprint opens", resume, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("resume"))) {
+                        resume = it
+                        playbackPrefs.edit().putBoolean("resume_playback", it).apply()
+                    }
+                    SettingsToggleRow("Remember position", "Continue from where you stopped", rememberPosition, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("remember-position"))) {
                         rememberPosition = it
                         playbackPrefs.edit().putBoolean("remember_position", it).apply()
                     }
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp)) {
+                    Column(Modifier.fillMaxWidth().bringIntoViewRequester(settingRequesters.getValue("double-tap")).padding(horizontal = 16.dp, vertical = 16.dp)) {
                         Text("Double-tap to seek", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                         Text("Choose how far to skip when you double-tap the Now Playing artwork.", modifier = Modifier.padding(top = 3.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(10.dp))
@@ -2243,10 +2344,14 @@ private fun SettingsScreen(
             }
             if (matches("queue replace auto add newly discovered songs folder auto watch scan")) {
                 SettingsSection("QUEUE") {
-                    SettingsToggleRow("Replace queue on play", "Playing a list clears the previous queue", replaceQueue) { replaceQueue = it }
-                    SettingsToggleRow("Auto-add newly discovered songs", "Automatically add new audio found by your watched folder", autoAddNewSongs, onAutoAddNewSongsChange)
+                    SettingsToggleRow("Replace queue on play", "Playing a list clears the previous queue", replaceQueue, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("replace-queue"))) {
+                        replaceQueue = it
+                        playbackPrefs.edit().putBoolean("replace_queue_on_play", it).apply()
+                    }
+                    SettingsToggleRow("Auto-add newly discovered songs", "Automatically add new audio found by your watched folder", autoAddNewSongs, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("auto-add")), onCheckedChange = onAutoAddNewSongsChange)
                     FolderAutoWatchSettingsRow(
                         folderName = watchedFolderName,
+                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("folder-watch")),
                         enabled = folderWatchEnabled,
                         lastScan = folderWatchLastScan,
                         onChoose = onChooseWatchedFolder,
@@ -2261,7 +2366,8 @@ private fun SettingsScreen(
                     SettingsToggleRow(
                         "Custom artwork",
                         "Save Soundprint covers for songs without embedded art. Embedded covers always win; the player still shows a fallback cover when this is off.",
-                        customArtwork
+                        customArtwork,
+                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("custom-artwork"))
                     ) { enabled ->
                         customArtwork = enabled
                         artworkPreferences.edit().putBoolean("custom_artwork_enabled", enabled).apply()
@@ -2269,9 +2375,9 @@ private fun SettingsScreen(
                             withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(enabled) }
                         }
                     }
-                    SettingsActionRow("Your music", "$libraryTrackCount songs stored on this device", "Add folder", onClick = onImportMusic)
+                    SettingsActionRow("Your music", "$libraryTrackCount songs stored on this device", "Add folder", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("your-music")), onClick = onImportMusic)
                     SettingsActionRow("Import audio files", "Choose individual audio files from your device", "Import", onClick = onImportFiles)
-                    SettingsActionRow("Rescan folders", "Recover saved locations and check for new or changed songs", "Rescan", onClick = onRescan)
+                    SettingsActionRow("Rescan folders", "Recover saved locations and check for new or changed songs", "Rescan", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("rescan")), onClick = onRescan)
                     if (libraryStatus.isNotBlank()) Text(libraryStatus, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (librarySources.isNotEmpty()) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -2294,25 +2400,28 @@ private fun SettingsScreen(
                             recycleBinOpen = true
                         }
                     }
-                    SettingsActionRow("Audio tag editor", "Manually edit title, artist, album and genre — free for everyone", "Open", onClick = onOpenTagEditor)
-                    SettingsActionRow("Playback history", "Clear recently played songs, play counts, listening time and streaks", "Clear") { historyDialog = true }
-                    SettingsActionRow("Backup library", "Export your library records, playlists, favourites and listening stats", "Backup", onClick = onBackup)
-                    SettingsActionRow("Restore backup", "Restore a Soundprint library backup from your device", "Restore", onClick = onRestore)
-                    SettingsToggleRow("Ignore clips under 30s", "Skips ringtones and notification sounds", ignoreShortTracks) { ignoreShortTracks = it }
-                    SettingsActionRow("Clear library", "Removes imported tracks, playlists, favourites and listening history; original audio files stay untouched", "Clear", destructive = true) { clearDialog = true }
+                    SettingsActionRow("Audio tag editor", "Manually edit title, artist, album and genre — free for everyone", "Open", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("tag-editor")), onClick = onOpenTagEditor)
+                    SettingsActionRow("Playback history", "Clear recently played songs, play counts, listening time and streaks", "Clear", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("history"))) { historyDialog = true }
+                    SettingsActionRow("Backup library", "Export your library records, playlists, favourites and listening stats", "Backup", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("backup")), onClick = onBackup)
+                    SettingsActionRow("Restore backup", "Restore a Soundprint library backup from your device", "Restore", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("restore")), onClick = onRestore)
+                    SettingsToggleRow("Ignore clips under 30s", "Skips ringtones and notification sounds", ignoreShortTracks, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("ignore-clips"))) {
+                        ignoreShortTracks = it
+                        playbackPrefs.edit().putBoolean("ignore_short_tracks", it).apply()
+                    }
+                    SettingsActionRow("Clear library", "Removes imported tracks, playlists, favourites and listening history; original audio files stay untouched", "Clear", destructive = true, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("clear-library"))) { clearDialog = true }
                 }
             }
             if (matches("tutorial replay tutorial")) {
                 SettingsSection("TUTORIAL") {
-                    SettingsActionRow("Replay tutorial", "Walk through the main Soundprint controls again", "Replay tutorial")
+                    SettingsActionRow("Replay tutorial", "Walk through the main Soundprint controls again", "Replay tutorial", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("replay-tutorial")))
                 }
             }
             if (matches("about help info soundprint pro about legal version privacy terms")) {
                 SettingsSection("ABOUT") {
-                    SettingsActionRow("Help & Info", "Learn how local playback, stats and backups work", "Open") { helpDialog = true }
-                    SettingsActionRow("Soundprint Pro", "Explore Pro features", "View Pro", onClick = onOpenPro)
+                    SettingsActionRow("Help & Info", "Learn how local playback, stats and backups work", "Open", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("help-info"))) { helpDialog = true }
+                    SettingsActionRow("Soundprint Pro", "Explore Pro features", "View Pro", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("pro")), onClick = onOpenPro)
                     SettingsActionRow("About & Legal", "Privacy, Terms, Pro terms, refunds and copyright", "View policies")
-                    SettingsActionRow("Version", "Soundprint 1.0 · offline-first player", "1.0.0")
+                    SettingsActionRow("Version", "Soundprint 1.0 · offline-first player", "1.0.0", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("version")))
                 }
             }
         }
@@ -2363,15 +2472,51 @@ private fun SettingsScreen(
         onDismissRequest = { historyDialog = false },
         title = { Text("Clear playback history?") },
         text = { Text("This clears recently played songs, play counts, listening time and streaks on this device. Your audio files, library, playlists and favourites will remain.") },
-        confirmButton = { TextButton(onClick = { historyDialog = false }) { Text("Clear history", color = MaterialTheme.colorScheme.error) } },
+        confirmButton = { TextButton(onClick = { historyDialog = false; onClearHistory() }) { Text("Clear history", color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = { historyDialog = false }) { Text("Cancel") } }
     )
-    if (helpDialog) AlertDialog(
-        onDismissRequest = { helpDialog = false },
-        title = { Text("Help & Info") },
-        text = { Text("Soundprint plays music stored on your device. Add audio files from Settings → Library → Your music. Use Rescan folders to check folders you have already selected. Your local audio stays on your device during normal playback.") },
-        confirmButton = { TextButton(onClick = { helpDialog = false }) { Text("Got it") } }
-    )
+    if (helpDialog) {
+        val configuration = LocalConfiguration.current
+        Dialog(
+            onDismissRequest = { helpDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Column(
+                Modifier.fillMaxWidth(0.94f).widthIn(max = 560.dp)
+                    .heightIn(max = configuration.screenHeightDp.dp * 0.85f)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.65f), RoundedCornerShape(24.dp))
+                    .padding(20.dp)
+            ) {
+                Text("Help & Info", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                Text("Practical answers for using Soundprint.", modifier = Modifier.padding(top = 4.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(16.dp))
+                Column(
+                    Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    HelpInfoTopic("Add or find your music", "Settings → Library → Your music → Add folder or Import audio files. To find music in folders you have already allowed Soundprint to access, use Rescan folders. Soundprint plays your local library; adding a file does not upload it to a music service.")
+                    HelpInfoTopic("Song artwork", "After importing songs, choose whether Soundprint should show its own artwork on songs that do not already contain cover art. A song’s embedded artwork always takes priority. To remove Soundprint artwork later, open Settings → Library → Custom artwork and switch it off. To use it again, switch it on there.")
+                    HelpInfoTopic("Back up your library", "Settings → Library → Backup library. Soundprint creates a .json backup containing your library’s song details, playlists, favourites, listening statistics and supported analysis data. The backup does not include your original audio files, so keep those backed up separately. Large libraries create larger files; wait for the success message and keep the backup somewhere safe, preferably another device or drive.")
+                    HelpInfoTopic("Restore a backup", "Settings → Library → Restore backup → select your Soundprint backup .json file → confirm. Soundprint restores the saved library records, playlists, favourites and supported analysis data. Original audio files are not included, so restored tracks may need their original folders or files to be selected again. Back up your current library first if you want to keep it. Only restore a backup you trust.")
+                    HelpInfoTopic("Do I need internet?", "No internet is needed to play audio already saved in your library, browse local songs, or use most playback controls. Internet is needed for online lyric lookup and other features that fetch information from online services. Offline, a lookup may fail or show no result; try again when connected. Your local audio stays on your device during normal playback.")
+                    HelpInfoTopic("Lyrics not showing?", "Open Now Playing → Lyrics. Check the song title and artist are correct, then retry lookup while connected to the internet. Incorrect metadata can return lyrics for the wrong version. Lyrics may not be available for every song.")
+                    HelpInfoTopic("Song info and mood labels", "Edit a song’s details if its title, artist or album is wrong. Mood analysis can take time and some tracks may not be analysed successfully. If you set a mood manually, that choice is saved on this device and should take priority over automatic suggestions.")
+                    HelpInfoTopic("Listening stats", "Home → Listening Stats (chart icon) to review your listening history. Stats are based on listening activity recorded by Soundprint on this device; restoring a backup can restore the stats included in that backup.")
+                    HelpInfoTopic("Playback volume", "The volume slider inside Soundprint adjusts player volume. Your device’s hardware/system volume is controlled separately.")
+                    HelpInfoTopic("Still stuck?", "Try closing and reopening Soundprint, check that the song file is still available, and retry online features with a stable connection. Keep a recent backup before restoring or clearing your library.")
+                }
+                Spacer(Modifier.height(12.dp))
+                androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
+                Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { helpDialog = false }) {
+                        Text("Got it", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -2398,8 +2543,8 @@ private fun SettingsSearchBox(value: String, onValueChange: (String) -> Unit) {
 }
 
 @Composable
-private fun SettingsToggleRow(label: String, description: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Column {
+private fun SettingsToggleRow(label: String, description: String, checked: Boolean, modifier: Modifier = Modifier, onCheckedChange: (Boolean) -> Unit) {
+    Column(modifier) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).padding(end = 10.dp)) {
                 Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, lineHeight = 18.sp)
@@ -2416,12 +2561,13 @@ private fun FolderAutoWatchSettingsRow(
     folderName: String?,
     enabled: Boolean,
     lastScan: Long,
+    modifier: Modifier = Modifier,
     onChoose: () -> Unit,
     onToggle: (Boolean) -> Unit,
     onForget: () -> Unit,
     onScan: () -> Unit
 ) {
-    Column {
+    Column(modifier) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -2458,9 +2604,10 @@ private fun SettingsActionRow(
     description: String,
     action: String,
     destructive: Boolean = false,
+    modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null
 ) {
-    Column {
+    Column(modifier) {
         Row(
             Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -2476,8 +2623,8 @@ private fun SettingsActionRow(
 }
 
 @Composable
-private fun SettingsValueRow(label: String, description: String, control: @Composable () -> Unit) {
-    Column {
+private fun SettingsValueRow(label: String, description: String, modifier: Modifier = Modifier, control: @Composable () -> Unit) {
+    Column(modifier) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).padding(end = 6.dp)) {
                 Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
@@ -2486,6 +2633,14 @@ private fun SettingsValueRow(label: String, description: String, control: @Compo
             control()
         }
         SettingsDivider()
+    }
+}
+
+@Composable
+private fun HelpInfoTopic(title: String, body: String) {
+    Column {
+        Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+        Text(body, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
