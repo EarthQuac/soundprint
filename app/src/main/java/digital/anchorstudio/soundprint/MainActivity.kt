@@ -976,16 +976,15 @@ private fun HomeScreen(
                                     if (tileIndex < shortcutTiles.size) {
                                         val tile = shortcutTiles[tileIndex]
                                         Row(
-                                            Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(16.dp))
+                                            Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(16.dp))
                                                 .background(MaterialTheme.colorScheme.surface)
-                                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.42f), RoundedCornerShape(16.dp))
                                                 .clickable {
                                                     if (tile.third >= 0) onOpenTab(tile.third) else selectedShortcut = tile.first
                                                 }
                                                 .padding(horizontal = 12.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Image(painterResource(tile.second), null, Modifier.size(18.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary))
+                                            Image(painterResource(tile.second), null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary))
                                             Spacer(Modifier.width(12.dp))
                                             Text(tile.first, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
                                         }
