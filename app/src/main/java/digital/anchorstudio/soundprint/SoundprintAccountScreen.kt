@@ -24,6 +24,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import io.github.jan.supabase.auth.providers.Google
+import io.github.jan.supabase.auth.providers.builtin.IDToken
+import java.security.MessageDigest
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
@@ -39,6 +50,7 @@ private data class SoundprintProfileUpdate(@SerialName("display_name") val displ
 internal fun SoundprintAccountScreen(onBack: () -> Unit) {
     val supabase = remember { SoundprintSupabase.client }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var loading by remember { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
     var signedIn by remember { mutableStateOf(false) }
@@ -90,6 +102,61 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                 message = error.message?.take(220) ?: "Something went wrong. Please try again."
                 messageError = true
             } finally { busy = false }
+        }
+    }
+
+    fun signInWithGoogle() {
+        scope.launch {
+            busy = true
+            message = null
+            try {
+                val rawNonce = UUID.randomUUID().toString()
+                val digest = MessageDigest.getInstance("SHA-256")
+                    .digest(rawNonce.toByteArray(Charsets.UTF_8))
+                val hashedNonce = digest.joinToString("") { byte ->
+                    "%02x".format(byte.toInt() and 0xff)
+                }
+
+                val googleOption = GetGoogleIdOption.Builder()
+                    .setFilterByAuthorizedAccounts(false)
+                    .setServerClientId(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
+                    .setNonce(hashedNonce)
+                    .build()
+                val request = GetCredentialRequest.Builder()
+                    .addCredentialOption(googleOption)
+                    .build()
+                val credentialManager = CredentialManager.create(context)
+                val result = credentialManager.getCredential(
+                    context = context,
+                    request = request
+                )
+                val googleCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
+
+                supabase.auth.signInWith(IDToken) {
+                    idToken = googleCredential.idToken
+                    provider = Google
+                    nonce = rawNonce
+                }
+                refreshAccount()
+                message = "You're signed in with Google."
+                messageError = false
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: GetCredentialException) {
+                message = when (error) {
+                    is androidx.credentials.exceptions.GetCredentialCancellationException ->
+                        "Google sign-in was cancelled."
+                    else -> error.message?.take(220)
+                        ?: "Google sign-in couldn't start. Check Google Play services and try again."
+                }
+                messageError = true
+            } catch (error: Exception) {
+                message = error.message?.take(220)
+                    ?: "Google sign-in failed. Check your connection and OAuth configuration."
+                messageError = true
+            } finally {
+                busy = false
+            }
         }
     }
 
@@ -187,6 +254,23 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                         fontSize = 25.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface
                     )
                     Text("Sign in to keep your SoundPrint identity ready across devices. Your music library stays local by default.", fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (mode != "forgot") {
+                    OutlinedButton(
+                        onClick = { signInWithGoogle() },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Text("G", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color(0xFF4285F4))
+                        Spacer(Modifier.width(12.dp))
+                        Text("Continue with Google", fontWeight = FontWeight.SemiBold)
+                    }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .55f))
+                        Text("OR", Modifier.padding(horizontal = 12.dp), fontSize = 10.sp, letterSpacing = 1.2.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .55f))
+                    }
                 }
                 if (mode == "sign-up") OutlinedTextField(displayName, { displayName = it.take(60) }, Modifier.fillMaxWidth(), label = { Text("Display name") }, leadingIcon = { Icon(Icons.Filled.Person, null) }, singleLine = true)
                 OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { Icon(Icons.Filled.MailOutline, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
