@@ -961,7 +961,7 @@ private fun HomeScreen(
                 }
             } else {
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         repeat(4) { rowIndex ->
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                 repeat(2) { columnIndex ->
@@ -969,7 +969,7 @@ private fun HomeScreen(
                                     if (tileIndex < shortcutTiles.size) {
                                         val tile = shortcutTiles[tileIndex]
                                         Row(
-                                            Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(16.dp))
+                                            Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(16.dp))
                                                 .background(MaterialTheme.colorScheme.surface)
                                                 .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.42f), RoundedCornerShape(16.dp))
                                                 .clickable {
@@ -992,7 +992,7 @@ private fun HomeScreen(
                 }
                 item {
                     AddMusicMenuButton(
-                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        modifier = Modifier.fillMaxWidth().height(44.dp).padding(bottom = 4.dp),
                         secondary = true,
                         onAudioPicker = onImportAudio,
                         onSinglePicker = onImportSingle,
@@ -1001,7 +1001,7 @@ private fun HomeScreen(
                     )
                 }
                 if (recentlyPlayedTracks.isNotEmpty()) item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         HomeSectionHeader("Recently played")
                         androidx.compose.foundation.lazy.LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -1022,7 +1022,7 @@ private fun HomeScreen(
                     }
                 }
                 if (homeAlbums.isNotEmpty()) item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         HomeSectionHeader("Albums", onSeeAll = { onOpenTab(2) })
                         androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(homeAlbums, key = { "${it.name}:${it.artist}" }) { album ->
@@ -1195,7 +1195,7 @@ private fun HomeRecentlyAddedRow(
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         NativeArtwork(track.artworkUri, track.id, Modifier.size(48.dp), 10)
