@@ -211,6 +211,7 @@ private data class PendingArtworkImport(val enqueue: (Boolean) -> Unit)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SoundprintSupabase.client.handleDeeplinks(intent)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         val activityWindow = window
         setContent {
@@ -638,6 +639,12 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        SoundprintSupabase.client.handleDeeplinks(intent)
+    }
 }
 
 private data class TabItem(val label: String, val icon: Int)
@@ -696,6 +703,7 @@ private fun SoundprintApp(
     }
     var selectedTab by remember { mutableIntStateOf(0) }
     var settingsOpen by remember { mutableStateOf(false) }
+    var accountOpen by remember { mutableStateOf(false) }
     var statsOpen by remember { mutableStateOf(false) }
     var proOpen by remember { mutableStateOf(false) }
     var nowPlayingOpen by remember { mutableStateOf(false) }
@@ -742,6 +750,7 @@ private fun SoundprintApp(
                     proOpen -> "pro"
                     statsOpen -> "stats"
                     settingsOpen -> "settings"
+                    accountOpen -> "account"
                     else -> "tab-$selectedTab"
                 }
                 AnimatedContent(
@@ -771,6 +780,7 @@ private fun SoundprintApp(
                         )
                         "pro" -> ProScreen(onBack = { proOpen = false })
                         "stats" -> ListeningStatsScreen(libraryManager = libraryManager, onBack = { statsOpen = false })
+                        "account" -> SoundprintAccountScreen(onBack = { accountOpen = false })
                         "settings" -> SettingsScreen(
                             libraryManager = libraryManager,
                             scanner = clapScanner,
@@ -823,6 +833,7 @@ private fun SoundprintApp(
                                 onImportFolder = onImportMusic,
                                 onRescan = onRescan,
                                 onListeningStats = { statsOpen = true },
+                                onAccount = { accountOpen = true },
                                 onOpenPro = { proOpen = true },
                                 onOpenSongs = { selectedTab = 1 },
                                 onOpenTab = { selectedTab = it },
@@ -877,6 +888,7 @@ private fun SoundprintApp(
                                 .weight(1f)
                                 .clickable {
                                     settingsOpen = false
+                                    accountOpen = false
                                     statsOpen = false
                                     selectedTab = index
                                 }
@@ -1057,6 +1069,7 @@ private fun HomeScreen(
     onImportFolder: () -> Unit,
     onRescan: () -> Unit,
     onListeningStats: () -> Unit,
+    onAccount: () -> Unit,
     onOpenPro: () -> Unit,
     onOpenSongs: () -> Unit,
     onOpenTab: (Int) -> Unit,
@@ -1155,7 +1168,7 @@ private fun HomeScreen(
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                HeaderAction(R.drawable.lucide_user_round, "Account", onClick = {})
+                HeaderAction(R.drawable.lucide_user_round, "Account", onClick = onAccount)
                 HeaderAction(R.drawable.lucide_chart_no_axes_column_increasing, "Listening stats", onClick = onListeningStats)
                 HeaderAction(R.drawable.lucide_crown, "Soundprint Pro", tint = MaterialTheme.colorScheme.primary, onClick = onOpenPro)
                 HeaderAction(R.drawable.lucide_search, "Search", onClick = { searchOpen = true })
