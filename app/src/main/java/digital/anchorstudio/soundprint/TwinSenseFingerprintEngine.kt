@@ -30,6 +30,9 @@ import kotlin.math.sqrt
 private const val TWINSENSE_VERSION = 1
 private const val FEATURE_BANDS = 24
 private const val FFT_SIZE = 4096
+// TwinSense fingerprints a bounded opening sample instead of retaining an entire decoded song in RAM.
+private const val MAX_PCM_SAMPLES = 4_000_000
+private const val MAX_SOURCE_FILE_BYTES = 1_073_741_824L
 
 data class TwinSenseFingerprint(
     val trackId: String,
@@ -108,8 +111,9 @@ class TwinSenseFingerprintEngine(private val context: Context) {
     suspend fun create(track: MusicTrack, onProgress: (Int) -> Unit = {}): TwinSenseFingerprint =
         withContext(Dispatchers.IO) {
             val decoded = decodePcm(track, onProgress)
-            val mono = resampleMono(decoded.samples, decoded.sampleRate, 22_050)
-            val features = extractFeatures(mono, 22_050)
+            val analysisRate = decoded.sampleRate.coerceAtMost(22_050)
+            val mono = resampleMono(decoded.samples, decoded.sampleRate, analysisRate)
+            val features = extractFeatures(mono, analysisRate)
             require(features.isNotEmpty()) { "Not enough decodable audio to create a Soundprint fingerprint." }
             val compressed = ByteArrayOutputStream().use { output ->
                 DeflaterOutputStream(output).use { it.write(features) }
@@ -119,8 +123,9 @@ class TwinSenseFingerprintEngine(private val context: Context) {
                 trackId = track.id,
                 sourceSize = track.sizeBytes,
                 sourceModifiedAt = track.modifiedAt,
-                durationMs = if (decoded.sampleRate > 0) decoded.samples.size.toLong() * 1000L / decoded.sampleRate else track.durationMs,
-                sampleRate = 22_050,
+                durationMs = track.durationMs.takeIf { it > 0L }
+                    ?: if (decoded.sampleRate > 0) decoded.samples.size.toLong() * 1000L / decoded.sampleRate else 0L,
+                sampleRate = analysisRate,
                 frameCount = features.size / FEATURE_BANDS,
                 featureBands = FEATURE_BANDS,
                 compressedFeatures = compressed
@@ -130,6 +135,9 @@ class TwinSenseFingerprintEngine(private val context: Context) {
     private data class DecodedAudio(val samples: FloatArray, val sampleRate: Int)
 
     private suspend fun decodePcm(track: MusicTrack, onProgress: (Int) -> Unit): DecodedAudio {
+        require(track.sizeBytes <= MAX_SOURCE_FILE_BYTES) {
+            "This file is larger than TwinSense's 1 GB safety limit and was skipped to protect memory."
+        }
         val extractor = MediaExtractor()
         var decoder: MediaCodec? = null
         val samples = FloatSamples()
@@ -204,7 +212,7 @@ class TwinSenseFingerprintEngine(private val context: Context) {
                                     if (progress != lastProgress) { lastProgress = progress; onProgress(progress) }
                                 }
                             }
-                            if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputEnded = true
+                            if (samples.size >= MAX_PCM_SAMPLES || info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputEnded = true
                         } finally {
                             decoder.releaseOutputBuffer(outputIndex, false)
                         }
@@ -231,7 +239,7 @@ class TwinSenseFingerprintEngine(private val context: Context) {
             else -> 2
         }
         val frameBytes = bytesPerSample * channels.coerceAtLeast(1)
-        while (data.remaining() >= frameBytes) {
+        while (data.remaining() >= frameBytes && target.size < MAX_PCM_SAMPLES) {
             var sum = 0.0
             repeat(channels.coerceAtLeast(1)) {
                 val value = when (encoding) {
@@ -343,7 +351,8 @@ class TwinSenseFingerprintEngine(private val context: Context) {
         var size = 0
             private set
         fun add(value: Float) {
-            if (size == values.size) values = values.copyOf(values.size * 2)
+            if (size >= MAX_PCM_SAMPLES) return
+            if (size == values.size) values = values.copyOf((values.size * 2).coerceAtMost(MAX_PCM_SAMPLES))
             values[size++] = value
         }
         fun toArray() = values.copyOf(size)

@@ -629,7 +629,8 @@ private fun SoundprintApp(
                                 onRescan = onRescan,
                                 onListeningStats = { statsOpen = true },
                                 onOpenPro = { proOpen = true },
-                                onOpenSongs = { selectedTab = 1 }
+                                onOpenSongs = { selectedTab = 1 },
+                                onOpenTab = { selectedTab = it }
                             )
                             1 -> LibraryScreen("Songs", "Your music, all in one place.", Icons.Filled.MusicNote, libraryManager, playbackConnection, onImportFiles) { selectedTab = 0 }
                             2 -> SoundprintAlbumsScreen(libraryManager, playbackConnection, onImportFiles, libraryTrackCount)
@@ -817,7 +818,8 @@ private fun HomeScreen(
     onRescan: () -> Unit,
     onListeningStats: () -> Unit,
     onOpenPro: () -> Unit,
-    onOpenSongs: () -> Unit
+    onOpenSongs: () -> Unit,
+    onOpenTab: (Int) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var editGenreSuggestions by remember { mutableStateOf(emptyList<SoundprintGenreSuggestion>()) }
@@ -868,7 +870,35 @@ private fun HomeScreen(
         }
     }
     val libraryTracks = loadedLibraryTracks.orEmpty()
-    val recentTracks = libraryTracks.take(8)
+    var recentlyPlayedTracks by remember { mutableStateOf<List<MusicTrack>>(emptyList()) }
+    var homeAlbums by remember { mutableStateOf<List<MusicAlbum>>(emptyList()) }
+    var selectedShortcut by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(libraryTrackCount, refreshVersion) {
+        val homeData = withContext(Dispatchers.IO) {
+            libraryManager.recentlyPlayed(8) to libraryManager.albums().take(10)
+        }
+        recentlyPlayedTracks = homeData.first
+        homeAlbums = homeData.second
+    }
+    selectedShortcut?.let { shortcut ->
+        SoundprintHomeShortcutScreen(
+            title = shortcut,
+            libraryManager = libraryManager,
+            playback = playback,
+            onBack = { selectedShortcut = null }
+        )
+        return
+    }
+    val recentAddedTracks = libraryTracks.take(6)
+    val shortcutTiles = listOf(
+        Triple("Songs", R.drawable.lucide_music, 1),
+        Triple("Albums", R.drawable.lucide_disc_3, 2),
+        Triple("Artists", R.drawable.lucide_user, -1),
+        Triple("Genres", R.drawable.lucide_audio_lines, -1),
+        Triple("Playlists", R.drawable.lucide_list_music, 3),
+        Triple("Folders", R.drawable.lucide_folder_plus, -1),
+        Triple("Favorites", R.drawable.lucide_heart, -1)
+    )
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 20.dp, bottom = 16.dp),
@@ -929,101 +959,92 @@ private fun HomeScreen(
                         FeatureLabel(R.drawable.lucide_headphones, "Listen offline")
                     }
                 }
-            } else item {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("YOUR MUSIC", fontSize = 10.sp, letterSpacing = 1.4.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
-                            Text("${libraryTracks.size} songs in your library", fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+            } else {
+                items(4) { rowIndex ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        repeat(2) { columnIndex ->
+                            val tileIndex = rowIndex * 2 + columnIndex
+                            if (tileIndex < shortcutTiles.size) {
+                                val tile = shortcutTiles[tileIndex]
+                                Row(
+                                    Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(16.dp))
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.42f), RoundedCornerShape(16.dp))
+                                        .clickable {
+                                            if (tile.third >= 0) onOpenTab(tile.third) else selectedShortcut = tile.first
+                                        }
+                                        .padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Image(painterResource(tile.second), null, Modifier.size(18.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary))
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(tile.first, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
+                                }
+                            } else {
+                                Spacer(Modifier.weight(1f))
+                            }
                         }
-                        TextButton(onClick = onOpenSongs) { Text("See all") }
                     }
-                    recentTracks.forEachIndexed { index, track ->
-                        var menuExpanded by remember(track.id) { mutableStateOf(false) }
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(MaterialTheme.colorScheme.surface)
-                                .clickable { playback.playTracks(recentTracks, index) }.padding(start = 11.dp, end = 5.dp, top = 7.dp, bottom = 7.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                }
+                item {
+                    AddMusicMenuButton(
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        secondary = true,
+                        onAudioPicker = onImportAudio,
+                        onSinglePicker = onImportSingle,
+                        onFolderPicker = onImportFolder,
+                        onRescan = onRescan
+                    )
+                }
+                if (recentlyPlayedTracks.isNotEmpty()) item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        HomeSectionHeader("Recently played")
+                        androidx.compose.foundation.lazy.LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp)
                         ) {
-                            NativeArtwork(track.artworkUri, track.id, Modifier.size(44.dp), 10)
-                            Spacer(Modifier.width(11.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(track.title, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
-                                Text(track.artist, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Icon(Icons.Filled.PlayArrow, null, tint = MaterialTheme.colorScheme.primary)
-                            Box {
-                                androidx.compose.material3.IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(36.dp)) {
-                                    Icon(Icons.Filled.MoreVert, contentDescription = "Song options", modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                                    DropdownMenuItem(
-                                        text = { Text("Play next") },
-                                        leadingIcon = { Image(painterResource(R.drawable.lucide_list_plus), null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)) },
-                                        onClick = { menuExpanded = false; playback.enqueue(listOf(track), next = true) }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Add to queue") },
-                                        leadingIcon = { Image(painterResource(R.drawable.lucide_list_end), null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)) },
-                                        onClick = { menuExpanded = false; playback.enqueue(listOf(track)) }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Add to favorites") },
-                                        leadingIcon = { Image(painterResource(R.drawable.lucide_heart), null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)) },
-                                        onClick = {
-                                            menuExpanded = false
-                                            if (!libraryManager.isFavorite(track.id)) libraryManager.toggleFavorite(track.id)
-                                            refreshVersion++
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Add to playlist") },
-                                        leadingIcon = { Image(painterResource(R.drawable.lucide_plus), null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)) },
-                                        onClick = {
-                                            menuExpanded = false
-                                            homeScope.launch {
-                                                playlistChoices = withContext(Dispatchers.IO) { libraryManager.playlists() }
-                                                newPlaylistName = ""
-                                                playlistTrack = track
-                                            }
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Edit song information") },
-                                        leadingIcon = { Image(painterResource(R.drawable.lucide_pencil), null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)) },
-                                        onClick = {
-                                            menuExpanded = false
-                                            editTitle = track.title
-                                            editArtist = track.artist
-                                            editAlbum = track.album
-                                            editGenre = track.genre
-                                            editTrack = track
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Go to artist") },
-                                        leadingIcon = { Image(painterResource(R.drawable.lucide_user), null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)) },
-                                        onClick = {
-                                            menuExpanded = false
-                                            selectedArtist = track.artist.ifBlank { "Unknown artist" }
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Move to recycle bin", color = Color(0xFFE5484D)) },
-                                        leadingIcon = { Image(painterResource(R.drawable.lucide_trash_2), null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(Color(0xFFE5484D))) },
-                                        onClick = {
-                                            menuExpanded = false
-                                            recycleConfirmationTrack = track
-                                        }
-                                    )
+                            items(recentlyPlayedTracks, key = { it.id }) { track ->
+                                Column(
+                                    Modifier.width(128.dp).clickable {
+                                        playback.playTracks(listOf(track) + libraryTracks.filterNot { it.id == track.id })
+                                    }
+                                ) {
+                                    NativeArtwork(track.artworkUri, track.id, Modifier.size(128.dp), 16)
+                                    Text(track.title, Modifier.padding(top = 8.dp), fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
+                                    Text(track.artist, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
                     }
-                    OutlinedButton(onClick = onImportAudio, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(7.dp))
-                        Text("Add more music")
+                }
+                if (homeAlbums.isNotEmpty()) item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        HomeSectionHeader("Albums", onSeeAll = { onOpenTab(2) })
+                        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(homeAlbums, key = { "${it.name}:${it.artist}" }) { album ->
+                                val albumTracks = libraryTracks.filter { it.album == album.name && (it.albumArtist.ifBlank { it.artist }) == album.artist }
+                                Column(
+                                    Modifier.width(128.dp).clickable {
+                                        if (albumTracks.isNotEmpty()) playback.playTracks(albumTracks)
+                                        else onOpenTab(2)
+                                    }
+                                ) {
+                                    NativeArtwork(album.artworkUri, "${album.name}:${album.artist}", Modifier.size(128.dp), 16)
+                                    Text(album.name, Modifier.padding(top = 8.dp), fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
+                                    Text(album.artist, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                }
+                if (recentAddedTracks.isNotEmpty()) item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        HomeSectionHeader("Recently added", onSeeAll = onOpenSongs)
+                        recentAddedTracks.forEachIndexed { index, track ->
+                            HomeRecentlyAddedRow(track = track, onClick = {
+                                playback.playTracks(listOf(track) + libraryTracks.filterNot { it.id == track.id })
+                            })
+                        }
                     }
                 }
             }
@@ -1119,6 +1140,106 @@ private fun HomeScreen(
             },
             dismissButton = { TextButton(onClick = { recycleConfirmationTrack = null }) { Text("Cancel") } }
         )
+    }
+}
+
+@Composable
+private fun HomeSectionHeader(title: String, onSeeAll: (() -> Unit)? = null) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 0.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(title, Modifier.weight(1f), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp, color = MaterialTheme.colorScheme.onSurface)
+        if (onSeeAll != null) {
+            Row(Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onSeeAll).padding(vertical = 4.dp, horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("See all", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Filled.ChevronRight, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeRecentlyAddedRow(track: MusicTrack, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        NativeArtwork(track.artworkUri, track.id, Modifier.size(48.dp), 10)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(track.title, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                track.artist + if (track.album.isNotBlank() && track.album != "Unknown album") " · ${track.album}" else "",
+                fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (track.isFavorite) {
+            Icon(Icons.Filled.Favorite, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(8.dp))
+        }
+        val duration = (track.durationMs.coerceAtLeast(0L) / 1000L).toInt()
+        Text("${duration / 60}:${(duration % 60).toString().padStart(2, '0')}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun SoundprintHomeShortcutScreen(
+    title: String,
+    libraryManager: MusicLibraryManager,
+    playback: SoundprintPlaybackConnection,
+    onBack: () -> Unit
+) {
+    val groups by androidx.compose.runtime.produceState(initialValue = emptyList<Pair<String, List<MusicTrack>>>(), title) {
+        value = withContext(Dispatchers.IO) {
+            val tracks = when (title) {
+                "Favorites" -> libraryManager.favorites()
+                else -> libraryManager.allSongs()
+            }
+            when (title) {
+                "Artists" -> tracks.groupBy { it.artist.ifBlank { "Unknown artist" } }.toList().sortedBy { it.first.lowercase() }
+                "Genres" -> tracks.filter { it.genre.isNotBlank() }.groupBy { it.genre.trim() }.toList().sortedBy { it.first.lowercase() }
+                "Folders" -> tracks.groupBy { it.folder.ifBlank { "Music" } }.toList().sortedBy { it.first.lowercase() }
+                else -> listOf(title to tracks)
+            }
+        }
+    }
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HeaderAction(R.drawable.lucide_arrow_left, "Back", onClick = onBack)
+            Spacer(Modifier.width(8.dp))
+            Text(title, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+        }
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            items(groups, key = { it.first }) { (name, tracks) ->
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable {
+                        if (tracks.isNotEmpty()) playback.playTracks(tracks)
+                    }.padding(horizontal = 8.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    NativeArtwork(tracks.firstOrNull()?.artworkUri, name, Modifier.size(44.dp), if (title == "Artists") 22 else 9)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("${tracks.size} ${if (tracks.size == 1) "song" else "songs"}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Icon(Icons.Filled.PlayArrow, null, tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+            if (groups.isEmpty()) item {
+                Text("Nothing here yet.", Modifier.fillMaxWidth().padding(24.dp), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     }
 }
 
@@ -1286,21 +1407,22 @@ private fun AddMusicMenuButton(
     onAudioPicker: () -> Unit,
     onSinglePicker: () -> Unit,
     onFolderPicker: () -> Unit,
-    onRescan: () -> Unit
+    onRescan: () -> Unit,
+    secondary: Boolean = false
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box(modifier = modifier) {
         Row(
             modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(50))
-                .background(MaterialTheme.colorScheme.primary)
+                .background(if (secondary) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary)
                 .clickable { expanded = true }.padding(horizontal = 18.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(painterResource(R.drawable.lucide_folder_plus), contentDescription = null,
-                modifier = Modifier.size(16.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onPrimary))
+                modifier = Modifier.size(16.dp), colorFilter = ColorFilter.tint(if (secondary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary))
             Spacer(Modifier.width(8.dp))
-            Text("Add music", color = MaterialTheme.colorScheme.onPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text("Add music", color = if (secondary) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
