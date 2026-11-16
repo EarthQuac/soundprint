@@ -5,6 +5,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -52,7 +53,42 @@ class PlaybackEngineTest {
 
         store.write(expected)
 
-        assertEquals(expected, store.read())
+        val restored = store.read()
+        assertEquals(expected.queueIds, restored.queueIds)
+        assertEquals(expected.currentIndex, restored.currentIndex)
+        assertEquals(expected.positionMs, restored.positionMs)
+        assertEquals(expected.shuffleEnabled, restored.shuffleEnabled)
+        assertEquals(expected.repeatMode, restored.repeatMode)
+        assertTrue(restored.savedAtMs > 0L)
+    }
+
+    @Test fun resumePromptMatchesCadenceThirtyMinuteThreshold() {
+        val now = 2_000_000L
+        assertFalse(shouldOfferResumePrompt(now - 30L * 60L * 1000L, now, 30_000L, true))
+        assertTrue(shouldOfferResumePrompt(now - 30L * 60L * 1000L - 1L, now, 30_000L, true))
+        assertFalse(shouldOfferResumePrompt(now - 60L * 60L * 1000L, now, 30_000L, false))
+        assertFalse(shouldOfferResumePrompt(now - 60L * 60L * 1000L, now, 0L, true))
+    }
+
+    @Test fun resumePromptSnapshotCanBeReadAndDismissedSeparately() {
+        val store = PlaybackQueueStore(context)
+        val prompt = PlaybackResumePrompt("track-1", "Title", "Artist", 42_000L)
+
+        store.writePendingResumePrompt(prompt)
+
+        assertEquals(prompt, store.pendingResumePrompt())
+        store.clearPendingResumePrompt()
+        assertNull(store.pendingResumePrompt())
+    }
+
+    @Test fun clearingQueueAlsoClearsPendingResumePrompt() {
+        val store = PlaybackQueueStore(context)
+        store.write(PlaybackQueueSnapshot(listOf("track-a"), 0, 12_000L))
+        store.writePendingResumePrompt(PlaybackResumePrompt("track-a", "Title", "Artist", 12_000L))
+
+        store.clear()
+
+        assertNull(store.pendingResumePrompt())
     }
 
     @Test fun clearingQueueSnapshotRemovesOldResumeState() {

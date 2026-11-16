@@ -251,7 +251,13 @@ class MusicLibraryManager(context:Context) {
     }
     fun updateSongMetadata(id:String,title:String,artist:String,album:String,genre:String,year:Int?=null) {
         val current=repository.track(id) ?: throw IllegalArgumentException("Song not found.")
-        repository.updateTrack(current.copy(title=title.trim().ifBlank { current.title },artist=artist.trim().ifBlank { current.artist },album=album.trim().ifBlank { current.album },genre=genre.trim(),year=year?.takeIf { it in 1000..2100 } ?: current.year))
+        repository.updateTrack(current.copy(
+            title = title.trim(),
+            artist = artist.trim(),
+            album = album.trim(),
+            genre = genre.trim(),
+            year = year?.takeIf { it in 1000..2100 } ?: current.year
+        ))
     }
     fun updateSongsMetadata(ids:List<String>,title:String?=null,artist:String?=null,album:String?=null,genre:String?=null):Int =
         repository.updateSongsMetadata(ids,title,artist,album,genre)

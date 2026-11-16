@@ -565,6 +565,76 @@ class MusicLibraryRepository(context:Context) {
         scanRoot(root,treeUri.toString(),onProgress,useCustomArtwork)
     }
 
+    suspend fun scanWatchedFolder(
+        treeUri: Uri,
+        autoAddNewTracks: Boolean,
+        onProgress: (LibraryScanProgress) -> Unit = {}
+    ): LibraryScanResult = withContext(Dispatchers.IO) {
+        val root = DocumentFile.fromTreeUri(app, treeUri)
+            ?: throw IllegalArgumentException("Android could not open the watched folder.")
+        if (!hasPersistedReadPermission(treeUri) || !root.canRead()) {
+            throw SecurityException("Folder access is no longer available. Choose the folder again.")
+        }
+        val directories = ArrayDeque<DocumentFile>().apply { add(root) }
+        val audioFiles = mutableListOf<DocumentFile>()
+        val errors = mutableListOf<LibraryScanError>()
+        while (directories.isNotEmpty()) {
+            coroutineContext.ensureActive()
+            val directory = directories.removeLast()
+            try {
+                directory.listFiles().forEach { child ->
+                    coroutineContext.ensureActive()
+                    if (child.isDirectory) directories.add(child)
+                    else if (child.isFile && runCatching { isSupported(child) }.getOrDefault(false)) audioFiles.add(child)
+                }
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (error: Exception) {
+                errors += LibraryScanError(directory.uri.toString(), error.message ?: "Could not read this folder.")
+            }
+        }
+        val scanId = UUID.randomUUID().toString()
+        var visited = 0
+        var imported = 0
+        var updated = 0
+        var skipped = 0
+        onProgress(LibraryScanProgress(root.name ?: "Watched folder", 0, 0, 0, errors.size, audioFiles.size, 0, "Checking for new audio files", "Scanning folders"))
+        audioFiles.forEach { file ->
+            coroutineContext.ensureActive()
+            visited++
+            val existing = db.findByUri(file.uri.toString())
+            var currentTitle = file.name ?: "Audio file $visited"
+            if (existing != null || !autoAddNewTracks) {
+                skipped++
+            } else {
+                try {
+                    val track = readMetadata(file, treeUri.toString(), isCustomArtworkEnabled())
+                    currentTitle = track.title
+                    val canonical = track.contentHash?.let { db.findCanonicalByHash(it, track.uri) }
+                    if (db.upsert(track.copy(duplicateOf = canonical), scanId)) imported++ else updated++
+                } catch (cancel: CancellationException) {
+                    throw cancel
+                } catch (error: Exception) {
+                    skipped++
+                    errors += LibraryScanError(file.uri.toString(), error.message ?: "Could not import this audio file.")
+                    db.recordScanError(treeUri.toString(), file.uri.toString(), error.message ?: "Could not import this audio file.")
+                }
+            }
+            onProgress(LibraryScanProgress(
+                sourceName = root.name ?: "Watched folder",
+                visited = visited,
+                imported = imported,
+                skipped = skipped,
+                errors = errors.size,
+                total = audioFiles.size,
+                updated = updated,
+                currentTitle = currentTitle
+            ))
+        }
+        db.saveSource(treeUri.toString(), root.name ?: "Music folder", scanId)
+        LibraryScanResult(visited, imported, updated, skipped, 0, errors)
+    }
+
     suspend fun importFiles(
         fileUris:List<Uri>,
         useCustomArtwork:Boolean = isCustomArtworkEnabled(),

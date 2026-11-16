@@ -8,6 +8,7 @@ import androidx.core.view.WindowCompat
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.systemBars
 import android.net.Uri
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.rememberCoroutineScope
@@ -122,6 +123,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.documentfile.provider.DocumentFile
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.text.DateFormat
+import java.util.Date
 
 private val SoundprintFontFamily = FontFamily(Font(R.font.inter_tight_variable))
 
@@ -209,6 +217,13 @@ class MainActivity : ComponentActivity() {
             var libraryTrackCount by remember { mutableIntStateOf(0) }
             var librarySources by remember { mutableStateOf(emptyList<MusicLibrarySource>()) }
             var libraryStatus by remember { mutableStateOf("Checking your saved music locations…") }
+            var watchedFolderUri by remember { mutableStateOf(preferences.getString("watched_folder_uri", null)) }
+            var watchedFolderName by remember { mutableStateOf(preferences.getString("watched_folder_name", null)) }
+            var folderWatchEnabled by remember { mutableStateOf(preferences.getBoolean("folder_watch_enabled", false)) }
+            var folderWatchLastScan by remember { mutableStateOf(preferences.getLong("folder_watch_last_scan", 0L)) }
+            var autoAddNewSongs by remember { mutableStateOf(preferences.getBoolean("auto_add_new_songs", true)) }
+            var pendingTagExport by remember { mutableStateOf<SoundprintTagExportRequest?>(null) }
+            val folderWatchMutex = remember { Mutex() }
             var importUiProgress by remember { mutableStateOf<SoundprintImportUiProgress?>(null) }
             var pendingArtworkImport by remember { mutableStateOf<PendingArtworkImport?>(null) }
             val scope = rememberCoroutineScope()
@@ -239,6 +254,30 @@ class MainActivity : ComponentActivity() {
                 if (uri != null) pendingArtworkImport = PendingArtworkImport { useArtwork ->
                     enqueueMusicImport("Folder import") {
                         SoundprintMusicImportQueue.enqueueFolder(applicationContext, uri, useArtwork)
+                    }
+                }
+            }
+            val watchedFolderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
+                if (uri != null) {
+                    runCatching {
+                        contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    watchedFolderUri = uri.toString()
+                    watchedFolderName = DocumentFile.fromTreeUri(applicationContext, uri)?.name ?: "Music folder"
+                    folderWatchEnabled = true
+                    folderWatchLastScan = 0L
+                    preferences.edit()
+                        .putString("watched_folder_uri", uri.toString())
+                        .putString("watched_folder_name", watchedFolderName)
+                        .putBoolean("folder_watch_enabled", true)
+                        .putLong("folder_watch_last_scan", 0L)
+                        .apply()
+                    enqueueMusicImport("Folder watch setup") {
+                        SoundprintMusicImportQueue.enqueueFolder(
+                            applicationContext,
+                            uri,
+                            preferences.getBoolean("custom_artwork_enabled", true)
+                        )
                     }
                 }
             }
@@ -281,6 +320,17 @@ class MainActivity : ComponentActivity() {
                         libraryStatus = "Backup restored (${result.getOrNull()} records). " +
                             scan.fold({ "Recovery scan found ${it.unavailable} unavailable locations." }, { "Recovery scan failed: ${it.message}" })
                     } else libraryStatus = "Restore failed: ${result.exceptionOrNull()?.message ?: "Unknown error"}"
+                }
+            }
+            val tagExportSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("audio/mpeg")) { uri ->
+                val request = pendingTagExport
+                pendingTagExport = null
+                if (uri != null && request != null) scope.launch {
+                    val result = runCatchingSuspend { exportTaggedMp3Copy(applicationContext, request, uri) }
+                    libraryStatus = result.fold(
+                        { "Updated MP3 copy exported." },
+                        { "MP3 export failed: ${it.message ?: "Unknown error"}" }
+                    )
                 }
             }
             LaunchedEffect(Unit) {
@@ -342,9 +392,72 @@ class MainActivity : ComponentActivity() {
                     // Opening the app must stay cheap: the database is the library index.
                     // Folder traversal is an explicit user action from Settings/Home > Rescan.
                     SoundprintImportNotifications(applicationContext).dismiss()
-                    libraryStatus = "Library ready. Saved folders are checked when you choose Rescan."
+                    libraryStatus = "Library ready. Watched folders are checked automatically while Soundprint is open."
                 }
             }
+            val lifecycleOwner = LocalLifecycleOwner.current
+            LaunchedEffect(watchedFolderUri, folderWatchEnabled, autoAddNewSongs) {
+                val watchedUri = watchedFolderUri ?: return@LaunchedEffect
+                if (!folderWatchEnabled) return@LaunchedEffect
+                while (true) {
+                    delay(30_000L)
+                    if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) continue
+                    val importsRunning = WorkManager.getInstance(applicationContext)
+                        .getWorkInfosForUniqueWorkFlow("soundprint_music_import_queue").first()
+                        .any { !it.state.isFinished }
+                    if (importsRunning) continue
+                    folderWatchMutex.withLock {
+                        val result = runCatchingSuspend {
+                            withContext(Dispatchers.IO) {
+                                libraryRepository.scanWatchedFolder(Uri.parse(watchedUri), autoAddNewSongs)
+                            }
+                        }
+                        result.fold(
+                            { scan ->
+                                folderWatchLastScan = System.currentTimeMillis()
+                                preferences.edit().putLong("folder_watch_last_scan", folderWatchLastScan).apply()
+                                refreshLibraryState()
+                                if (scan.imported > 0) libraryStatus = "Folder watch added ${scan.imported} new songs."
+                            },
+                            { error ->
+                                libraryStatus = "Folder watch failed: ${error.message ?: "Check folder access."}"
+                                if (error is SecurityException) {
+                                    folderWatchEnabled = false
+                                    preferences.edit().putBoolean("folder_watch_enabled", false).apply()
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
+            suspend fun scanWatchedFolderNow() {
+                val raw = watchedFolderUri ?: return
+                val importsRunning = WorkManager.getInstance(applicationContext)
+                    .getWorkInfosForUniqueWorkFlow("soundprint_music_import_queue").first()
+                    .any { !it.state.isFinished }
+                if (importsRunning) {
+                    libraryStatus = "A music import is still running. Folder scan will wait until it finishes."
+                    return
+                }
+                folderWatchMutex.withLock {
+                    val result = runCatchingSuspend {
+                        withContext(Dispatchers.IO) {
+                            libraryRepository.scanWatchedFolder(Uri.parse(raw), autoAddNewSongs)
+                        }
+                    }
+                    result.fold(
+                        { scan ->
+                            folderWatchLastScan = System.currentTimeMillis()
+                            preferences.edit().putLong("folder_watch_last_scan", folderWatchLastScan).apply()
+                            refreshLibraryState()
+                            libraryStatus = "Folder scan complete: ${scan.imported} added, ${scan.updated} updated."
+                        },
+                        { error -> libraryStatus = "Folder scan failed: ${error.message ?: "Unknown error"}" }
+                    )
+                }
+            }
+
             LaunchedEffect(libraryStatus) {
                 val status = libraryStatus.trim()
                 if (status.isBlank() ||
@@ -427,6 +540,34 @@ class MainActivity : ComponentActivity() {
                     libraryTrackCount = libraryTrackCount,
                     librarySources = librarySources,
                     libraryStatus = libraryStatus,
+                    watchedFolderName = watchedFolderName,
+                    folderWatchEnabled = folderWatchEnabled,
+                    folderWatchLastScan = folderWatchLastScan,
+                    autoAddNewSongs = autoAddNewSongs,
+                    onAutoAddNewSongsChange = { enabled ->
+                        autoAddNewSongs = enabled
+                        preferences.edit().putBoolean("auto_add_new_songs", enabled).apply()
+                    },
+                    onChooseWatchedFolder = { watchedFolderPicker.launch(null) },
+                    onToggleFolderWatch = { enabled ->
+                        folderWatchEnabled = enabled
+                        preferences.edit().putBoolean("folder_watch_enabled", enabled).apply()
+                    },
+                    onForgetWatchedFolder = {
+                        watchedFolderUri = null
+                        watchedFolderName = null
+                        folderWatchEnabled = false
+                        folderWatchLastScan = 0L
+                        preferences.edit().remove("watched_folder_uri").remove("watched_folder_name")
+                            .putBoolean("folder_watch_enabled", false).putLong("folder_watch_last_scan", 0L).apply()
+                    },
+                    onScanWatchedFolder = { scope.launch { scanWatchedFolderNow() } },
+                    onExportTaggedMp3 = { request ->
+                        pendingTagExport = request
+                        val safeName = (request.title.ifBlank { request.track.title })
+                            .replace(Regex("[\\\\/:*?\"<>|]+"), "_")
+                        tagExportSaver.launch("$safeName.mp3")
+                    },
                     onImportMusic = { folderPicker.launch(null) },
                     // Include generic-MIME files too; the importer validates audio MIME types and extensions.
                     onImportFiles = { filesPicker.launch(arrayOf("audio/*", "application/octet-stream")) },
@@ -514,6 +655,16 @@ private fun SoundprintApp(
     libraryTrackCount: Int,
     librarySources: List<MusicLibrarySource>,
     libraryStatus: String,
+    watchedFolderName: String?,
+    folderWatchEnabled: Boolean,
+    folderWatchLastScan: Long,
+    autoAddNewSongs: Boolean,
+    onAutoAddNewSongsChange: (Boolean) -> Unit,
+    onChooseWatchedFolder: () -> Unit,
+    onToggleFolderWatch: (Boolean) -> Unit,
+    onForgetWatchedFolder: () -> Unit,
+    onScanWatchedFolder: () -> Unit,
+    onExportTaggedMp3: (SoundprintTagExportRequest) -> Unit,
     onImportMusic: () -> Unit,
     onImportFiles: () -> Unit,
     onImportSingle: () -> Unit,
@@ -541,6 +692,19 @@ private fun SoundprintApp(
     var statsOpen by remember { mutableStateOf(false) }
     var proOpen by remember { mutableStateOf(false) }
     var nowPlayingOpen by remember { mutableStateOf(false) }
+    var tagEditorOpen by remember { mutableStateOf(false) }
+    var resumePrompt by remember { mutableStateOf<PlaybackResumePrompt?>(null) }
+    val playbackQueueStore = remember { PlaybackQueueStore(appContext) }
+    LaunchedEffect(playbackConnection) {
+        repeat(120) {
+            val controller = playbackConnection.controller
+            if (controller != null && controller.mediaItemCount > 0) {
+                playbackQueueStore.pendingResumePrompt()?.let { resumePrompt = it }
+                return@LaunchedEffect
+            }
+            delay(250L)
+        }
+    }
     var homeAlbumToOpen by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(playbackConnection) {
@@ -567,6 +731,7 @@ private fun SoundprintApp(
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 val activeScreen = when {
                     nowPlayingOpen -> "now-playing"
+                    tagEditorOpen -> "tag-editor"
                     proOpen -> "pro"
                     statsOpen -> "stats"
                     settingsOpen -> "settings"
@@ -592,6 +757,11 @@ private fun SoundprintApp(
                             playback = playbackConnection,
                             onBack = { nowPlayingOpen = false }
                         )
+                        "tag-editor" -> SoundprintTagEditorScreen(
+                            library = libraryManager,
+                            onBack = { tagEditorOpen = false; settingsOpen = true },
+                            onExportMp3 = onExportTaggedMp3
+                        )
                         "pro" -> ProScreen(onBack = { proOpen = false })
                         "stats" -> ListeningStatsScreen(libraryManager = libraryManager, onBack = { statsOpen = false })
                         "settings" -> SettingsScreen(
@@ -605,6 +775,16 @@ private fun SoundprintApp(
                             libraryTrackCount = libraryTrackCount,
                             librarySources = librarySources,
                             libraryStatus = libraryStatus,
+                            watchedFolderName = watchedFolderName,
+                            folderWatchEnabled = folderWatchEnabled,
+                            folderWatchLastScan = folderWatchLastScan,
+                            autoAddNewSongs = autoAddNewSongs,
+                            onAutoAddNewSongsChange = onAutoAddNewSongsChange,
+                            onChooseWatchedFolder = onChooseWatchedFolder,
+                            onToggleFolderWatch = onToggleFolderWatch,
+                            onForgetWatchedFolder = onForgetWatchedFolder,
+                            onScanWatchedFolder = onScanWatchedFolder,
+                            onOpenTagEditor = { settingsOpen = false; tagEditorOpen = true },
                             onImportMusic = onImportMusic,
                             onImportFiles = onImportFiles,
                             onRescan = onRescan,
@@ -648,7 +828,7 @@ private fun SoundprintApp(
                 }
             }
 
-            if (!nowPlayingOpen) Column(
+            if (!nowPlayingOpen && !tagEditorOpen) Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background.copy(alpha = 0.96f))
@@ -728,7 +908,47 @@ private fun SoundprintApp(
                 }
             }
         }
+        resumePrompt?.let { prompt ->
+            AlertDialog(
+                onDismissRequest = {
+                    playbackQueueStore.clearPendingResumePrompt()
+                    resumePrompt = null
+                },
+                title = { Text("Pick up where you left off?") },
+                text = {
+                    Text("${prompt.title} · ${prompt.artist}\nYou stopped at ${formatPlaybackResumeTime(prompt.positionMs)}. Would you like to continue or restart this song?")
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        playbackQueueStore.clearPendingResumePrompt()
+                        resumePrompt = null
+                        playbackConnection.controller?.play()
+                        nowPlayingOpen = true
+                    }) { Text("Continue") }
+                },
+                dismissButton = {
+                    Row {
+                        TextButton(onClick = {
+                            playbackQueueStore.clearPendingResumePrompt()
+                            resumePrompt = null
+                            playbackConnection.controller?.seekTo(0L)
+                            playbackConnection.controller?.play()
+                            nowPlayingOpen = true
+                        }) { Text("Restart") }
+                        TextButton(onClick = {
+                            playbackQueueStore.clearPendingResumePrompt()
+                            resumePrompt = null
+                        }) { Text("Not now") }
+                    }
+                }
+            )
+        }
     }
+}
+
+private fun formatPlaybackResumeTime(positionMs: Long): String {
+    val totalSeconds = (positionMs.coerceAtLeast(0L) / 1000L).toInt()
+    return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
 
 @Composable
@@ -1878,7 +2098,17 @@ private fun SettingsScreen(
     onRemoveSource: (String) -> Unit,
     onBackup: () -> Unit,
     onRestore: () -> Unit,
-    onClearLibrary: () -> Unit
+    onClearLibrary: () -> Unit,
+    watchedFolderName: String?,
+    folderWatchEnabled: Boolean,
+    folderWatchLastScan: Long,
+    autoAddNewSongs: Boolean,
+    onAutoAddNewSongsChange: (Boolean) -> Unit,
+    onChooseWatchedFolder: () -> Unit,
+    onToggleFolderWatch: (Boolean) -> Unit,
+    onForgetWatchedFolder: () -> Unit,
+    onScanWatchedFolder: () -> Unit,
+    onOpenTagEditor: () -> Unit
 ) {
     var query by remember { mutableStateOf("") }
     val settingsContext = LocalContext.current
@@ -1890,10 +2120,9 @@ private fun SettingsScreen(
     var loudness by remember { mutableStateOf(playbackPrefs.getBoolean("loudness_leveling", true)) }
     var crossfade by remember { mutableIntStateOf(playbackPrefs.getInt("crossfade_seconds", 0).coerceIn(0, 8)) }
     var resume by remember { mutableStateOf(true) }
-    var rememberPosition by remember { mutableStateOf(true) }
+    var rememberPosition by remember { mutableStateOf(playbackPrefs.getBoolean("remember_position", true)) }
     var seekSeconds by remember { mutableIntStateOf(playbackPrefs.getInt("double_tap_seek_seconds", 10).coerceIn(5, 60)) }
     var replaceQueue by remember { mutableStateOf(false) }
-    var autoAdd by remember { mutableStateOf(true) }
     var customArtwork by remember { mutableStateOf(artworkPreferences.getBoolean("custom_artwork_enabled", true)) }
     DisposableEffect(artworkPreferences) {
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -1981,7 +2210,10 @@ private fun SettingsScreen(
             if (matches("playback resume position double tap seek skip seconds")) {
                 SettingsSection("PLAYBACK") {
                     SettingsToggleRow("Resume playback", "Restore the last song when Soundprint opens", resume) { resume = it }
-                    SettingsToggleRow("Remember position", "Continue from where you stopped", rememberPosition) { rememberPosition = it }
+                    SettingsToggleRow("Remember position", "Continue from where you stopped", rememberPosition) {
+                        rememberPosition = it
+                        playbackPrefs.edit().putBoolean("remember_position", it).apply()
+                    }
                     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp)) {
                         Text("Double-tap to seek", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                         Text("Choose how far to skip when you double-tap the Now Playing artwork.", modifier = Modifier.padding(top = 3.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2012,8 +2244,16 @@ private fun SettingsScreen(
             if (matches("queue replace auto add newly discovered songs folder auto watch scan")) {
                 SettingsSection("QUEUE") {
                     SettingsToggleRow("Replace queue on play", "Playing a list clears the previous queue", replaceQueue) { replaceQueue = it }
-                    SettingsToggleRow("Auto-add newly discovered songs", "New imports join your library automatically", autoAdd) { autoAdd = it }
-                    SettingsActionRow("Folder auto-watch", "Choose a folder to scan every 30 seconds while Soundprint is open.", "Choose")
+                    SettingsToggleRow("Auto-add newly discovered songs", "Automatically add new audio found by your watched folder", autoAddNewSongs, onAutoAddNewSongsChange)
+                    FolderAutoWatchSettingsRow(
+                        folderName = watchedFolderName,
+                        enabled = folderWatchEnabled,
+                        lastScan = folderWatchLastScan,
+                        onChoose = onChooseWatchedFolder,
+                        onToggle = onToggleFolderWatch,
+                        onForget = onForgetWatchedFolder,
+                        onScan = onScanWatchedFolder
+                    )
                 }
             }
             if (matches("library custom artwork add music your music rescan folders audio tag editor playback history backup restore ignore clips clear library recycle bin")) {
@@ -2054,7 +2294,7 @@ private fun SettingsScreen(
                             recycleBinOpen = true
                         }
                     }
-                    SettingsActionRow("Audio tag editor", "Manually edit title, artist, album and genre — free for everyone", "Open")
+                    SettingsActionRow("Audio tag editor", "Manually edit title, artist, album and genre — free for everyone", "Open", onClick = onOpenTagEditor)
                     SettingsActionRow("Playback history", "Clear recently played songs, play counts, listening time and streaks", "Clear") { historyDialog = true }
                     SettingsActionRow("Backup library", "Export your library records, playlists, favourites and listening stats", "Backup", onClick = onBackup)
                     SettingsActionRow("Restore backup", "Restore a Soundprint library backup from your device", "Restore", onClick = onRestore)
@@ -2166,6 +2406,47 @@ private fun SettingsToggleRow(label: String, description: String, checked: Boole
                 Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Switch(checked = checked, onCheckedChange = onCheckedChange)
+        }
+        SettingsDivider()
+    }
+}
+
+@Composable
+private fun FolderAutoWatchSettingsRow(
+    folderName: String?,
+    enabled: Boolean,
+    lastScan: Long,
+    onChoose: () -> Unit,
+    onToggle: (Boolean) -> Unit,
+    onForget: () -> Unit,
+    onScan: () -> Unit
+) {
+    Column {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f).padding(end = 8.dp)) {
+                Text("Folder auto-watch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                val detail = if (folderName.isNullOrBlank()) {
+                    "Choose a folder to check every 30 seconds while Soundprint is open."
+                } else {
+                    "${folderName} · ${if (enabled) "Watching" else "Paused"}" +
+                        if (lastScan > 0L) " · Last scan ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(lastScan))}" else " · Not scanned yet"
+                }
+                Text(detail, modifier = Modifier.padding(top = 4.dp), fontSize = 11.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            if (folderName.isNullOrBlank()) {
+                TextButton(onClick = onChoose) { Text("Choose", fontSize = 12.sp) }
+            } else {
+                Column(horizontalAlignment = Alignment.End) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+                        TextButton(onClick = onScan) { Text("Scan", fontSize = 10.sp) }
+                        TextButton(onClick = { onToggle(!enabled) }) { Text(if (enabled) "Pause" else "Resume", fontSize = 10.sp) }
+                    }
+                    TextButton(onClick = onForget) { Text("Forget folder", fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
+                }
+            }
         }
         SettingsDivider()
     }

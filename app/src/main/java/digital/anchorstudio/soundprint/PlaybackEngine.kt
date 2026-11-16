@@ -40,8 +40,24 @@ data class PlaybackQueueSnapshot(
     val currentIndex: Int = -1,
     val positionMs: Long = 0L,
     val shuffleEnabled: Boolean = false,
-    val repeatMode: SoundprintRepeatMode = SoundprintRepeatMode.OFF
+    val repeatMode: SoundprintRepeatMode = SoundprintRepeatMode.OFF,
+    val savedAtMs: Long = 0L
 )
+
+data class PlaybackResumePrompt(
+    val trackId: String,
+    val title: String,
+    val artist: String,
+    val positionMs: Long
+)
+
+internal fun shouldOfferResumePrompt(
+    savedAtMs: Long,
+    nowMs: Long,
+    positionMs: Long,
+    rememberPosition: Boolean
+): Boolean = rememberPosition && positionMs > 0L && savedAtMs > 0L &&
+    nowMs - savedAtMs > 30L * 60L * 1000L
 
 /** Persists queue occurrences (including duplicate songs), the selected item and resume position. */
 class PlaybackQueueStore(context: Context) {
@@ -57,7 +73,8 @@ class PlaybackQueueStore(context: Context) {
                 currentIndex = json.optInt("currentIndex", -1),
                 positionMs = json.optLong("positionMs", 0L).coerceAtLeast(0L),
                 shuffleEnabled = json.optBoolean("shuffleEnabled", false),
-                repeatMode = runCatching { SoundprintRepeatMode.valueOf(json.optString("repeatMode", "OFF")) }.getOrDefault(SoundprintRepeatMode.OFF)
+                repeatMode = runCatching { SoundprintRepeatMode.valueOf(json.optString("repeatMode", "OFF")) }.getOrDefault(SoundprintRepeatMode.OFF),
+                savedAtMs = json.optLong("savedAtMs", 0L).coerceAtLeast(0L)
             )
         }.getOrDefault(PlaybackQueueSnapshot())
     }
@@ -69,15 +86,46 @@ class PlaybackQueueStore(context: Context) {
             put("positionMs", snapshot.positionMs.coerceAtLeast(0L))
             put("shuffleEnabled", snapshot.shuffleEnabled)
             put("repeatMode", snapshot.repeatMode.name)
+            put("savedAtMs", System.currentTimeMillis())
         }
         preferences.edit().putString(KEY_SNAPSHOT, json.toString()).apply()
     }
 
     fun clear() {
-        preferences.edit().remove(KEY_SNAPSHOT).apply()
+        preferences.edit().remove(KEY_SNAPSHOT).remove(KEY_RESUME_PROMPT).apply()
     }
 
-    private companion object { const val KEY_SNAPSHOT = "snapshot_v1" }
+    fun writePendingResumePrompt(prompt: PlaybackResumePrompt) {
+        val json = JSONObject().apply {
+            put("trackId", prompt.trackId)
+            put("title", prompt.title)
+            put("artist", prompt.artist)
+            put("positionMs", prompt.positionMs.coerceAtLeast(0L))
+        }
+        preferences.edit().putString(KEY_RESUME_PROMPT, json.toString()).apply()
+    }
+
+    fun pendingResumePrompt(): PlaybackResumePrompt? {
+        val raw = preferences.getString(KEY_RESUME_PROMPT, null) ?: return null
+        return runCatching {
+            val json = JSONObject(raw)
+            PlaybackResumePrompt(
+                trackId = json.optString("trackId"),
+                title = json.optString("title"),
+                artist = json.optString("artist"),
+                positionMs = json.optLong("positionMs", 0L).coerceAtLeast(0L)
+            )
+        }.getOrNull()
+    }
+
+    fun clearPendingResumePrompt() {
+        preferences.edit().remove(KEY_RESUME_PROMPT).apply()
+    }
+
+    private companion object {
+        const val KEY_SNAPSHOT = "snapshot_v1"
+        const val KEY_RESUME_PROMPT = "resume_prompt_v1"
+    }
 }
 
 fun MusicTrack.toSoundprintMediaItem(): MediaItem {
@@ -526,9 +574,24 @@ class SoundprintPlaybackService : MediaSessionService() {
             ?: resolved.lastIndex
         player.shuffleModeEnabled = saved.shuffleEnabled
         player.repeatMode = saved.repeatMode.toPlayerRepeatMode()
-        // The saved position belongs to the saved track. If that track is gone and we fell back to a
-        // neighbour, start the neighbour from the beginning instead of at a stale offset.
-        val resumeAtMs = if (resolved[restoredIndex].first == requestedIndex) saved.positionMs else 0L
+        // Match Cadence: remember the position only when enabled. If the app has been
+        // away for more than 30 minutes, ask whether to continue or restart.
+        val sameTrack = resolved[restoredIndex].first == requestedIndex
+        val rememberPosition = playbackOptions.getBoolean(KEY_REMEMBER_POSITION, true)
+        val resumeAtMs = if (sameTrack && rememberPosition) saved.positionMs else 0L
+        if (!sameTrack || !rememberPosition || resumeAtMs <= 0L) {
+            queueStore.clearPendingResumePrompt()
+        } else if (shouldOfferResumePrompt(
+            saved.savedAtMs,
+            System.currentTimeMillis(),
+            resumeAtMs,
+            rememberPosition
+        )) {
+            val track = resolved[restoredIndex].second
+            queueStore.writePendingResumePrompt(
+                PlaybackResumePrompt(track.id, track.title, track.artist, resumeAtMs)
+            )
+        }
         player.setMediaItems(resolved.map { it.second.toSoundprintMediaItem() }, restoredIndex, resumeAtMs)
         player.prepare()
         activeTrackId = player.currentMediaItem?.mediaId
@@ -669,6 +732,8 @@ class SoundprintPlaybackService : MediaSessionService() {
         const val SAMPLE_INTERVAL_MS = 1_000L
         const val PERSIST_INTERVAL_MS = 5_000L
         const val LISTENING_FLUSH_MS = 10_000L
+        const val RESUME_PROMPT_AFTER_MS = 30L * 60L * 1000L
+        const val KEY_REMEMBER_POSITION = "remember_position"
         const val MAX_LISTENING_WRITE_ATTEMPTS = 5
         const val SLEEP_FADE_MS = 15_000L
         const val CROSSFADE_TICK_MS = 50L
