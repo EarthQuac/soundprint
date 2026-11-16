@@ -27,7 +27,7 @@ import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-private const val TWINSENSE_VERSION = 1
+private const val TWINSENSE_VERSION = 2
 private const val FEATURE_BANDS = 24
 private const val FFT_SIZE = 4096
 // TwinSense fingerprints a bounded opening sample instead of retaining an entire decoded song in RAM.

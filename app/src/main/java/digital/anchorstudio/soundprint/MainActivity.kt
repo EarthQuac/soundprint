@@ -960,28 +960,32 @@ private fun HomeScreen(
                     }
                 }
             } else {
-                items(4) { rowIndex ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        repeat(2) { columnIndex ->
-                            val tileIndex = rowIndex * 2 + columnIndex
-                            if (tileIndex < shortcutTiles.size) {
-                                val tile = shortcutTiles[tileIndex]
-                                Row(
-                                    Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(16.dp))
-                                        .background(MaterialTheme.colorScheme.surface)
-                                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.42f), RoundedCornerShape(16.dp))
-                                        .clickable {
-                                            if (tile.third >= 0) onOpenTab(tile.third) else selectedShortcut = tile.first
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        repeat(4) { rowIndex ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                repeat(2) { columnIndex ->
+                                    val tileIndex = rowIndex * 2 + columnIndex
+                                    if (tileIndex < shortcutTiles.size) {
+                                        val tile = shortcutTiles[tileIndex]
+                                        Row(
+                                            Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(16.dp))
+                                                .background(MaterialTheme.colorScheme.surface)
+                                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.42f), RoundedCornerShape(16.dp))
+                                                .clickable {
+                                                    if (tile.third >= 0) onOpenTab(tile.third) else selectedShortcut = tile.first
+                                                }
+                                                .padding(horizontal = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Image(painterResource(tile.second), null, Modifier.size(18.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary))
+                                            Spacer(Modifier.width(12.dp))
+                                            Text(tile.first, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
                                         }
-                                        .padding(horizontal = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Image(painterResource(tile.second), null, Modifier.size(18.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary))
-                                    Spacer(Modifier.width(12.dp))
-                                    Text(tile.first, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
+                                    } else {
+                                        Spacer(Modifier.weight(1f))
+                                    }
                                 }
-                            } else {
-                                Spacer(Modifier.weight(1f))
                             }
                         }
                     }
@@ -1041,9 +1045,31 @@ private fun HomeScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         HomeSectionHeader("Recently added", onSeeAll = onOpenSongs)
                         recentAddedTracks.forEachIndexed { index, track ->
-                            HomeRecentlyAddedRow(track = track, onClick = {
-                                playback.playTracks(listOf(track) + libraryTracks.filterNot { it.id == track.id })
-                            })
+                            HomeRecentlyAddedRow(
+                                track = track,
+                                onClick = { playback.playTracks(listOf(track) + libraryTracks.filterNot { it.id == track.id }) },
+                                onAction = { action ->
+                                    when (action) {
+                                        "Play next" -> playback.enqueue(listOf(track), next = true)
+                                        "Add to queue" -> playback.enqueue(listOf(track))
+                                        "Favorite" -> { libraryManager.toggleFavorite(track.id); refreshVersion++ }
+                                        "Playlist" -> homeScope.launch {
+                                            playlistChoices = withContext(Dispatchers.IO) { libraryManager.playlists() }
+                                            newPlaylistName = ""
+                                            playlistTrack = track
+                                        }
+                                        "Edit" -> {
+                                            editTitle = track.title
+                                            editArtist = track.artist
+                                            editAlbum = track.album
+                                            editGenre = track.genre
+                                            editTrack = track
+                                        }
+                                        "Artist" -> selectedArtist = track.artist.ifBlank { "Unknown artist" }
+                                        "Recycle" -> recycleConfirmationTrack = track
+                                    }
+                                }
+                            )
                         }
                     }
                 }
@@ -1160,7 +1186,12 @@ private fun HomeSectionHeader(title: String, onSeeAll: (() -> Unit)? = null) {
 }
 
 @Composable
-private fun HomeRecentlyAddedRow(track: MusicTrack, onClick: () -> Unit) {
+private fun HomeRecentlyAddedRow(
+    track: MusicTrack,
+    onClick: () -> Unit,
+    onAction: (String) -> Unit
+) {
+    var menuExpanded by remember(track.id) { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
@@ -1182,6 +1213,20 @@ private fun HomeRecentlyAddedRow(track: MusicTrack, onClick: () -> Unit) {
         }
         val duration = (track.durationMs.coerceAtLeast(0L) / 1000L).toInt()
         Text("${duration / 60}:${(duration % 60).toString().padStart(2, '0')}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box {
+            androidx.compose.material3.IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Filled.MoreVert, contentDescription = "Song options", modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                DropdownMenuItem(text = { Text("Play next") }, onClick = { menuExpanded = false; onAction("Play next") })
+                DropdownMenuItem(text = { Text("Add to queue") }, onClick = { menuExpanded = false; onAction("Add to queue") })
+                DropdownMenuItem(text = { Text(if (track.isFavorite) "Remove from favorites" else "Add to favorites") }, onClick = { menuExpanded = false; onAction("Favorite") })
+                DropdownMenuItem(text = { Text("Add to playlist") }, onClick = { menuExpanded = false; onAction("Playlist") })
+                DropdownMenuItem(text = { Text("Edit song information") }, onClick = { menuExpanded = false; onAction("Edit") })
+                DropdownMenuItem(text = { Text("Go to artist") }, onClick = { menuExpanded = false; onAction("Artist") })
+                DropdownMenuItem(text = { Text("Move to recycle bin", color = MaterialTheme.colorScheme.error) }, onClick = { menuExpanded = false; onAction("Recycle") })
+            }
+        }
     }
 }
 
