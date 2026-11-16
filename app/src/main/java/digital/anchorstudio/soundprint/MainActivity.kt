@@ -2545,7 +2545,6 @@ private fun SettingsScreen(
 }
 
 @Composable
-@Composable
 private fun ClapScanSettingsStatus(
     state: ClapLibraryScanState,
     enabled: Boolean,
