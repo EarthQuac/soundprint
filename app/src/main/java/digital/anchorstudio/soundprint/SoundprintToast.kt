@@ -134,7 +134,7 @@ fun SoundprintToastHost(modifier: Modifier = Modifier) {
                         .shadow(16.dp, RoundedCornerShape(12.dp))
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFF1B1A18))
-                        .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(12.dp))
+                        
                         .heightIn(min = 56.dp)
                         .semantics { liveRegion = LiveRegionMode.Polite },
                     verticalAlignment = Alignment.CenterVertically
