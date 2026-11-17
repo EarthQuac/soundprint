@@ -1,6 +1,7 @@
 package digital.anchorstudio.soundprint
 
 import android.os.Bundle
+import android.app.Activity
 import io.github.jan.supabase.auth.handleDeeplinks
 import android.Manifest
 import android.content.pm.PackageManager
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.systemBars
 import android.net.Uri
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.rememberCoroutineScope
@@ -722,6 +724,24 @@ private fun SoundprintApp(
         }
     }
     var homeAlbumToOpen by remember { mutableStateOf<String?>(null) }
+
+    // Keep Android system Back aligned with the app's own screen hierarchy.
+    // A nested screen always unwinds first; only the Home/root screen exits.
+    BackHandler {
+        when {
+            nowPlayingOpen -> nowPlayingOpen = false
+            tagEditorOpen -> {
+                tagEditorOpen = false
+                settingsOpen = true
+            }
+            proOpen -> proOpen = false
+            statsOpen -> statsOpen = false
+            settingsOpen -> settingsOpen = false
+            accountOpen -> accountOpen = false
+            selectedTab != 0 -> selectedTab = 0
+            else -> (appContext as? Activity)?.finish()
+        }
+    }
 
     LaunchedEffect(playbackConnection) {
         while (playbackConnection.controller == null) delay(100)
