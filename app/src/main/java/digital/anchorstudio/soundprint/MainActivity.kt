@@ -227,8 +227,17 @@ private fun palette(name: String, dark: Boolean): SoundprintPalette = when (name
 private data class PendingArtworkImport(val enqueue: (Boolean) -> Unit)
 
 class MainActivity : ComponentActivity() {
+    private val accountReturnRequestCount = mutableIntStateOf(0)
+
+    private fun handleAccountReturnIntent(intent: Intent) {
+        if (intent.data?.scheme == "soundprint" && intent.data?.host == "account") {
+            accountReturnRequestCount.intValue += 1
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleAccountReturnIntent(intent)
         SoundprintSupabase.client.handleDeeplinks(intent)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         val activityWindow = window
@@ -237,6 +246,12 @@ class MainActivity : ComponentActivity() {
             var themeMode by remember { mutableStateOf(preferences.getString("theme", "dark") ?: "dark") }
             var selectedPalette by remember { mutableStateOf(preferences.getString("palette", "Lavender") ?: "Lavender") }
             var enteredLibrary by remember { mutableStateOf(preferences.getBoolean("has_seen_launch_landing", false)) }
+            LaunchedEffect(accountReturnRequestCount.intValue) {
+                if (accountReturnRequestCount.intValue > 0) {
+                    enteredLibrary = true
+                    preferences.edit().putBoolean("has_seen_launch_landing", true).apply()
+                }
+            }
             val libraryRepository = remember { MusicLibraryRepository.getInstance(applicationContext) }
             val libraryManager = remember { MusicLibraryManager.getInstance(applicationContext) }
             val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -554,6 +569,7 @@ class MainActivity : ComponentActivity() {
                 Box(Modifier.fillMaxSize()) {
                 SoundprintApp(
                     libraryManager = libraryManager,
+                    accountReturnRequestCount = accountReturnRequestCount.intValue,
                     themeMode = themeMode,
                     onThemeModeChange = { mode -> themeMode = mode; preferences.edit().putString("theme", mode).apply() },
                     selectedPalette = selectedPalette,
@@ -661,6 +677,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        handleAccountReturnIntent(intent)
         SoundprintSupabase.client.handleDeeplinks(intent)
     }
 }
@@ -678,6 +695,7 @@ private val tabs = listOf(
 @Composable
 private fun SoundprintApp(
     libraryManager: MusicLibraryManager,
+    accountReturnRequestCount: Int,
     themeMode: String,
     onThemeModeChange: (String) -> Unit,
     selectedPalette: String,
@@ -722,6 +740,13 @@ private fun SoundprintApp(
     var selectedTab by remember { mutableIntStateOf(0) }
     var settingsOpen by remember { mutableStateOf(false) }
     var accountOpen by remember { mutableStateOf(false) }
+    var accountReturnToSignInKey by remember { mutableIntStateOf(0) }
+    LaunchedEffect(accountReturnRequestCount) {
+        if (accountReturnRequestCount > 0) {
+            accountOpen = true
+            accountReturnToSignInKey += 1
+        }
+    }
     var statsOpen by remember { mutableStateOf(false) }
     var proOpen by remember { mutableStateOf(false) }
     var nowPlayingOpen by remember { mutableStateOf(false) }
@@ -816,7 +841,10 @@ private fun SoundprintApp(
                         )
                         "pro" -> ProScreen(onBack = { proOpen = false })
                         "stats" -> ListeningStatsScreen(libraryManager = libraryManager, onBack = { statsOpen = false })
-                        "account" -> SoundprintAccountScreen(onBack = { accountOpen = false })
+                        "account" -> SoundprintAccountScreen(
+                            onBack = { accountOpen = false },
+                            resetToSignInKey = accountReturnToSignInKey
+                        )
                         "settings" -> SettingsScreen(
                             libraryManager = libraryManager,
                             scanner = clapScanner,
