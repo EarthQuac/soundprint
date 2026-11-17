@@ -1,6 +1,7 @@
 package digital.anchorstudio.soundprint
 
 import android.app.Activity
+import androidx.compose.ui.res.painterResource
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.foundation.background
@@ -229,13 +230,13 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
             Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back") }
+            IconButton(onClick = onBack) { Icon(painterResource(R.drawable.lucide_ic_arrow_left), contentDescription = "Back") }
             Column(Modifier.weight(1f)) {
                 Text("Account", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Text("Your SoundPrint identity", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (signedIn) Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary.copy(alpha = .12f)) {
-                Icon(Icons.Filled.Person, null, Modifier.padding(10.dp).size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                Icon(painterResource(R.drawable.lucide_ic_user_round), null, Modifier.padding(10.dp).size(18.dp), tint = MaterialTheme.colorScheme.primary)
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
@@ -319,7 +320,7 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                     OutlinedTextField(
                         password, { password = it }, Modifier.fillMaxWidth(),
                         label = { Text("New password") },
-                        leadingIcon = { Icon(Icons.Filled.Lock, null) },
+                        leadingIcon = { Icon(painterResource(R.drawable.lucide_ic_lock), null) },
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true
                     )
@@ -397,9 +398,9 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                         HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .55f))
                     }
                 }
-                if (mode == "sign-up") OutlinedTextField(displayName, { displayName = it.take(60) }, Modifier.fillMaxWidth(), label = { Text("Display name") }, leadingIcon = { Icon(Icons.Filled.Person, null) }, singleLine = true)
-                OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { Icon(Icons.Filled.MailOutline, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
-                if (mode == "sign-up") OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { Icon(Icons.Filled.Lock, null) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
+                if (mode == "sign-up") OutlinedTextField(displayName, { displayName = it.take(60) }, Modifier.fillMaxWidth(), label = { Text("Display name") }, leadingIcon = { Icon(painterResource(R.drawable.lucide_ic_user_round), null) }, singleLine = true)
+                OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { Icon(painterResource(R.drawable.lucide_ic_mail), null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
+                if (mode == "sign-up") OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { Icon(painterResource(R.drawable.lucide_ic_lock), null) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                 if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                 if (otpRequested) {
                     Text(
