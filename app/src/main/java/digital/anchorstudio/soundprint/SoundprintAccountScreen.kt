@@ -194,7 +194,7 @@ internal fun SoundprintAccountScreen(
         }
         perform {
             supabase.auth.signInWith(OTP) {
-                email = requestedEmail
+                this.email = requestedEmail
                 createUser = false
             }
             deletionEmail = requestedEmail
@@ -234,7 +234,7 @@ internal fun SoundprintAccountScreen(
     fun resendAccountDeletionCode() {
         perform {
             supabase.auth.signInWith(OTP) {
-                email = deletionEmail
+                this.email = deletionEmail
                 createUser = false
             }
             deletionCode = ""
@@ -252,7 +252,7 @@ internal fun SoundprintAccountScreen(
         perform {
             val accessToken = supabase.auth.currentAccessTokenOrNull()
                 ?: error("Your verified session has expired. Sign in and request a new code.")
-            val responseText = withContext(Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
                 val connection = (URL("${SoundprintSupabase.SUPABASE_URL}/functions/v1/delete-account").openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     connectTimeout = 15_000
