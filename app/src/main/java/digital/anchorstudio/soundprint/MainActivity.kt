@@ -1202,7 +1202,7 @@ private fun HomeScreen(
                 item {
                     Column(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         repeat(4) { rowIndex ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                                 repeat(2) { columnIndex ->
                                     val tileIndex = rowIndex * 2 + columnIndex
                                     if (tileIndex < shortcutTiles.size) {
@@ -1777,7 +1777,7 @@ private fun AddMusicMenuButton(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "You can also drag songs or folders anywhere onto Soundprint.",
+                    "Choose audio files or a folder to add music to your library.",
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
