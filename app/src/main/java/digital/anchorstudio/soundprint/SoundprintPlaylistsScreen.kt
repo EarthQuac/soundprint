@@ -232,7 +232,7 @@ fun SoundprintPlaylistsScreen(
                     val count = current?.smartResults?.get(rule.id)?.size ?: 0
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(16.dp))
+                            
                             .background(MaterialTheme.colorScheme.surface).padding(11.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -568,7 +568,7 @@ private fun NativeChoice(value: String, options: List<Pair<String, String>>, onS
     val label = options.firstOrNull { it.first == value }?.second ?: value
     Box {
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(9.dp))
+            
             .clickable { expanded = true }.padding(horizontal = 10.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(label, Modifier.weight(1f), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("⌄", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -661,14 +661,14 @@ private fun PlaylistPageHeader(title: String, subtitle: String, action: (() -> U
                 SoundprintIcon(SoundprintIcons.Plus, "New playlist", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f))
+        Spacer(Modifier.height(0.dp))
     }
 }
 
 @Composable
 private fun PlaylistSearchBox(value: String, onValueChange: (String) -> Unit, placeholder: String) {
     Row(Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)
-        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(16.dp)).padding(horizontal = 12.dp),
+        .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
         SoundprintIcon(SoundprintIcons.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp))
         Spacer(Modifier.width(9.dp))
