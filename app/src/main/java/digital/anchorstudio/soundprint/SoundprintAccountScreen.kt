@@ -302,12 +302,22 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                 }
             } else {
                 AccountPanel {
-                    Text("YOUR MUSIC. YOUR ACCOUNT.", fontSize = 10.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Text(
-                        when (mode) { "sign-up" -> "Create your SoundPrint account."; "forgot" -> "Reset your password."; else -> "Welcome back." },
+                        when (mode) {
+                            "sign-up" -> "Create your account"
+                            "forgot" -> "Reset your password"
+                            else -> "Sign in to SoundPrint"
+                        },
                         fontSize = 25.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface
                     )
-                    Text("Sign in to keep your SoundPrint identity ready across devices. Your music library stays local by default.", fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        when (mode) {
+                            "sign-up" -> "Create an account to keep your SoundPrint identity available across devices."
+                            "forgot" -> "We'll send you a secure link to reset your password."
+                            else -> "Sign in to manage your account. Your music library stays on this device by default."
+                        },
+                        fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 if (mode != "forgot") {
                     OutlinedButton(
