@@ -139,7 +139,7 @@ fun ListeningStatsScreen(libraryManager:MusicLibraryManager,onBack:()->Unit) {
 }
 
 @Composable
-private fun StatMetricCard(label:String,value:String,icon:androidx.compose.ui.graphics.vector.Int,modifier:Modifier=Modifier) {
+private fun StatMetricCard(label:String,value:String,icon:Int,modifier:Modifier=Modifier) {
     Column(modifier.clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surface).padding(15.dp)) {
         Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha=.11f)),contentAlignment=Alignment.Center) {
             SoundprintIcon(icon,null,tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(18.dp))

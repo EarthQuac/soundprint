@@ -70,7 +70,7 @@ private data class PlaylistPageData(
     val added: List<MusicTrack> = emptyList()
 )
 
-private data class PlaylistMixItem(val id: String, val title: String, val tracks: List<MusicTrack>, val icon: androidx.compose.ui.graphics.vector.Int)
+private data class PlaylistMixItem(val id: String, val title: String, val tracks: List<MusicTrack>, val icon: Int)
 
 private val smartOperators = listOf(
     SmartOperator.EQ to "is",

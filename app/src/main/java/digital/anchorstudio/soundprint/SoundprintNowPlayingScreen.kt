@@ -1230,7 +1230,7 @@ fun SoundprintMiniPlayer(
 @Composable
 private fun MiniPlayerControl(
     label: String,
-    icon: androidx.compose.ui.graphics.vector.Int,
+    icon: Int,
     onClick: () -> Unit,
     muted: Boolean = false
 ) {
