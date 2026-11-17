@@ -652,7 +652,7 @@ private data class TabItem(val label: String, val icon: Int)
 
 private val tabs = listOf(
     TabItem("Home", R.drawable.lucide_home),
-    TabItem("Songs", R.drawable.lucide_music),
+    TabItem("Songs", R.drawable.lucide_music_2),
     TabItem("Albums", R.drawable.lucide_disc_3),
     TabItem("Playlists", R.drawable.lucide_list_music),
     TabItem("Discover", R.drawable.lucide_audio_lines)
