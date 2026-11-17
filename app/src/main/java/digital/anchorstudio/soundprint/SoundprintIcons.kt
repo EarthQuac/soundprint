@@ -79,6 +79,7 @@ internal object SoundprintIcons {
     val CircleAlert = LucideR.drawable.lucide_ic_circle_alert
     val AudioLines = LucideR.drawable.lucide_ic_audio_lines
     val Music = LucideR.drawable.lucide_ic_music
+    val EighthNotes = R.drawable.lucide_ic_eighth_notes
     val User = LucideR.drawable.lucide_ic_user
     val FolderPlus = LucideR.drawable.lucide_ic_folder_plus
     val Crown = LucideR.drawable.lucide_ic_crown
