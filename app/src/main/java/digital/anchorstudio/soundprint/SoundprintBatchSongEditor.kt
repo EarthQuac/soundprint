@@ -96,7 +96,7 @@ internal fun SoundprintSongsLibraryScreen(
                 TextButton(onClick = onImport) { Text("Add music") }
             }
         }
-        androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+        Spacer(Modifier.height(0.dp))
         Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
             OutlinedTextField(
                 value = query,
