@@ -56,7 +56,10 @@ import kotlinx.serialization.json.put
 private data class SoundprintProfileUpdate(@SerialName("display_name") val displayName: String)
 
 @Composable
-internal fun SoundprintAccountScreen(onBack: () -> Unit) {
+internal fun SoundprintAccountScreen(
+    onBack: () -> Unit,
+    resetToSignInKey: Int = 0
+) {
     val supabase = remember { SoundprintSupabase.client }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -81,6 +84,21 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
     var otpIsRecovery by remember { mutableStateOf(false) }
     var resetOtpVerified by remember { mutableStateOf(false) }
     val authSessionState by supabase.auth.sessionStatus.collectAsState()
+
+    LaunchedEffect(resetToSignInKey) {
+        if (resetToSignInKey > 0) {
+            mode = "sign-in"
+            otpRequested = false
+            otpCode = ""
+            otpIsSignup = false
+            otpIsRecovery = false
+            resetOtpVerified = false
+            password = ""
+            confirmPassword = ""
+            message = null
+            messageError = false
+        }
+    }
 
     suspend fun refreshAccount() {
         val user = supabase.auth.currentUserOrNull()
