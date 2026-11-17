@@ -12,6 +12,7 @@ import io.github.jan.supabase.postgrest.Postgrest
  */
 internal object SoundprintSupabase {
     const val AUTH_REDIRECT = "soundprint://auth"
+    const val PASSWORD_RESET_REDIRECT = "https://soundprint.anchorstuds.com/reset-password"
     const val GOOGLE_WEB_CLIENT_ID = "653534412728-vo4dpm27c07l44oh4c5jk7uhed7vuaj7.apps.googleusercontent.com"
 
     val client by lazy {
