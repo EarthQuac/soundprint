@@ -23,27 +23,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.CloudQueue
-import androidx.compose.material.icons.filled.Spa
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.NightsStay
-import androidx.compose.material.icons.filled.Bedtime
-import androidx.compose.material.icons.filled.SentimentDissatisfied
-import androidx.compose.material.icons.filled.SentimentSatisfied
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Celebration
-import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Waves
-import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -64,7 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.Int
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -355,25 +334,25 @@ class ClapLibraryScanner(context: Context, private val library: MusicLibraryMana
     }
 }
 
-private fun moodIcon(mood: SoundprintMood): ImageVector = when (mood) {
-    SoundprintMood.WORKOUT -> Icons.Filled.FitnessCenter
-    SoundprintMood.DRIVING -> Icons.Filled.DirectionsCar
-    SoundprintMood.CHILL -> Icons.Filled.Waves
-    SoundprintMood.FOCUS -> Icons.Filled.Psychology
-    SoundprintMood.PARTY -> Icons.Filled.Celebration
-    SoundprintMood.UPBEAT -> Icons.Filled.LocalFireDepartment
-    SoundprintMood.HAPPY -> Icons.Filled.SentimentSatisfied
-    SoundprintMood.SAD -> Icons.Filled.SentimentDissatisfied
-    SoundprintMood.ROMANTIC -> Icons.Filled.MusicNote
-    SoundprintMood.SLEEP -> Icons.Filled.Bedtime
-    SoundprintMood.LATE_NIGHT -> Icons.Filled.NightsStay
-    SoundprintMood.ANGRY -> Icons.Filled.Bolt
-    SoundprintMood.DREAMY -> Icons.Filled.Cloud
-    SoundprintMood.PEACEFUL -> Icons.Filled.Spa
-    SoundprintMood.MELANCHOLY -> Icons.Filled.CloudQueue
-    SoundprintMood.CONFIDENT -> Icons.Filled.Shield
-    SoundprintMood.NOSTALGIC -> Icons.Filled.History
-    SoundprintMood.INTENSE -> Icons.Filled.FlashOn
+private fun moodIcon(mood: SoundprintMood): Int = when (mood) {
+    SoundprintMood.WORKOUT -> SoundprintIcons.Dumbbell
+    SoundprintMood.DRIVING -> SoundprintIcons.CarFront
+    SoundprintMood.CHILL -> SoundprintIcons.Waves
+    SoundprintMood.FOCUS -> SoundprintIcons.Brain
+    SoundprintMood.PARTY -> SoundprintIcons.PartyPopper
+    SoundprintMood.UPBEAT -> SoundprintIcons.Flame
+    SoundprintMood.HAPPY -> SoundprintIcons.Smile
+    SoundprintMood.SAD -> SoundprintIcons.Frown
+    SoundprintMood.ROMANTIC -> SoundprintIcons.Music2
+    SoundprintMood.SLEEP -> SoundprintIcons.Moon
+    SoundprintMood.LATE_NIGHT -> SoundprintIcons.MoonStar
+    SoundprintMood.ANGRY -> SoundprintIcons.Zap
+    SoundprintMood.DREAMY -> SoundprintIcons.Cloud
+    SoundprintMood.PEACEFUL -> SoundprintIcons.Sprout
+    SoundprintMood.MELANCHOLY -> SoundprintIcons.Cloud
+    SoundprintMood.CONFIDENT -> SoundprintIcons.ShieldCheck
+    SoundprintMood.NOSTALGIC -> SoundprintIcons.History
+    SoundprintMood.INTENSE -> SoundprintIcons.Zap
 }
 
 @Composable
@@ -659,7 +638,7 @@ fun ClapDiscoverScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    androidx.compose.material3.Icon(
+                    SoundprintIcon(
                         moodIcon(mood), contentDescription = null,
                         modifier = Modifier.size(13.dp),
                         tint = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -703,8 +682,8 @@ fun ClapDiscoverScreen(
                     Text(selectedMood?.title.orEmpty(), modifier = Modifier.padding(top = 3.dp), fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                 }
                 if (recommendations.isNotEmpty()) {
-                    TextButton(onClick = { playback.playTracks(recommendations.map { it.first }) }) { androidx.compose.material3.Icon(Icons.Filled.PlayArrow, null); Text("Play all") }
-                    TextButton(onClick = { playback.playTracks(recommendations.map { it.first }, shuffle = true) }) { androidx.compose.material3.Icon(Icons.Filled.Shuffle, null) }
+                    TextButton(onClick = { playback.playTracks(recommendations.map { it.first }) }) { SoundprintIcon(SoundprintIcons.Play, null); Text("Play all") }
+                    TextButton(onClick = { playback.playTracks(recommendations.map { it.first }, shuffle = true) }) { SoundprintIcon(SoundprintIcons.Shuffle, null) }
                 }
             }
             if (recommendations.isEmpty()) {
@@ -737,7 +716,7 @@ fun ClapDiscoverScreen(
             } else {
                 recommendations.forEachIndexed { index, (track, score) ->
                     Row(Modifier.fillMaxWidth().clickable { playback.playTracks(recommendations.map { it.first }, startIndex = index) }.padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                        androidx.compose.material3.Icon(Icons.Filled.MusicNote, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp))
+                        SoundprintIcon(SoundprintIcons.Music2, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp))
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(track.title, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)

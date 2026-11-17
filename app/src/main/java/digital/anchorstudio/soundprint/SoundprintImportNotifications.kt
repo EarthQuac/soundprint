@@ -98,7 +98,7 @@ class SoundprintImportNotifications(context: Context) {
         val message = "✓ $done ${if (done == 1) "song" else "songs"} added"
         post(
             NotificationCompat.Builder(app, RESULT_CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setSmallIcon(SoundprintIcons.Download)
                 .setColor(Color.rgb(252, 158, 71))
                 .setContentTitle("Music ready")
                 .setContentText(message)
@@ -115,7 +115,7 @@ class SoundprintImportNotifications(context: Context) {
     fun failed(message: String) {
         post(
             NotificationCompat.Builder(app, RESULT_CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.stat_notify_error)
+                .setSmallIcon(SoundprintIcons.CircleAlert)
                 .setColor(Color.rgb(252, 158, 71))
                 .setContentTitle("Music import stopped")
                 .setContentText(message.ifBlank { "Soundprint couldn't finish importing your music." })
@@ -138,7 +138,7 @@ class SoundprintImportNotifications(context: Context) {
         indeterminate: Boolean
     ): Notification =
         NotificationCompat.Builder(app, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setSmallIcon(SoundprintIcons.Download)
             .setColor(Color.rgb(252, 158, 71))
             .setContentTitle("Adding music")
             .setContentText(title)

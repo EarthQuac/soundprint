@@ -17,21 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Sort
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -40,8 +25,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -135,7 +118,7 @@ internal fun SongsLibraryScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
-                Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                SoundprintIcon(SoundprintIcons.ArrowLeft, contentDescription = "Back")
             }
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
@@ -143,7 +126,7 @@ internal fun SongsLibraryScreen(
                 Text("${songs.size} songs", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             OutlinedButton(onClick = onImportFiles, shape = RoundedCornerShape(50)) {
-                Icon(Icons.Filled.MusicNote, contentDescription = null, modifier = Modifier.size(16.dp))
+                SoundprintIcon(SoundprintIcons.Music2, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
                 Text("Add music", fontSize = 12.sp)
             }
@@ -165,13 +148,13 @@ internal fun SongsLibraryScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         placeholder = { Text("Filter songs, artists, albums…", fontSize = 13.sp) },
-                        leadingIcon = { Icon(Icons.Filled.Search, null) },
+                        leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null) },
                         shape = RoundedCornerShape(14.dp)
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(Modifier.weight(1f)) {
                             OutlinedButton(onClick = { sortMenu = true }, modifier = Modifier.fillMaxWidth()) {
-                                Icon(Icons.Filled.Sort, null, modifier = Modifier.size(16.dp))
+                                SoundprintIcon(SoundprintIcons.ArrowUpDown, null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text("Sort: $sort", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 11.sp)
                             }
@@ -190,7 +173,7 @@ internal fun SongsLibraryScreen(
                             onClick = { soundprintOpen = !soundprintOpen; if (soundprintOpen) recycleOpen = false },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(Icons.Filled.GraphicEq, null, modifier = Modifier.size(16.dp))
+                            SoundprintIcon(SoundprintIcons.AudioWaveform, null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("TwinSense", fontSize = 12.sp)
                         }
@@ -202,7 +185,7 @@ internal fun SongsLibraryScreen(
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(Icons.Filled.LibraryMusic, null, modifier = Modifier.size(16.dp))
+                            SoundprintIcon(SoundprintIcons.Library, null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Recycle Bin (${recycleItems.size})", fontSize = 12.sp, maxLines = 1)
                         }
@@ -217,7 +200,7 @@ internal fun SongsLibraryScreen(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f))
                         Column(Modifier.padding(vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.GraphicEq, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                                SoundprintIcon(SoundprintIcons.AudioWaveform, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text("TwinSense", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -251,7 +234,7 @@ internal fun SongsLibraryScreen(
                                     enabled = !scanning && songs.size >= 2
                                 ) {
                                     if (scanning) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                                    else Icon(Icons.Filled.GraphicEq, null, modifier = Modifier.size(16.dp))
+                                    else SoundprintIcon(SoundprintIcons.AudioWaveform, null, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(7.dp))
                                     Text(if (scanning) "Scanning…" else if (scanResult != null) "Scan again" else "Scan library")
                                 }
@@ -274,7 +257,7 @@ internal fun SongsLibraryScreen(
                                 )
                                 if (cleanupTracks.isNotEmpty()) {
                                     OutlinedButton(onClick = { confirmSmartCleanup = true }) {
-                                        Icon(Icons.Filled.Delete, null, modifier = Modifier.size(16.dp))
+                                        SoundprintIcon(SoundprintIcons.Trash2, null, modifier = Modifier.size(16.dp))
                                         Spacer(Modifier.width(7.dp))
                                         Text("Smart Cleanup · ${cleanupTracks.size}")
                                     }
@@ -365,7 +348,7 @@ internal fun SongsLibraryScreen(
                                             refreshLibrary()
                                         }
                                     }) {
-                                        Icon(Icons.Filled.Restore, null, modifier = Modifier.size(15.dp))
+                                        SoundprintIcon(SoundprintIcons.ArchiveRestore, null, modifier = Modifier.size(15.dp))
                                         Spacer(Modifier.width(4.dp))
                                         Text("Restore", fontSize = 11.sp)
                                     }
@@ -385,7 +368,7 @@ internal fun SongsLibraryScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Filled.MusicNote, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(32.dp))
+                        SoundprintIcon(SoundprintIcons.Music2, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(32.dp))
                         Text(if (query.isBlank()) "No music found" else "No matches", fontWeight = FontWeight.SemiBold)
                         Text(if (query.isBlank()) "Add music to your device to see your songs here." else "Try another title, artist or album.",
                             fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -507,7 +490,7 @@ private fun NativeSongLibraryRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.size(42.dp).clip(RoundedCornerShape(9.dp)).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-            Icon(Icons.Filled.MusicNote, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            SoundprintIcon(SoundprintIcons.Music2, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
@@ -517,19 +500,19 @@ private fun NativeSongLibraryRow(
         Text(formatTwinSenseDuration(track.durationMs / 1000.0), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Box {
             androidx.compose.material3.IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Filled.MoreVert, contentDescription = "Song options", modifier = Modifier.size(19.dp))
+                SoundprintIcon(SoundprintIcons.EllipsisVertical, contentDescription = "Song options", modifier = Modifier.size(19.dp))
             }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(text = { Text("Play next") }, leadingIcon = { Icon(Icons.Filled.PlayArrow, null) }, onClick = { menuOpen = false; playback.enqueue(listOf(track), next = true) })
-                DropdownMenuItem(text = { Text("Add to queue") }, leadingIcon = { Icon(Icons.Filled.QueueMusic, null) }, onClick = { menuOpen = false; playback.enqueue(listOf(track)) })
-                DropdownMenuItem(text = { Text(if (track.isFavorite) "Remove from favourites" else "Add to favourites") }, leadingIcon = { Icon(Icons.Filled.Favorite, null) }, onClick = {
+                DropdownMenuItem(text = { Text("Play next") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Play, null) }, onClick = { menuOpen = false; playback.enqueue(listOf(track), next = true) })
+                DropdownMenuItem(text = { Text("Add to queue") }, leadingIcon = { SoundprintIcon(SoundprintIcons.ListMusic, null) }, onClick = { menuOpen = false; playback.enqueue(listOf(track)) })
+                DropdownMenuItem(text = { Text(if (track.isFavorite) "Remove from favourites" else "Add to favourites") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Heart, null) }, onClick = {
                     menuOpen = false
                     scope.launch { withContext(Dispatchers.IO) { library.toggleFavorite(track.id) }; onChanged() }
                 })
-                DropdownMenuItem(text = { Text("Add to playlist") }, leadingIcon = { Icon(Icons.Filled.PlaylistAdd, null) }, onClick = { menuOpen = false; playlistsOpen = true })
-                DropdownMenuItem(text = { Text("Edit song info") }, leadingIcon = { Icon(Icons.Filled.Edit, null) }, onClick = { menuOpen = false; editOpen = true })
-                DropdownMenuItem(text = { Text("Go to artist") }, leadingIcon = { Icon(Icons.Filled.MusicNote, null) }, onClick = { menuOpen = false; artistOpen = true })
-                DropdownMenuItem(text = { Text("Move to Recycle Bin") }, leadingIcon = { Icon(Icons.Filled.Delete, null) }, onClick = {
+                DropdownMenuItem(text = { Text("Add to playlist") }, leadingIcon = { SoundprintIcon(SoundprintIcons.ListPlus, null) }, onClick = { menuOpen = false; playlistsOpen = true })
+                DropdownMenuItem(text = { Text("Edit song info") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Pencil, null) }, onClick = { menuOpen = false; editOpen = true })
+                DropdownMenuItem(text = { Text("Go to artist") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Music2, null) }, onClick = { menuOpen = false; artistOpen = true })
+                DropdownMenuItem(text = { Text("Move to Recycle Bin") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Trash2, null) }, onClick = {
                     menuOpen = false
                     playback.removeTrackFromQueue(track.id)
                     scope.launch { withContext(Dispatchers.IO) { library.moveToRecycleBin(track.id, "Removed from song menu") }; onChanged() }

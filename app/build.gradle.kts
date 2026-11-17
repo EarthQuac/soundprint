@@ -89,8 +89,6 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     // Single-source Lucide icon pack for every app UI icon.
     implementation("com.composables:icons-lucide-android:2.2.1")
-    // Kept temporarily while remaining legacy Material icon call sites are migrated.
-    implementation("androidx.compose.material:material-icons-extended")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

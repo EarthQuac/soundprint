@@ -1,7 +1,6 @@
 package digital.anchorstudio.soundprint
 
 import android.app.Activity
-import androidx.compose.ui.res.painterResource
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.foundation.background
@@ -16,11 +15,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MailOutline
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -230,13 +224,13 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
             Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) { Icon(painterResource(R.drawable.lucide_ic_arrow_left), contentDescription = "Back") }
+            IconButton(onClick = onBack) { SoundprintIcon(SoundprintIcons.ArrowLeft, contentDescription = "Back") }
             Column(Modifier.weight(1f)) {
                 Text("Account", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Text("Your SoundPrint identity", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (signedIn) Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary.copy(alpha = .12f)) {
-                Icon(painterResource(R.drawable.lucide_ic_user_round), null, Modifier.padding(10.dp).size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                SoundprintIcon(SoundprintIcons.UserRound, null, Modifier.padding(10.dp).size(18.dp), tint = MaterialTheme.colorScheme.primary)
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
@@ -320,7 +314,7 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                     OutlinedTextField(
                         password, { password = it }, Modifier.fillMaxWidth(),
                         label = { Text("New password") },
-                        leadingIcon = { Icon(painterResource(R.drawable.lucide_ic_lock), null) },
+                        leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) },
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true
                     )
@@ -398,9 +392,9 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                         HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .55f))
                     }
                 }
-                if (mode == "sign-up") OutlinedTextField(displayName, { displayName = it.take(60) }, Modifier.fillMaxWidth(), label = { Text("Display name") }, leadingIcon = { Icon(painterResource(R.drawable.lucide_ic_user_round), null) }, singleLine = true)
-                OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { Icon(painterResource(R.drawable.lucide_ic_mail), null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
-                if (mode == "sign-up") OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { Icon(painterResource(R.drawable.lucide_ic_lock), null) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
+                if (mode == "sign-up") OutlinedTextField(displayName, { displayName = it.take(60) }, Modifier.fillMaxWidth(), label = { Text("Display name") }, leadingIcon = { SoundprintIcon(SoundprintIcons.UserRound, null) }, singleLine = true)
+                OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
+                if (mode == "sign-up") OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                 if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                 if (otpRequested) {
                     Text(

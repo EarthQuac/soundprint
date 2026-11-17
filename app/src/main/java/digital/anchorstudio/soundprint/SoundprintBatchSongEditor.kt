@@ -16,19 +16,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -91,7 +82,7 @@ internal fun SoundprintSongsLibraryScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             androidx.compose.material3.IconButton(onClick = onBack) {
-                Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                SoundprintIcon(SoundprintIcons.ArrowLeft, contentDescription = "Back")
             }
             Column(Modifier.weight(1f)) {
                 Text("Songs", fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
@@ -114,7 +105,7 @@ internal fun SoundprintSongsLibraryScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(15.dp),
                 placeholder = { Text("Search songs, artists, albums…", fontSize = 12.sp) },
-                leadingIcon = { Icon(Icons.Filled.Search, null, modifier = Modifier.size(18.dp)) }
+                leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null, modifier = Modifier.size(18.dp)) }
             )
             if (selectedIds.isNotEmpty()) {
                 Surface(
@@ -126,7 +117,7 @@ internal fun SoundprintSongsLibraryScreen(
                         Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(17.dp))
+                        SoundprintIcon(SoundprintIcons.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(17.dp))
                         Text(
                             "${selectedIds.size} selected",
                             Modifier.weight(1f).padding(start = 8.dp),
@@ -145,7 +136,7 @@ internal fun SoundprintSongsLibraryScreen(
                             enabled = !saving,
                             shape = CircleShape
                         ) {
-                            Icon(Icons.Filled.Edit, null, modifier = Modifier.size(15.dp))
+                            SoundprintIcon(SoundprintIcons.Pencil, null, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(5.dp))
                             Text("Edit")
                         }
@@ -170,7 +161,7 @@ internal fun SoundprintSongsLibraryScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(Icons.Filled.MusicNote, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(34.dp))
+                SoundprintIcon(SoundprintIcons.Music2, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(34.dp))
                 Text(if (query.isBlank()) "No songs yet" else "No matching songs", Modifier.padding(top = 12.dp),
                     fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                 Text(if (query.isBlank()) "Import music to start building your library." else "Try another title, artist or album.",
@@ -210,14 +201,14 @@ internal fun SoundprintSongsLibraryScreen(
                             )
                         }
                         if (track.isFavorite && !selectionMode) {
-                            Icon(Icons.Filled.Favorite, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                            SoundprintIcon(SoundprintIcons.Heart, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(8.dp))
                         }
                         if (!selectionMode) {
                             Text(formatBatchDuration(track.durationMs), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Box {
                                 androidx.compose.material3.IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(36.dp)) {
-                                    Icon(Icons.Filled.MoreVert, contentDescription = "Song options", modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    SoundprintIcon(SoundprintIcons.EllipsisVertical, contentDescription = "Song options", modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                                     DropdownMenuItem(text = { Text("Play next") }, onClick = {

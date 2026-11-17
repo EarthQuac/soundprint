@@ -17,15 +17,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -81,7 +75,7 @@ fun SoundprintTagEditorScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             TextButton(onClick = onBack) {
-                Icon(Icons.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+                SoundprintIcon(SoundprintIcons.ArrowLeft, contentDescription = null, modifier = Modifier.size(18.dp))
                 Text("Back", modifier = Modifier.padding(start = 6.dp))
             }
             Column(Modifier.weight(1f)) {
@@ -95,7 +89,7 @@ fun SoundprintTagEditorScreen(
                 onValueChange = { query = it; selectedId = null; status = null },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.Search, contentDescription = null) },
                 placeholder = { Text("Find a track…") },
                 shape = RoundedCornerShape(14.dp)
             )
@@ -158,13 +152,13 @@ fun SoundprintTagEditorScreen(
                             },
                             enabled = !saving && title.isNotBlank(),
                             modifier = Modifier.fillMaxWidth()
-                        ) { Icon(Icons.Filled.Save, null); Text(if (saving) "Saving…" else "Save library details") }
+                        ) { SoundprintIcon(SoundprintIcons.Save, null); Text(if (saving) "Saving…" else "Save library details") }
                         if (selected.mimeType.contains("mpeg", true)) {
                             Button(
                                 onClick = { onExportMp3(SoundprintTagExportRequest(selected, title, artist, album, genre)) },
                                 enabled = title.isNotBlank() && !saving,
                                 modifier = Modifier.fillMaxWidth()
-                            ) { Icon(Icons.Filled.Download, null); Text("Export updated MP3 copy") }
+                            ) { SoundprintIcon(SoundprintIcons.Download, null); Text("Export updated MP3 copy") }
                         } else {
                             Text("MP3 export is available for MP3 files. Save library details for other formats.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }

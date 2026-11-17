@@ -66,29 +66,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.AudioFile
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.AlertDialog
@@ -118,9 +95,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.foundation.Image
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.Int
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -653,11 +629,11 @@ class MainActivity : ComponentActivity() {
 private data class TabItem(val label: String, val icon: Int)
 
 private val tabs = listOf(
-    TabItem("Home", R.drawable.lucide_home),
-    TabItem("Songs", R.drawable.lucide_music_2),
-    TabItem("Albums", R.drawable.lucide_disc_3),
-    TabItem("Playlists", R.drawable.lucide_list_music),
-    TabItem("Discover", R.drawable.lucide_audio_lines)
+    TabItem("Home", SoundprintIcons.House),
+    TabItem("Songs", SoundprintIcons.Music2),
+    TabItem("Albums", SoundprintIcons.Disc3),
+    TabItem("Playlists", SoundprintIcons.ListMusic),
+    TabItem("Discover", SoundprintIcons.AudioLines)
 )
 
 @Composable
@@ -860,7 +836,7 @@ private fun SoundprintApp(
                                 onOpenTab = { selectedTab = it },
                                 onOpenAlbum = { albumId -> homeAlbumToOpen = albumId; selectedTab = 2 }
                             )
-                            1 -> LibraryScreen("Songs", "Your music, all in one place.", Icons.Filled.MusicNote, libraryManager, playbackConnection, onImportFiles) { selectedTab = 0 }
+                            1 -> LibraryScreen("Songs", "Your music, all in one place.", SoundprintIcons.Music2, libraryManager, playbackConnection, onImportFiles) { selectedTab = 0 }
                             2 -> SoundprintAlbumsScreen(
                                 libraryManager, playbackConnection, onImportFiles, libraryTrackCount,
                                 initialAlbumId = homeAlbumToOpen,
@@ -929,15 +905,7 @@ private fun SoundprintApp(
                                     .padding(horizontal = 16.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Image(
-                                    painter = painterResource(item.icon),
-                                    contentDescription = item.label,
-                                    modifier = Modifier.size(20.dp),
-                                    colorFilter = ColorFilter.tint(
-                                        if (!settingsOpen && !statsOpen && selected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                )
+                                SoundprintIcon(item.icon, contentDescription = item.label, modifier = Modifier.size(20.dp), tint = if (!settingsOpen && !statsOpen && selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Text(
                                 item.label,
@@ -1166,13 +1134,13 @@ private fun HomeScreen(
     }
     val recentAddedTracks = libraryTracks.take(6)
     val shortcutTiles = listOf(
-        Triple("Songs", R.drawable.lucide_music, 1),
-        Triple("Albums", R.drawable.lucide_disc_3, 2),
-        Triple("Artists", R.drawable.lucide_user, -1),
-        Triple("Genres", R.drawable.lucide_audio_lines, -1),
-        Triple("Playlists", R.drawable.lucide_list_music, 3),
-        Triple("Folders", R.drawable.lucide_folder_plus, -1),
-        Triple("Favorites", R.drawable.lucide_heart, -1)
+        Triple("Songs", SoundprintIcons.Music, 1),
+        Triple("Albums", SoundprintIcons.Disc3, 2),
+        Triple("Artists", SoundprintIcons.User, -1),
+        Triple("Genres", SoundprintIcons.AudioLines, -1),
+        Triple("Playlists", SoundprintIcons.ListMusic, 3),
+        Triple("Folders", SoundprintIcons.FolderPlus, -1),
+        Triple("Favorites", SoundprintIcons.Heart, -1)
     )
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -1189,11 +1157,11 @@ private fun HomeScreen(
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                HeaderAction(R.drawable.lucide_user_round, "Account", onClick = onAccount)
-                HeaderAction(R.drawable.lucide_chart_no_axes_column_increasing, "Listening stats", onClick = onListeningStats)
-                HeaderAction(R.drawable.lucide_crown, "Soundprint Pro", tint = MaterialTheme.colorScheme.primary, onClick = onOpenPro)
-                HeaderAction(R.drawable.lucide_search, "Search", onClick = { searchOpen = true })
-                HeaderAction(R.drawable.lucide_settings, "Settings", onClick = onSettings)
+                HeaderAction(SoundprintIcons.UserRound, "Account", onClick = onAccount)
+                HeaderAction(SoundprintIcons.ChartNoAxesColumnIncreasing, "Listening stats", onClick = onListeningStats)
+                HeaderAction(SoundprintIcons.Crown, "Soundprint Pro", tint = MaterialTheme.colorScheme.primary, onClick = onOpenPro)
+                HeaderAction(SoundprintIcons.Search, "Search", onClick = { searchOpen = true })
+                HeaderAction(SoundprintIcons.Settings, "Settings", onClick = onSettings)
             }
         }
         LazyColumn(
@@ -1209,7 +1177,7 @@ private fun HomeScreen(
                         .padding(20.dp)
                 ) {
                     Box(Modifier.size(44.dp).clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                        Image(painterResource(R.drawable.lucide_music), null, Modifier.size(20.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary))
+                        SoundprintIcon(SoundprintIcons.Music, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                     Spacer(Modifier.height(24.dp))
                     Text("A FRESH START", fontSize = 12.sp, letterSpacing = 1.4.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
@@ -1229,9 +1197,9 @@ private fun HomeScreen(
                     androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
                     Spacer(Modifier.height(16.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FeatureLabel(R.drawable.lucide_music, "Your own music")
-                        FeatureLabel(R.drawable.lucide_list_music, "Playlists that fit")
-                        FeatureLabel(R.drawable.lucide_headphones, "Listen offline")
+                        FeatureLabel(SoundprintIcons.Music, "Your own music")
+                        FeatureLabel(SoundprintIcons.ListMusic, "Playlists that fit")
+                        FeatureLabel(SoundprintIcons.Headphones, "Listen offline")
                     }
                 }
             } else {
@@ -1252,7 +1220,7 @@ private fun HomeScreen(
                                                 .padding(horizontal = 12.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Image(painterResource(tile.second), null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary))
+                                            SoundprintIcon(tile.second, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                                             Spacer(Modifier.width(12.dp))
                                             Text(tile.first, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
                                         }
@@ -1365,7 +1333,7 @@ private fun HomeScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(androidx.compose.material.icons.Icons.Filled.QueueMusic, null)
+                                SoundprintIcon(SoundprintIcons.ListMusic, null)
                                 Spacer(Modifier.width(10.dp))
                                 Text(playlist.name, modifier = Modifier.weight(1f))
                             }
@@ -1449,7 +1417,7 @@ private fun HomeSectionHeader(title: String, onSeeAll: (() -> Unit)? = null) {
         if (onSeeAll != null) {
             Row(Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onSeeAll).padding(vertical = 4.dp, horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("See all", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Icon(Icons.Filled.ChevronRight, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                SoundprintIcon(SoundprintIcons.ChevronRight, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -1478,14 +1446,14 @@ private fun HomeRecentlyAddedRow(
             )
         }
         if (track.isFavorite) {
-            Icon(Icons.Filled.Favorite, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+            SoundprintIcon(SoundprintIcons.Heart, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(8.dp))
         }
         val duration = (track.durationMs.coerceAtLeast(0L) / 1000L).toInt()
         Text("${duration / 60}:${(duration % 60).toString().padStart(2, '0')}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Box {
             androidx.compose.material3.IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Filled.MoreVert, contentDescription = "Song options", modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                SoundprintIcon(SoundprintIcons.EllipsisVertical, contentDescription = "Song options", modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                 DropdownMenuItem(text = { Text("Play next") }, onClick = { menuExpanded = false; onAction("Play next") })
@@ -1511,8 +1479,8 @@ private fun SoundprintCompactTrackMenu(
             onClick = { expanded = true },
             modifier = Modifier.size(36.dp)
         ) {
-            Icon(
-                Icons.Filled.MoreVert,
+            SoundprintIcon(
+                SoundprintIcons.EllipsisVertical,
                 contentDescription = "Song options",
                 modifier = Modifier.size(19.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1557,7 +1525,7 @@ private fun SoundprintHomeShortcutScreen(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            HeaderAction(R.drawable.lucide_arrow_left, "Back", onClick = onBack)
+            HeaderAction(SoundprintIcons.ArrowLeft, "Back", onClick = onBack)
             Spacer(Modifier.width(8.dp))
             Text(title, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
         }
@@ -1579,7 +1547,7 @@ private fun SoundprintHomeShortcutScreen(
                         Text(name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text("${tracks.size} ${if (tracks.size == 1) "song" else "songs"}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Icon(Icons.Filled.PlayArrow, null, tint = MaterialTheme.colorScheme.primary)
+                    SoundprintIcon(SoundprintIcons.Play, null, tint = MaterialTheme.colorScheme.primary)
                 }
             }
             if (groups.isEmpty()) item {
@@ -1602,7 +1570,7 @@ private fun ArtistHomeScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             androidx.compose.material3.IconButton(onClick = onBack) {
-                Icon(Icons.Filled.ChevronLeft, contentDescription = "Back")
+                SoundprintIcon(SoundprintIcons.ChevronLeft, contentDescription = "Back")
             }
             Column(Modifier.weight(1f)) {
                 Text("ARTIST", fontSize = 10.sp, letterSpacing = 1.4.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1674,7 +1642,7 @@ private fun HomeSearchScreen(library: MusicLibraryManager, playback: SoundprintP
     }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            HeaderAction(R.drawable.lucide_arrow_left, "Back", onClick = onBack)
+            HeaderAction(SoundprintIcons.ArrowLeft, "Back", onClick = onBack)
             Spacer(Modifier.width(8.dp))
             Text("Search your music", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
         }
@@ -1718,7 +1686,7 @@ private fun HomeSearchScreen(library: MusicLibraryManager, playback: SoundprintP
                                 Text(album.name, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                                 Text("${album.artist} · ${album.tracks.size} songs", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Icon(Icons.Filled.PlayArrow, null, tint = MaterialTheme.colorScheme.primary)
+                            SoundprintIcon(SoundprintIcons.Play, null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -1729,13 +1697,13 @@ private fun HomeSearchScreen(library: MusicLibraryManager, playback: SoundprintP
                             val artistTracks = library.artistTracks(artist.name)
                             playback.playTracks(artistTracks)
                         }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.MusicNote, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+                            SoundprintIcon(SoundprintIcons.Music2, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(artist.name, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                                 Text("${artist.tracks.size} songs", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Icon(Icons.Filled.PlayArrow, null, tint = MaterialTheme.colorScheme.primary)
+                            SoundprintIcon(SoundprintIcons.Play, null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -1745,10 +1713,10 @@ private fun HomeSearchScreen(library: MusicLibraryManager, playback: SoundprintP
                         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable {
                             playback.playTracks(library.playlistTracks(playlist.id))
                         }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.QueueMusic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp))
+                            SoundprintIcon(SoundprintIcons.ListMusic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp))
                             Spacer(Modifier.width(10.dp))
                             Text(playlist.name, Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
-                            Icon(Icons.Filled.PlayArrow, null, tint = MaterialTheme.colorScheme.primary)
+                            SoundprintIcon(SoundprintIcons.Play, null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -1775,25 +1743,24 @@ private fun AddMusicMenuButton(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(painterResource(R.drawable.lucide_folder_plus), contentDescription = null,
-                modifier = Modifier.size(16.dp), colorFilter = ColorFilter.tint(if (secondary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary))
+            SoundprintIcon(SoundprintIcons.FolderPlus, null, Modifier.size(16.dp), tint = if (secondary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary)
             Spacer(Modifier.width(8.dp))
             Text("Add music", color = if (secondary) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
                 text = { Text("Audio picker") },
-                leadingIcon = { Icon(Icons.Filled.AudioFile, null) },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.FileMusic, null) },
                 onClick = { expanded = false; onAudioPicker() }
             )
             DropdownMenuItem(
                 text = { Text("Single picker") },
-                leadingIcon = { Icon(Icons.Filled.MusicNote, null) },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.Music2, null) },
                 onClick = { expanded = false; onSinglePicker() }
             )
             DropdownMenuItem(
                 text = { Text("Folder picker") },
-                leadingIcon = { Icon(Icons.Filled.LibraryMusic, null) },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.Library, null) },
                 onClick = { expanded = false; onFolderPicker() }
             )
             androidx.compose.material3.HorizontalDivider(
@@ -1802,7 +1769,7 @@ private fun AddMusicMenuButton(
             )
             DropdownMenuItem(
                 text = { Text("Rescan folders") },
-                leadingIcon = { Icon(Icons.Filled.GraphicEq, null) },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.AudioWaveform, null) },
                 onClick = { expanded = false; onRescan() }
             )
         }
@@ -1815,14 +1782,14 @@ private fun HeaderAction(icon: Int, description: String, tint: Color = MaterialT
         modifier = Modifier.size(36.dp).clip(CircleShape).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Image(painterResource(icon), contentDescription = description, modifier = Modifier.size(20.dp), colorFilter = ColorFilter.tint(tint))
+        SoundprintIcon(icon, description, Modifier.size(20.dp), tint = tint)
     }
 }
 
 @Composable
 private fun FeatureLabel(icon: Int, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Image(painterResource(icon), contentDescription = null, modifier = Modifier.size(14.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary))
+        SoundprintIcon(icon, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
     }
 }
@@ -1831,7 +1798,7 @@ private fun FeatureLabel(icon: Int, label: String) {
 private fun LibraryScreen(
     title: String,
     subtitle: String,
-    icon: ImageVector,
+    icon: Int,
     libraryManager: MusicLibraryManager,
     playback: SoundprintPlaybackConnection,
     onImportFiles: () -> Unit,
@@ -1859,7 +1826,7 @@ private fun AlbumsScreen(onBack: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize()) {
         PageTitle("Albums", "0 albums", onBack)
         EmptyLibraryState(
-            icon = Icons.Filled.Album,
+            icon = SoundprintIcons.Disc3,
             title = "No albums yet",
             description = "Add music to your device and scan your library — albums are grouped from your files' tags."
         )
@@ -1882,8 +1849,7 @@ private fun PlaylistsScreen(onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(Modifier.size(36.dp).clip(CircleShape).clickable(onClick = onBack).padding(8.dp), contentAlignment = Alignment.Center) {
-                Image(painterResource(R.drawable.lucide_arrow_left), null, Modifier.size(20.dp),
-                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface))
+                SoundprintIcon(SoundprintIcons.ArrowLeft, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
             }
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
@@ -1893,7 +1859,7 @@ private fun PlaylistsScreen(onBack: () -> Unit) {
             Box(
                 Modifier.size(36.dp).clip(CircleShape).clickable { createOpen = !createOpen },
                 contentAlignment = Alignment.Center
-            ) { Icon(Icons.Filled.Add, "New playlist", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp)) }
+            ) { SoundprintIcon(SoundprintIcons.Plus, "New playlist", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp)) }
         }
         androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
         Column(
@@ -1903,9 +1869,9 @@ private fun PlaylistsScreen(onBack: () -> Unit) {
             SearchBox(query, { query = it }, "Search playlists…")
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("SMART MIXES", fontSize = 12.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                PlaylistMix(Icons.Filled.Favorite, "Liked Songs", "0 songs")
-                PlaylistMix(Icons.Filled.AccessTime, "Recently Played", "0 songs")
-                PlaylistMix(Icons.Filled.QueueMusic, "Recently Added", "0 songs")
+                PlaylistMix(SoundprintIcons.Heart, "Liked Songs", "0 songs")
+                PlaylistMix(SoundprintIcons.Clock, "Recently Played", "0 songs")
+                PlaylistMix(SoundprintIcons.ListMusic, "Recently Added", "0 songs")
             }
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1918,7 +1884,7 @@ private fun PlaylistsScreen(onBack: () -> Unit) {
                             .clickable { createOpen = !createOpen }.padding(horizontal = 12.dp, vertical = 9.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Icon(Icons.Filled.Add, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(15.dp))
+                            SoundprintIcon(SoundprintIcons.Plus, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(15.dp))
                             Text("New smart playlist", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimary)
                         }
                     }
@@ -1931,7 +1897,7 @@ private fun PlaylistsScreen(onBack: () -> Unit) {
                 Text("No playlists match your search.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 EmptyLibraryState(
-                    icon = Icons.Filled.QueueMusic,
+                    icon = SoundprintIcons.ListMusic,
                     title = "No playlists yet",
                     description = "Create a playlist to collect songs, or build a smart playlist that updates automatically."
                 )
@@ -2012,20 +1978,20 @@ private fun SearchBox(value: String, onValueChange: (String) -> Unit, placeholde
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Filled.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp))
+        SoundprintIcon(SoundprintIcons.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp))
         Spacer(Modifier.width(9.dp))
         Box(Modifier.weight(1f)) {
             if (value.isEmpty()) Text(placeholder, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             BasicTextField(value, onValueChange, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth())
         }
         if (value.isNotEmpty()) {
-            Icon(Icons.Filled.Close, "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp).clickable { onValueChange("") })
+            SoundprintIcon(SoundprintIcons.X, "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp).clickable { onValueChange("") })
         }
     }
 }
 
 @Composable
-private fun UtilityButton(icon: ImageVector, label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun UtilityButton(icon: Int, label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Row(
         modifier = modifier.height(40.dp).clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface)
@@ -2034,7 +2000,7 @@ private fun UtilityButton(icon: ImageVector, label: String, modifier: Modifier =
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        Icon(icon, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(15.dp))
+        SoundprintIcon(icon, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(15.dp))
         Spacer(Modifier.width(6.dp))
         Text(label, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
     }
@@ -2050,13 +2016,13 @@ private fun SoundprintActionButton(label: String, modifier: Modifier = Modifier,
 }
 
 @Composable
-private fun EmptyLibraryState(icon: ImageVector, title: String, description: String) {
+private fun EmptyLibraryState(icon: Int, title: String, description: String) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 64.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(Modifier.size(64.dp).clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(28.dp))
+            SoundprintIcon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(28.dp))
         }
         Text(title, modifier = Modifier.padding(top = 15.dp), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
         Text(description, modifier = Modifier.padding(top = 5.dp), fontSize = 12.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2065,21 +2031,21 @@ private fun EmptyLibraryState(icon: ImageVector, title: String, description: Str
 }
 
 @Composable
-private fun PlaylistMix(icon: ImageVector, title: String, subtitle: String) {
+private fun PlaylistMix(icon: Int, title: String, subtitle: String) {
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface).clickable { }.padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            SoundprintIcon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(11.dp))
         Column(Modifier.weight(1f)) {
             Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
             Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Icon(Icons.Filled.ChevronRight, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(17.dp))
+        SoundprintIcon(SoundprintIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(17.dp))
     }
 }
 
@@ -2113,8 +2079,7 @@ private fun PageTitle(title: String, subtitle: String, onBack: () -> Unit) {
                     .padding(8.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Image(painterResource(R.drawable.lucide_arrow_left), null, Modifier.size(20.dp),
-                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface))
+                SoundprintIcon(SoundprintIcons.ArrowLeft, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
             }
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
@@ -2293,9 +2258,9 @@ private fun SettingsScreen(
                         Text("Theme", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            ThemeChoice(Modifier.weight(1f), "System", R.drawable.lucide_sun_moon, themeMode == "system") { onThemeModeChange("system") }
-                            ThemeChoice(Modifier.weight(1f), "Light", R.drawable.lucide_sun, themeMode == "light") { onThemeModeChange("light") }
-                            ThemeChoice(Modifier.weight(1f), "Dark", R.drawable.lucide_moon, themeMode == "dark") { onThemeModeChange("dark") }
+                            ThemeChoice(Modifier.weight(1f), "System", SoundprintIcons.SunMoon, themeMode == "system") { onThemeModeChange("system") }
+                            ThemeChoice(Modifier.weight(1f), "Light", SoundprintIcons.Sun, themeMode == "light") { onThemeModeChange("light") }
+                            ThemeChoice(Modifier.weight(1f), "Dark", SoundprintIcons.Moon, themeMode == "dark") { onThemeModeChange("dark") }
                         }
                         Spacer(Modifier.height(16.dp))
                         Text("Colour palette", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
@@ -2646,7 +2611,7 @@ private fun SettingsSearchBox(value: String, onValueChange: (String) -> Unit) {
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Image(painterResource(R.drawable.lucide_search), null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant))
+        SoundprintIcon(SoundprintIcons.Search, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(12.dp))
         Box(Modifier.weight(1f)) {
             if (value.isEmpty()) Text("Search settings…", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2792,7 +2757,7 @@ private fun ThemeChoice(modifier: Modifier, label: String, icon: Int?, selected:
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        if (icon != null) Image(painterResource(icon), null, Modifier.size(20.dp), colorFilter = ColorFilter.tint(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant))
+        if (icon != null) SoundprintIcon(icon, null, Modifier.size(20.dp), tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         Text(label, modifier = Modifier.padding(top = if (icon == null) 0.dp else 6.dp), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
     }
 }

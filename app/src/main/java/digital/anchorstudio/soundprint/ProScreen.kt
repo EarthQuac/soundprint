@@ -19,22 +19,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AudioFile
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Headphones
-import androidx.compose.material.icons.filled.AllInclusive
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,26 +31,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.Int
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private data class ProFeature(val icon: ImageVector, val title: String, val description: String)
+private data class ProFeature(val icon: Int, val title: String, val description: String)
 private data class ProGuide(val title: String, val where: String, val steps: List<String>)
 
 private val proFeatures = listOf(
-    ProFeature(Icons.Filled.AudioFile, "Automatic song-info autofill", "After a lyrics/catalog lookup, fill in available song details like title, artist and album automatically."),
-    ProFeature(Icons.Filled.MusicNote, "Discover music for your mood", "Get personalized recommendations for activities and moods, plus local mood matching for songs in your library."),
-    ProFeature(Icons.Filled.GraphicEq, "Pro Audio Lab", "Fine-tune your sound with a 10-band equalizer, bass and treble controls, loudness leveling and advanced playback options."),
-    ProFeature(Icons.Filled.Headphones, "Gapless playback & crossfade", "Reduce gaps between tracks or blend the end of one song into the next."),
-    ProFeature(Icons.Filled.Timer, "Sleep controls", "Use enhanced sleep controls and flexible playback timers."),
-    ProFeature(Icons.Filled.MusicNote, "Synced lyrics & karaoke", "Follow timestamped lyric lines during playback and use karaoke-style synced lyrics. Basic lyrics lookup stays free."),
-    ProFeature(Icons.Filled.Palette, "Exclusive colour palettes", "Personalize Soundprint with the Emerald and Monochrome palettes. Amber and Blue & white remain free."),
-    ProFeature(Icons.Filled.QueueMusic, "Smart playlists & folder auto-watch", "Use unlimited rule-based smart playlists and automatically watch music folders for new tracks."),
-    ProFeature(Icons.Filled.Shield, "TwinSense", "Advanced on-device audio matching helps surface duplicates even when tags differ, explains match confidence, and flags alternate versions for review—not auto-deletion."),
-    ProFeature(Icons.Filled.Waves, "Aura Mode", "Settle into immersive listening with reverb, tonal shaping and slow stereo movement.")
+    ProFeature(SoundprintIcons.FileMusic, "Automatic song-info autofill", "After a lyrics/catalog lookup, fill in available song details like title, artist and album automatically."),
+    ProFeature(SoundprintIcons.Music2, "Discover music for your mood", "Get personalized recommendations for activities and moods, plus local mood matching for songs in your library."),
+    ProFeature(SoundprintIcons.AudioWaveform, "Pro Audio Lab", "Fine-tune your sound with a 10-band equalizer, bass and treble controls, loudness leveling and advanced playback options."),
+    ProFeature(SoundprintIcons.Headphones, "Gapless playback & crossfade", "Reduce gaps between tracks or blend the end of one song into the next."),
+    ProFeature(SoundprintIcons.Timer, "Sleep controls", "Use enhanced sleep controls and flexible playback timers."),
+    ProFeature(SoundprintIcons.Music2, "Synced lyrics & karaoke", "Follow timestamped lyric lines during playback and use karaoke-style synced lyrics. Basic lyrics lookup stays free."),
+    ProFeature(SoundprintIcons.Palette, "Exclusive colour palettes", "Personalize Soundprint with the Emerald and Monochrome palettes. Amber and Blue & white remain free."),
+    ProFeature(SoundprintIcons.ListMusic, "Smart playlists & folder auto-watch", "Use unlimited rule-based smart playlists and automatically watch music folders for new tracks."),
+    ProFeature(SoundprintIcons.ShieldCheck, "TwinSense", "Advanced on-device audio matching helps surface duplicates even when tags differ, explains match confidence, and flags alternate versions for review—not auto-deletion."),
+    ProFeature(SoundprintIcons.Waves, "Aura Mode", "Settle into immersive listening with reverb, tonal shaping and slow stereo movement.")
 )
 
 private val proGuides = listOf(
@@ -143,7 +129,7 @@ private fun ProHero() {
         .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f), RoundedCornerShape(26.dp)).padding(20.dp)) {
         Row(Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
             .padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+            SoundprintIcon(SoundprintIcons.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
             Spacer(Modifier.width(7.dp))
             Text("Your music. Your way.", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
         }
@@ -169,7 +155,7 @@ private fun ProFounderOffer(onClaim: (() -> Unit)?) {
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.07f))
             .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.18f), RoundedCornerShape(24.dp)).padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                SoundprintIcon(SoundprintIcons.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Founder offer — Pro free for the first 100", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
             }
@@ -192,24 +178,24 @@ private fun ProPlans() {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ProPlanCard("Lifetime", "$24.99", "once", "Pay once. Keep the included Soundprint Pro features for life, with no recurring bill.",
-                "Best for long-term listeners", true, Modifier.weight(1f), Icons.Filled.AllInclusive)
+                "Best for long-term listeners", true, Modifier.weight(1f), SoundprintIcons.Infinity)
             ProPlanCard("Monthly", "$2.99", "/ month", "A smaller payment to get started. Cancel any time; Pro access would end when your paid period ends.",
-                "Budget-friendly", false, Modifier.weight(1f), Icons.Filled.Timer)
+                "Budget-friendly", false, Modifier.weight(1f), SoundprintIcons.Timer)
         }
         ProPlanCard("Annual", "$19.99", "/ year", "One yearly payment for listeners who want Pro value without a lifetime upfront cost.",
-            "Save vs. monthly", false, Modifier.fillMaxWidth(), Icons.Filled.Timer)
+            "Save vs. monthly", false, Modifier.fillMaxWidth(), SoundprintIcons.Timer)
     }
 }
 
 @Composable
 private fun ProPlanCard(title: String, price: String, cadence: String, description: String, tag: String,
-                        featured: Boolean, modifier: Modifier = Modifier, icon: ImageVector) {
+                        featured: Boolean, modifier: Modifier = Modifier, icon: Int) {
     Column(modifier.clip(RoundedCornerShape(20.dp))
         .background(if (featured) MaterialTheme.colorScheme.primary.copy(alpha = 0.055f) else MaterialTheme.colorScheme.surface)
         .border(1.dp, if (featured) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
         .padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+            SoundprintIcon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
             Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
         }
@@ -238,7 +224,7 @@ private fun ProTrialCard(onStartTrial: (() -> Unit)?) {
         Row(verticalAlignment = Alignment.Top) {
             Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
+                SoundprintIcon(SoundprintIcons.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
             }
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 Text("Try Pro for 14 days", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
@@ -284,7 +270,7 @@ private fun ProGuideRow(number: Int, guide: ProGuide) {
                 Text(guide.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                 Text(guide.where, modifier = Modifier.padding(top = 3.dp), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Filled.ChevronRight, null, modifier = Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            SoundprintIcon(SoundprintIcons.ChevronRight, null, modifier = Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (expanded) {
             Column(Modifier.fillMaxWidth().padding(start = 53.dp, end = 14.dp, bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -309,7 +295,7 @@ private fun ProFreeFeatures() {
         freeFeatures.forEach { feature ->
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.background.copy(alpha = 0.6f)).padding(11.dp), verticalAlignment = Alignment.Top) {
-                Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                SoundprintIcon(SoundprintIcons.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                 Text(feature, modifier = Modifier.padding(start = 9.dp).weight(1f), fontSize = 11.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurface)
             }
         }
@@ -329,7 +315,7 @@ private fun ProFeaturesGrid() {
                 verticalAlignment = Alignment.Top) {
                 Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
                     contentAlignment = Alignment.Center) {
-                    Icon(feature.icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
+                    SoundprintIcon(feature.icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
                 }
                 Column(Modifier.weight(1f).padding(start = 11.dp)) {
                     Text(feature.title, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
@@ -346,7 +332,7 @@ private fun ProActiveCard(trialEndsAt: String?) {
         .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.7f), RoundedCornerShape(24.dp)).padding(18.dp)) {
         Row(Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)).padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+            SoundprintIcon(SoundprintIcons.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
             Spacer(Modifier.width(7.dp))
             Text("Pro active", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
         }

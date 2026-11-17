@@ -23,15 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -213,7 +205,7 @@ fun SoundprintNowPlayingMoodSection(
                 modifier = Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp)
             ) {
-                Icon(Icons.Filled.QueueMusic, null, modifier = Modifier.size(15.dp))
+                SoundprintIcon(SoundprintIcons.ListMusic, null, modifier = Modifier.size(15.dp))
                 Spacer(Modifier.width(7.dp))
                 Text("Queue · " + queueCount, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -267,7 +259,7 @@ fun SoundprintNowPlayingMoodSection(
                                     if (active && scan.running) {
                                         CircularProgressIndicator(Modifier.size(13.dp), strokeWidth = 1.8.dp)
                                     } else if (active) {
-                                        Icon(Icons.Filled.Check, null, modifier = Modifier.size(13.dp), tint = MaterialTheme.colorScheme.primary)
+                                        SoundprintIcon(SoundprintIcons.Check, null, modifier = Modifier.size(13.dp), tint = MaterialTheme.colorScheme.primary)
                                     }
                                 }
                             }
@@ -374,8 +366,8 @@ fun SoundprintNowPlayingMoodSection(
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Icon(
-                                if (showSongStatuses) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            SoundprintIcon(
+                                if (showSongStatuses) SoundprintIcons.ChevronUp else SoundprintIcons.ChevronDown,
                                 null,
                                 modifier = Modifier.padding(start = 3.dp).size(14.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -386,7 +378,7 @@ fun SoundprintNowPlayingMoodSection(
                                 onClick = { scanner.retryFailed() },
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 2.dp)
                             ) {
-                                Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(13.dp))
+                                SoundprintIcon(SoundprintIcons.RefreshCw, null, modifier = Modifier.size(13.dp))
                                 Spacer(Modifier.width(4.dp))
                                 Text("Retry errors", fontSize = 10.sp)
                             }
@@ -410,8 +402,8 @@ fun SoundprintNowPlayingMoodSection(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     when {
-                                        failure != null -> Icon(Icons.Filled.ErrorOutline, null, Modifier.size(15.dp), tint = markColor)
-                                        isComplete -> Icon(Icons.Filled.Check, null, Modifier.size(15.dp), tint = markColor)
+                                        failure != null -> SoundprintIcon(SoundprintIcons.CircleAlert, null, Modifier.size(15.dp), tint = markColor)
+                                        isComplete -> SoundprintIcon(SoundprintIcons.Check, null, Modifier.size(15.dp), tint = markColor)
                                         isCurrent -> CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.7.dp)
                                         else -> Box(Modifier.size(14.dp), contentAlignment = Alignment.Center) {
                                             Box(Modifier.size(5.dp).clip(CircleShape).background(markColor))

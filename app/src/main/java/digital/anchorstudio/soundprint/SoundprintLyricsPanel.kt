@@ -1,7 +1,6 @@
 package digital.anchorstudio.soundprint
 
 import android.net.Uri
-import androidx.compose.ui.res.painterResource
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -29,8 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -417,7 +414,7 @@ fun SoundprintLyricsPanel(
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = .12f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(painterResource(R.drawable.lucide_ic_music_2), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(17.dp))
+                    SoundprintIcon(SoundprintIcons.Music2, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(17.dp))
                 }
                 Column(Modifier.weight(1f)) {
                     Text("Lyrics", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
@@ -433,7 +430,7 @@ fun SoundprintLyricsPanel(
                     onClick = { importLauncher.launch(arrayOf("text/plain", "application/octet-stream")) },
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                 ) {
-                    Icon(painterResource(R.drawable.lucide_ic_download), null, modifier = Modifier.size(16.dp))
+                    SoundprintIcon(SoundprintIcons.Download, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(5.dp))
                     Text("Import", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
@@ -555,7 +552,7 @@ fun SoundprintLyricsPanel(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             if (karaokeLoading) CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.8.dp)
-                            else Icon(painterResource(R.drawable.lucide_ic_maximize), null, modifier = Modifier.size(14.dp))
+                            else SoundprintIcon(SoundprintIcons.Maximize, null, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(6.dp))
                             Text(if (karaokeLoading) "Finding timed lyrics…" else "Karaoke mode", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
@@ -605,7 +602,7 @@ fun SoundprintLyricsPanel(
                                     lines.getOrNull(selectedSyncLine)?.let { "${soundprintLyricClock(it.timeMs)} · ${it.text}" } ?: "Choose lyric line to align",
                                     modifier = Modifier.weight(1f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
                                 )
-                                Icon(painterResource(R.drawable.lucide_ic_chevron_down), null, modifier = Modifier.size(16.dp))
+                                SoundprintIcon(SoundprintIcons.ChevronDown, null, modifier = Modifier.size(16.dp))
                             }
                             DropdownMenu(expanded = syncMenuOpen, onDismissRequest = { syncMenuOpen = false }, modifier = Modifier.heightIn(max = 360.dp)) {
                                 lines.forEachIndexed { index, line ->
@@ -656,7 +653,7 @@ fun SoundprintLyricsPanel(
                     .padding(horizontal = 16.dp, vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(painterResource(R.drawable.lucide_ic_music_2), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                SoundprintIcon(SoundprintIcons.Music2, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                 Text("Bring this track to life", Modifier.padding(top = 8.dp), fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 Text(
                     "Fetch lyrics, import an .lrc file, or add your own. Lyrics are cached locally once saved.",
@@ -742,7 +739,7 @@ fun SoundprintLyricsPanel(
                         CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                         Spacer(Modifier.width(8.dp))
                     } else {
-                        Icon(painterResource(R.drawable.lucide_ic_search), null, modifier = Modifier.size(16.dp))
+                        SoundprintIcon(SoundprintIcons.Search, null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
                     }
                     Text(if (loading) "Finding lyrics…" else "Find lyrics online", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -774,7 +771,7 @@ fun SoundprintLyricsPanel(
                     IconButton(
                         onClick = { karaokeMode = false },
                         modifier = Modifier.align(Alignment.TopEnd).size(40.dp)
-                    ) { Icon(painterResource(R.drawable.lucide_ic_x), "Close karaoke mode", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    ) { SoundprintIcon(SoundprintIcons.X, "Close karaoke mode", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
 
                     // Match Cadence's compact, content-sized karaoke stack instead of
                     // reserving three oversized fixed-height lanes.
@@ -823,7 +820,7 @@ fun SoundprintLyricsPanel(
                                 color = MaterialTheme.colorScheme.surface
                             ) {
                                 Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(painterResource(R.drawable.lucide_ic_chevron_up), null, modifier = Modifier.size(16.dp))
+                                    SoundprintIcon(SoundprintIcons.ChevronUp, null, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(4.dp))
                                     Text("Previous line", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                                 }
@@ -837,7 +834,7 @@ fun SoundprintLyricsPanel(
                                 Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text("Next line", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                                     Spacer(Modifier.width(4.dp))
-                                    Icon(painterResource(R.drawable.lucide_ic_chevron_down), null, modifier = Modifier.size(16.dp))
+                                    SoundprintIcon(SoundprintIcons.ChevronDown, null, modifier = Modifier.size(16.dp))
                                 }
                             }
                         }

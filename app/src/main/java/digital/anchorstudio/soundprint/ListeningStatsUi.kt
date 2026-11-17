@@ -7,13 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Headphones
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -69,7 +62,7 @@ fun ListeningStatsScreen(libraryManager:MusicLibraryManager,onBack:()->Unit) {
                     Text("Your music, your story.",fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Box(Modifier.size(42.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface).border(1.dp,MaterialTheme.colorScheme.outline.copy(alpha=.45f),CircleShape).clickable { resetDialog=true },contentAlignment=Alignment.Center) {
-                    androidx.compose.material3.Icon(Icons.Default.Refresh,contentDescription="Reset listening statistics",tint=MaterialTheme.colorScheme.onSurfaceVariant)
+                    SoundprintIcon(SoundprintIcons.RefreshCw,contentDescription="Reset listening statistics",tint=MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -85,19 +78,19 @@ fun ListeningStatsScreen(libraryManager:MusicLibraryManager,onBack:()->Unit) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatMetricCard("Listening time", formatListeningTime(snapshot.totalMs), Icons.Default.Headphones, Modifier.weight(1f))
-                    StatMetricCard("Plays counted", snapshot.plays.toString(), Icons.Default.MusicNote, Modifier.weight(1f))
+                    StatMetricCard("Listening time", formatListeningTime(snapshot.totalMs), SoundprintIcons.Headphones, Modifier.weight(1f))
+                    StatMetricCard("Plays counted", snapshot.plays.toString(), SoundprintIcons.Music2, Modifier.weight(1f))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatMetricCard("Current streak", "${snapshot.streak} ${if(snapshot.streak==1) "day" else "days"}", Icons.Default.Waves, Modifier.weight(1f))
-                    StatMetricCard("Songs in library", tracks.size.toString(), Icons.Default.Schedule, Modifier.weight(1f))
+                    StatMetricCard("Current streak", "${snapshot.streak} ${if(snapshot.streak==1) "day" else "days"}", SoundprintIcons.Waves, Modifier.weight(1f))
+                    StatMetricCard("Songs in library", tracks.size.toString(), SoundprintIcons.Clock, Modifier.weight(1f))
                 }
             }
         }
         item {
             Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment=Alignment.CenterVertically) {
-                    androidx.compose.material3.Icon(Icons.Default.BarChart,null,tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(18.dp))
+                    SoundprintIcon(SoundprintIcons.ChartNoAxesColumnIncreasing,null,tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Listening activity",fontSize=16.sp,fontWeight=FontWeight.Bold,color=MaterialTheme.colorScheme.onBackground)
                 }
@@ -146,10 +139,10 @@ fun ListeningStatsScreen(libraryManager:MusicLibraryManager,onBack:()->Unit) {
 }
 
 @Composable
-private fun StatMetricCard(label:String,value:String,icon:androidx.compose.ui.graphics.vector.ImageVector,modifier:Modifier=Modifier) {
+private fun StatMetricCard(label:String,value:String,icon:androidx.compose.ui.graphics.vector.Int,modifier:Modifier=Modifier) {
     Column(modifier.clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surface).padding(15.dp)) {
         Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha=.11f)),contentAlignment=Alignment.Center) {
-            androidx.compose.material3.Icon(icon,null,tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(18.dp))
+            SoundprintIcon(icon,null,tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(18.dp))
         }
         Text(value,modifier=Modifier.padding(top=12.dp),fontSize=21.sp,fontWeight=FontWeight.Bold,color=MaterialTheme.colorScheme.onSurface,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis)
         Text(label,modifier=Modifier.padding(top=3.dp),fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -172,7 +165,7 @@ private fun StatsRankSection(title:String,subtitle:String,rows:List<Triple<Int,S
                 Row(Modifier.fillMaxWidth().padding(vertical=11.dp),verticalAlignment=Alignment.CenterVertically) {
                     Text(row.first.toString().padStart(2,'0'),modifier=Modifier.width(28.dp),fontSize=12.sp,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.primary)
                     Box(Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha=.10f)),contentAlignment=Alignment.Center) {
-                        androidx.compose.material3.Icon(Icons.Default.MusicNote,null,tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(18.dp))
+                        SoundprintIcon(SoundprintIcons.Music2,null,tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(18.dp))
                     }
                     Column(Modifier.weight(1f).padding(start=11.dp)) {
                         Text(row.second,fontSize=13.sp,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.onSurface,maxLines=1,overflow=TextOverflow.Ellipsis)

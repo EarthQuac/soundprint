@@ -49,8 +49,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -340,11 +338,11 @@ fun SoundprintNowPlayingScreen(
         ) {
             item {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Go back") }
+                    IconButton(onClick = onBack) { SoundprintIcon(SoundprintIcons.ArrowLeft, "Go back") }
                     Text("NOW PLAYING", fontSize = 11.sp, letterSpacing = 1.8.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row {
-                        IconButton(onClick = { queueOpen = true }) { Icon(Icons.Filled.QueueMusic, "Queue") }
-                        IconButton(onClick = onBack) { Icon(Icons.Filled.Close, "Close", tint = MaterialTheme.colorScheme.error) }
+                        IconButton(onClick = { queueOpen = true }) { SoundprintIcon(SoundprintIcons.ListMusic, "Queue") }
+                        IconButton(onClick = onBack) { SoundprintIcon(SoundprintIcons.X, "Close", tint = MaterialTheme.colorScheme.error) }
                     }
                 }
             }
@@ -418,7 +416,7 @@ fun SoundprintNowPlayingScreen(
                             }
                         }
                         IconButton(onClick = { customizerOpen = true }, modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp).background(Color.Black.copy(alpha=.55f), CircleShape)) {
-                            Icon(Icons.Filled.Tune, "Customize artwork", tint = Color.White)
+                            SoundprintIcon(SoundprintIcons.SlidersHorizontal, "Customize artwork", tint = Color.White)
                         }
                     }
                 }
@@ -430,9 +428,9 @@ fun SoundprintNowPlayingScreen(
                         Text(title.ifBlank { "Nothing playing" }, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text("$artist · $album", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    IconButton(onClick = { editTitle=title; editArtist=artist; editAlbum=album; editGenre=genre; editYear=year.takeIf { it > 0 }?.toString().orEmpty(); editOpen=true }) { Icon(Icons.Filled.Edit, "Edit song info", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    IconButton(onClick = { editTitle=title; editArtist=artist; editAlbum=album; editGenre=genre; editYear=year.takeIf { it > 0 }?.toString().orEmpty(); editOpen=true }) { SoundprintIcon(SoundprintIcons.Pencil, "Edit song info", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                     IconButton(onClick = { library.toggleFavorite(trackId); favorite = library.isFavorite(trackId) }) {
-                        Icon(Icons.Filled.Favorite, "Add to favorites", tint = if (favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        SoundprintIcon(SoundprintIcons.Heart, "Add to favorites", tint = if (favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                                 }
             }
@@ -504,7 +502,7 @@ fun SoundprintNowPlayingScreen(
                             )
                         }
                         Spacer(Modifier.width(4.dp))
-                        Icon(Icons.Filled.SwapHoriz, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        SoundprintIcon(SoundprintIcons.ArrowLeftRight, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Text(if (duration > 0L) formatPlayerTime(duration) else "--:--", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -533,28 +531,28 @@ fun SoundprintNowPlayingScreen(
                             playerPrefs.edit().remove("queue-original-order").putBoolean("queue-shuffle", false).apply()
                         }
                     }, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Filled.Shuffle, "Shuffle", modifier = Modifier.size(20.dp), tint = if (shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        SoundprintIcon(SoundprintIcons.Shuffle, "Shuffle", modifier = Modifier.size(20.dp), tint = if (shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     IconButton(onClick = {
                         val player = controller ?: return@IconButton
                         if (player.currentPosition > 4_000L) player.seekTo(0L) else player.seekToPreviousMediaItem()
                     }, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Filled.SkipPrevious, "Previous track", modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onSurface)
+                        SoundprintIcon(SoundprintIcons.SkipBack, "Previous track", modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onSurface)
                     }
                     FilledIconButton(
                         onClick = { playback.toggle() },
                         modifier = Modifier.size(64.dp),
                         shape = CircleShape
                     ) {
-                        Icon(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, if (playing) "Pause" else "Play", modifier = Modifier.size(30.dp))
+                        SoundprintIcon(if (playing) SoundprintIcons.Pause else SoundprintIcons.Play, if (playing) "Pause" else "Play", modifier = Modifier.size(30.dp))
                     }
                     IconButton(onClick = { controller?.seekToNextMediaItem() }, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Filled.SkipNext, "Next track", modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onSurface)
+                        SoundprintIcon(SoundprintIcons.SkipForward, "Next track", modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onSurface)
                     }
                     IconButton(onClick = {
                         controller?.repeatMode = when (repeatMode) { Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL; Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE; else -> Player.REPEAT_MODE_OFF }
                     }, modifier = Modifier.size(48.dp)) {
-                        Icon(if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat, "Repeat", modifier = Modifier.size(20.dp), tint = if (repeatMode == Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
+                        SoundprintIcon(if (repeatMode == Player.REPEAT_MODE_ONE) SoundprintIcons.Repeat1 else SoundprintIcons.Repeat, "Repeat", modifier = Modifier.size(20.dp), tint = if (repeatMode == Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -565,19 +563,19 @@ fun SoundprintNowPlayingScreen(
                         Text("Quick actions", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-.2).sp)
                         Text("The essentials, within reach", Modifier.padding(top = 2.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Icon(painterResource(R.drawable.lucide_audio_lines), null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    SoundprintIcon(SoundprintIcons.AudioLines, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(Modifier.height(12.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PlayerQuickAction("Audio Lab", R.drawable.lucide_gauge, Modifier.weight(1f)) { audioLabOpen = true }
-                        PlayerQuickAction("Aura Mode", R.drawable.lucide_waves, Modifier.weight(1f)) { auraNotice = true }
-                        PlayerQuickAction("Playlist", R.drawable.lucide_plus, Modifier.weight(1f)) { playlists = library.playlists(); playlistOpen = !playlistOpen }
+                        PlayerQuickAction("Audio Lab", SoundprintIcons.Gauge, Modifier.weight(1f)) { audioLabOpen = true }
+                        PlayerQuickAction("Aura Mode", SoundprintIcons.Waves, Modifier.weight(1f)) { auraNotice = true }
+                        PlayerQuickAction("Playlist", SoundprintIcons.Plus, Modifier.weight(1f)) { playlists = library.playlists(); playlistOpen = !playlistOpen }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PlayerQuickAction("Info", R.drawable.lucide_info, Modifier.weight(1f), selected = infoOpen) { infoOpen = !infoOpen }
-                        PlayerQuickAction("Lyrics", R.drawable.lucide_book_open_text, Modifier.weight(1f)) { lyricsExpanded = true; scope.launch { delay(80); lyricsPanelRequester.bringIntoView() } }
-                        PlayerQuickAction(displaySleep, if (sleepRemaining > 0L) R.drawable.lucide_timer_reset else R.drawable.lucide_moon, Modifier.weight(1f), selected = sleepOpen) {
+                        PlayerQuickAction("Info", SoundprintIcons.Info, Modifier.weight(1f), selected = infoOpen) { infoOpen = !infoOpen }
+                        PlayerQuickAction("Lyrics", SoundprintIcons.BookOpenText, Modifier.weight(1f)) { lyricsExpanded = true; scope.launch { delay(80); lyricsPanelRequester.bringIntoView() } }
+                        PlayerQuickAction(displaySleep, if (sleepRemaining > 0L) SoundprintIcons.TimerReset else SoundprintIcons.Moon, Modifier.weight(1f), selected = sleepOpen) {
                             sleepMinutes = if (sleepRemaining > 0L) ((sleepRemaining + 59_999L) / 60_000L).toString() else "30"
                             sleepOpen = true
                         }
@@ -592,7 +590,7 @@ fun SoundprintNowPlayingScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(if (moreOpen) "Less" else "More actions", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    Icon(painterResource(R.drawable.lucide_chevron_down), null, modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = if (moreOpen) 180f else 0f }, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    SoundprintIcon(SoundprintIcons.ChevronDown, null, modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = if (moreOpen) 180f else 0f }, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 AnimatedVisibility(
                     visible = moreOpen,
@@ -603,12 +601,12 @@ fun SoundprintNowPlayingScreen(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            PlayerAction("Share track", R.drawable.lucide_share_2, Modifier.weight(1f)) { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "Listening to “$title” by $artist on Soundprint."), "Share track")) }
-                            PlayerAction("Restart track", R.drawable.lucide_rotate_ccw, Modifier.weight(1f)) { controller?.seekTo(0L) }
+                            PlayerAction("Share track", SoundprintIcons.Share2, Modifier.weight(1f)) { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "Listening to “$title” by $artist on Soundprint."), "Share track")) }
+                            PlayerAction("Restart track", SoundprintIcons.RotateCcw, Modifier.weight(1f)) { controller?.seekTo(0L) }
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            PlayerAction("Playback options", R.drawable.lucide_settings_2, Modifier.weight(1f)) { optionsOpen = true }
-                            PlayerAction("Customize artwork", R.drawable.lucide_disc_3, Modifier.weight(1f)) { customizerOpen = true }
+                            PlayerAction("Playback options", SoundprintIcons.Settings2, Modifier.weight(1f)) { optionsOpen = true }
+                            PlayerAction("Customize artwork", SoundprintIcons.Disc3, Modifier.weight(1f)) { customizerOpen = true }
                         }
                     }
                 }
@@ -622,7 +620,7 @@ fun SoundprintNowPlayingScreen(
             if (playlistOpen) item {
                 PlayerPanel("Add to playlist", onClose = { playlistOpen=false }) {
                     if (playlists.isEmpty()) Text("Create a playlist first from the Playlists section.", color=MaterialTheme.colorScheme.onSurfaceVariant, fontSize=12.sp)
-                    playlists.forEach { list -> Row(Modifier.fillMaxWidth().clickable { library.addToPlaylist(list.id, list.trackIds + trackId); playlistOpen=false }.padding(10.dp), verticalAlignment=Alignment.CenterVertically) { Icon(Icons.Filled.QueueMusic,null,tint=MaterialTheme.colorScheme.primary); Spacer(Modifier.width(10.dp)); Text(list.name,Modifier.weight(1f)); Text(list.trackIds.size.toString(),fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant) } }
+                    playlists.forEach { list -> Row(Modifier.fillMaxWidth().clickable { library.addToPlaylist(list.id, list.trackIds + trackId); playlistOpen=false }.padding(10.dp), verticalAlignment=Alignment.CenterVertically) { SoundprintIcon(SoundprintIcons.ListMusic,null,tint=MaterialTheme.colorScheme.primary); Spacer(Modifier.width(10.dp)); Text(list.name,Modifier.weight(1f)); Text(list.trackIds.size.toString(),fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant) } }
                 }
             }
             if (infoOpen) item {
@@ -714,9 +712,9 @@ fun SoundprintNowPlayingScreen(
                                     android.widget.Toast.makeText(context, "Track info copied", android.widget.Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.size(36.dp)
-                            ) { Icon(Icons.Filled.ContentCopy, "Copy track details", modifier = Modifier.size(17.dp)) }
+                            ) { SoundprintIcon(SoundprintIcons.Copy, "Copy track details", modifier = Modifier.size(17.dp)) }
                             IconButton(onClick = { infoOpen = false }, modifier = Modifier.size(36.dp)) {
-                                Icon(Icons.Filled.Close, "Hide track details", modifier = Modifier.size(17.dp))
+                                SoundprintIcon(SoundprintIcons.X, "Hide track details", modifier = Modifier.size(17.dp))
                             }
                         }
                     }
@@ -858,7 +856,7 @@ fun SoundprintNowPlayingScreen(
                                 Text(queuedTrack.artist, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                             if (queuedTrack.durationMs > 0L) Text(formatPlayerTime(queuedTrack.durationMs), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.padding(start = 8.dp).size(16.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = .8f))
+                            SoundprintIcon(SoundprintIcons.Play, null, modifier = Modifier.padding(start = 8.dp).size(16.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = .8f))
                         }
                     }
                     if (queueTracks.size > 5) TextButton(onClick = { queueOpen = true }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
@@ -905,9 +903,9 @@ fun SoundprintNowPlayingScreen(
                             Text(item.title, fontSize = 12.sp, fontWeight = if (index == currentIndex) FontWeight.Bold else FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(if (index == currentIndex) "Now playing · ${item.artist}" else item.artist, fontSize = 10.sp, color = if (index == currentIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        if (index > 0) IconButton(onClick = { controller?.moveMediaItem(index, index - 1) }, modifier = Modifier.size(30.dp)) { Icon(Icons.Filled.KeyboardArrowUp, "Move up", modifier = Modifier.size(17.dp)) }
-                        if (index < queueIds.lastIndex) IconButton(onClick = { controller?.moveMediaItem(index, index + 1) }, modifier = Modifier.size(30.dp)) { Icon(Icons.Filled.KeyboardArrowDown, "Move down", modifier = Modifier.size(17.dp)) }
-                        IconButton(onClick = { controller?.removeMediaItem(index) }, modifier = Modifier.size(30.dp)) { Icon(Icons.Filled.Close, "Remove", modifier = Modifier.size(16.dp)) }
+                        if (index > 0) IconButton(onClick = { controller?.moveMediaItem(index, index - 1) }, modifier = Modifier.size(30.dp)) { SoundprintIcon(SoundprintIcons.ChevronUp, "Move up", modifier = Modifier.size(17.dp)) }
+                        if (index < queueIds.lastIndex) IconButton(onClick = { controller?.moveMediaItem(index, index + 1) }, modifier = Modifier.size(30.dp)) { SoundprintIcon(SoundprintIcons.ChevronDown, "Move down", modifier = Modifier.size(17.dp)) }
+                        IconButton(onClick = { controller?.removeMediaItem(index) }, modifier = Modifier.size(30.dp)) { SoundprintIcon(SoundprintIcons.X, "Remove", modifier = Modifier.size(16.dp)) }
                     }
                 }
             }
@@ -1113,7 +1111,7 @@ private fun SoundprintFloatingDialog(
                                 }
                             }
                             IconButton(onClick = onDismissRequest, modifier = Modifier.size(36.dp)) {
-                                Icon(Icons.Filled.Close, "Close", modifier = Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                SoundprintIcon(SoundprintIcons.X, "Close", modifier = Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         Spacer(Modifier.height(14.dp))
@@ -1219,11 +1217,11 @@ fun SoundprintMiniPlayer(
                 }
                 MiniPlayerControl(
                     label = if (playing) "Pause" else "Play",
-                    icon = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    icon = if (playing) SoundprintIcons.Pause else SoundprintIcons.Play,
                     onClick = onToggle
                 )
-                MiniPlayerControl("Next track", Icons.Filled.SkipNext, onNext)
-                MiniPlayerControl("Stop and close player", Icons.Filled.Close, onClear, muted = true)
+                MiniPlayerControl("Next track", SoundprintIcons.SkipForward, onNext)
+                MiniPlayerControl("Stop and close player", SoundprintIcons.X, onClear, muted = true)
             }
         }
     }
@@ -1232,7 +1230,7 @@ fun SoundprintMiniPlayer(
 @Composable
 private fun MiniPlayerControl(
     label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.vector.Int,
     onClick: () -> Unit,
     muted: Boolean = false
 ) {
@@ -1244,7 +1242,7 @@ private fun MiniPlayerControl(
         modifier = Modifier.size(40.dp).graphicsLayer { scaleX = scale; scaleY = scale },
         interactionSource = interaction
     ) {
-        Icon(icon, label, tint = if (muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+        SoundprintIcon(icon, label, tint = if (muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(20.dp))
     }
 }
@@ -1265,7 +1263,7 @@ private fun PlayerQuickAction(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(painterResource(icon), null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+        SoundprintIcon(icon, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(8.dp))
         Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -1280,7 +1278,7 @@ private fun PlayerAction(label: String, icon: Int, modifier: Modifier = Modifier
         verticalArrangement = Arrangement.Center
     ) {
         Box(Modifier.size(28.dp).clip(RoundedCornerShape(9.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = .10f)), contentAlignment = Alignment.Center) {
-            Icon(painterResource(icon), null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+            SoundprintIcon(icon, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
         }
         Spacer(Modifier.height(5.dp))
         Text(label, fontSize = 9.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, maxLines = 2, lineHeight = 10.sp, overflow = TextOverflow.Ellipsis)
@@ -1288,7 +1286,7 @@ private fun PlayerAction(label: String, icon: Int, modifier: Modifier = Modifier
 }
 @Composable
 private fun PlayerPanel(title:String,onClose:()->Unit,content:@Composable ColumnScope.()->Unit){
-    Column(Modifier.fillMaxWidth().padding(top=10.dp).clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(14.dp)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(title,fontWeight=FontWeight.SemiBold,fontSize=14.sp);if(title!="Up next")IconButton(onClick=onClose,modifier=Modifier.size(28.dp)){Icon(Icons.Filled.Close,null,modifier=Modifier.size(16.dp))}};content()}
+    Column(Modifier.fillMaxWidth().padding(top=10.dp).clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(14.dp)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(title,fontWeight=FontWeight.SemiBold,fontSize=14.sp);if(title!="Up next")IconButton(onClick=onClose,modifier=Modifier.size(28.dp)){SoundprintIcon(SoundprintIcons.X,null,modifier=Modifier.size(16.dp))}};content()}
 }
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1381,7 +1379,7 @@ private fun ArtworkCustomizerDialog(
                             Text("Make the player feel like yours.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         IconButton(onClick = onDismiss, modifier = Modifier.size(34.dp)) {
-                            Icon(Icons.Filled.Close, "Close artwork options", modifier = Modifier.size(18.dp))
+                            SoundprintIcon(SoundprintIcons.X, "Close artwork options", modifier = Modifier.size(18.dp))
                         }
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -1403,7 +1401,7 @@ private fun ArtworkCustomizerDialog(
                                     Text(copy.first, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                     Text(copy.second, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                if (discStyle == style) Icon(Icons.Filled.CheckCircle, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                if (discStyle == style) SoundprintIcon(SoundprintIcons.CircleCheckBig, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
@@ -1481,7 +1479,7 @@ private fun SoundprintGenrePicker(
         OutlinedTextField(
             value = value, onValueChange = {}, readOnly = true,
             label = { Text("Genre") },
-            trailingIcon = { Icon(Icons.Filled.ExpandMore, null) },
+            trailingIcon = { SoundprintIcon(SoundprintIcons.ChevronDown, null) },
             modifier = Modifier.fillMaxWidth().clickable { expanded = true },
             singleLine = true
         )
@@ -1516,7 +1514,7 @@ internal fun SoundprintGenreMenu(
             Text(value.ifBlank { "Suggest a genre" }, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                 color = if (value.isBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Icon(Icons.Filled.ExpandMore, null, modifier = Modifier.size(15.dp))
+            SoundprintIcon(SoundprintIcons.ChevronDown, null, modifier = Modifier.size(15.dp))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.heightIn(max = 360.dp)) {
             if (suggestions.isNotEmpty()) {

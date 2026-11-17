@@ -24,23 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -87,7 +70,7 @@ private data class PlaylistPageData(
     val added: List<MusicTrack> = emptyList()
 )
 
-private data class PlaylistMixItem(val id: String, val title: String, val tracks: List<MusicTrack>, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+private data class PlaylistMixItem(val id: String, val title: String, val tracks: List<MusicTrack>, val icon: androidx.compose.ui.graphics.vector.Int)
 
 private val smartOperators = listOf(
     SmartOperator.EQ to "is",
@@ -197,9 +180,9 @@ fun SoundprintPlaylistsScreen(
     val filtered = playlists.filter { it.name.contains(query.trim(), ignoreCase = true) }
     val mixes = current?.let {
         listOf(
-            PlaylistMixItem("liked", "Liked Songs", it.liked, Icons.Filled.Favorite),
-            PlaylistMixItem("recent", "Recently Played", it.recent, Icons.Filled.AccessTime),
-            PlaylistMixItem("added", "Recently Added", it.added, Icons.Filled.QueueMusic)
+            PlaylistMixItem("liked", "Liked Songs", it.liked, SoundprintIcons.Heart),
+            PlaylistMixItem("recent", "Recently Played", it.recent, SoundprintIcons.Clock),
+            PlaylistMixItem("added", "Recently Added", it.added, SoundprintIcons.ListMusic)
         )
     }.orEmpty()
 
@@ -223,13 +206,13 @@ fun SoundprintPlaylistsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                            androidx.compose.material3.Icon(mix.icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                            SoundprintIcon(mix.icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         }
                         Column(Modifier.weight(1f).padding(start = 11.dp)) {
                             Text(mix.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             Text("${mix.tracks.size} songs", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        androidx.compose.material3.Icon(Icons.Filled.ChevronRight, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(17.dp))
+                        SoundprintIcon(SoundprintIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(17.dp))
                     }
                 }
             }
@@ -240,7 +223,7 @@ fun SoundprintPlaylistsScreen(
                         Text("Automatically updated from your listening and library", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Button(onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true }, shape = CircleShape, contentPadding = ButtonDefaults.ContentPadding) {
-                        androidx.compose.material3.Icon(Icons.Filled.Add, null, modifier = Modifier.size(15.dp))
+                        SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("New smart playlist", fontSize = 11.sp, maxLines = 1)
                     }
@@ -255,25 +238,25 @@ fun SoundprintPlaylistsScreen(
                     ) {
                         Row(Modifier.weight(1f).clickable { selectedSmartId = rule.id }, verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
-                                androidx.compose.material3.Icon(Icons.Filled.QueueMusic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                SoundprintIcon(SoundprintIcons.ListMusic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             }
                             Column(Modifier.weight(1f).padding(start = 10.dp)) {
                                 Text(rule.name, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text("$count songs", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            androidx.compose.material3.Icon(Icons.Filled.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                            SoundprintIcon(SoundprintIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                         }
                         if (rule.preset) {
                             Text("Preset", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 5.dp))
                         } else {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                androidx.compose.material3.Icon(Icons.Filled.Edit, "Edit ${rule.name}", Modifier.size(17.dp).clip(CircleShape).clickable {
+                                SoundprintIcon(SoundprintIcons.Pencil, "Edit ${rule.name}", Modifier.size(17.dp).clip(CircleShape).clickable {
                                     editingId = rule.id
                                     draft = rule.copy(groups = rule.groups.map { it.copy(conditions = it.conditions.toList()) })
                                     editorOpen = true
                                 }.padding(2.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(Modifier.width(8.dp))
-                                androidx.compose.material3.Icon(Icons.Filled.ContentCopy, "Duplicate ${rule.name}", Modifier.size(17.dp).clickable {
+                                SoundprintIcon(SoundprintIcons.Copy, "Duplicate ${rule.name}", Modifier.size(17.dp).clickable {
                                     val copy = rule.copy(
                                         id = UUID.randomUUID().toString(),
                                         name = "${rule.name} copy",
@@ -284,7 +267,7 @@ fun SoundprintPlaylistsScreen(
                                     refreshVersion++
                                 }, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(Modifier.width(8.dp))
-                                androidx.compose.material3.Icon(Icons.Filled.Delete, "Delete ${rule.name}", Modifier.size(17.dp).clickable {
+                                SoundprintIcon(SoundprintIcons.Trash2, "Delete ${rule.name}", Modifier.size(17.dp).clickable {
                                     libraryManager.deleteSmartPlaylist(rule.id)
                                     refreshVersion++
                                 }, tint = MaterialTheme.colorScheme.error)
@@ -309,7 +292,7 @@ fun SoundprintPlaylistsScreen(
                                 Text(playlist.name, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text("${playlist.trackIds.size} songs", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            androidx.compose.material3.Icon(Icons.Filled.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp))
+                            SoundprintIcon(SoundprintIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp))
                         }
                     }
                 }
@@ -393,16 +376,16 @@ private fun PlaylistDetailNative(
             Text("${tracks.size} songs", Modifier.fillMaxWidth().padding(top = 3.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 Button(onClick = { playback.playTracks(tracks) }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
-                    androidx.compose.material3.Icon(Icons.Filled.PlayArrow, null); Spacer(Modifier.width(5.dp)); Text("Play")
+                    SoundprintIcon(SoundprintIcons.Play, null); Spacer(Modifier.width(5.dp)); Text("Play")
                 }
                 OutlinedButton(onClick = { playback.playTracks(tracks, shuffle = true) }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
-                    androidx.compose.material3.Icon(Icons.Filled.Shuffle, null); Spacer(Modifier.width(5.dp)); Text("Shuffle")
+                    SoundprintIcon(SoundprintIcons.Shuffle, null); Spacer(Modifier.width(5.dp)); Text("Shuffle")
                 }
             }
             Row(Modifier.fillMaxWidth().padding(top = 7.dp), horizontalArrangement = Arrangement.Center) {
-                TextButton(onClick = { addOpen = true }) { androidx.compose.material3.Icon(Icons.Filled.Add, null); Text("Add songs") }
-                TextButton(onClick = { name = selected.name; renameOpen = true }) { androidx.compose.material3.Icon(Icons.Filled.Edit, null); Text("Rename") }
-                TextButton(onClick = { libraryManager.deletePlaylist(selected.id); onBack(); onChanged() }) { androidx.compose.material3.Icon(Icons.Filled.Delete, null); Text("Delete") }
+                TextButton(onClick = { addOpen = true }) { SoundprintIcon(SoundprintIcons.Plus, null); Text("Add songs") }
+                TextButton(onClick = { name = selected.name; renameOpen = true }) { SoundprintIcon(SoundprintIcons.Pencil, null); Text("Rename") }
+                TextButton(onClick = { libraryManager.deletePlaylist(selected.id); onBack(); onChanged() }) { SoundprintIcon(SoundprintIcons.Trash2, null); Text("Delete") }
             }
             Spacer(Modifier.height(10.dp))
             if (tracks.isEmpty()) {
@@ -412,8 +395,8 @@ private fun PlaylistDetailNative(
                     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                         NativeTrackRow(track, onClick = { playback.playTracks(tracks, index) }, onRemove = { libraryManager.removeFromPlaylist(selected.id, track.id); refresh++; onChanged() }, modifier = Modifier.weight(1f))
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            androidx.compose.material3.Icon(Icons.Filled.ArrowUpward, "Move up", Modifier.size(16.dp).clickable(enabled = index > 0) { libraryManager.reorderPlaylist(selected.id, index, index - 1); refresh++ }.padding(1.dp), tint = if (index > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline)
-                            androidx.compose.material3.Icon(Icons.Filled.ArrowDownward, "Move down", Modifier.size(16.dp).clickable(enabled = index < tracks.lastIndex) { libraryManager.reorderPlaylist(selected.id, index, index + 1); refresh++ }.padding(1.dp), tint = if (index < tracks.lastIndex) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline)
+                            SoundprintIcon(SoundprintIcons.ArrowUp, "Move up", Modifier.size(16.dp).clickable(enabled = index > 0) { libraryManager.reorderPlaylist(selected.id, index, index - 1); refresh++ }.padding(1.dp), tint = if (index > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline)
+                            SoundprintIcon(SoundprintIcons.ArrowDown, "Move down", Modifier.size(16.dp).clickable(enabled = index < tracks.lastIndex) { libraryManager.reorderPlaylist(selected.id, index, index + 1); refresh++ }.padding(1.dp), tint = if (index < tracks.lastIndex) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline)
                         }
                     }
                 }
@@ -474,10 +457,10 @@ private fun SmartPlaylistDetailNative(
             Text("${tracks.size} songs${if (isRule) " · Updates automatically" else ""}", Modifier.fillMaxWidth().padding(top = 3.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 Button(onClick = { playback.playTracks(tracks) }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
-                    androidx.compose.material3.Icon(Icons.Filled.PlayArrow, null); Spacer(Modifier.width(5.dp)); Text("Play")
+                    SoundprintIcon(SoundprintIcons.Play, null); Spacer(Modifier.width(5.dp)); Text("Play")
                 }
                 OutlinedButton(onClick = { playback.playTracks(tracks, shuffle = true) }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
-                    androidx.compose.material3.Icon(Icons.Filled.Shuffle, null); Spacer(Modifier.width(5.dp)); Text("Shuffle")
+                    SoundprintIcon(SoundprintIcons.Shuffle, null); Spacer(Modifier.width(5.dp)); Text("Shuffle")
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -550,12 +533,12 @@ private fun SmartPlaylistEditorDialog(
                             }
                         }
                         TextButton(onClick = { onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(conditions = it.conditions + freshCondition()) else it })) }) {
-                            androidx.compose.material3.Icon(Icons.Filled.Add, null); Text("Add condition")
+                            SoundprintIcon(SoundprintIcons.Plus, null); Text("Add condition")
                         }
                     }
                 }
                 OutlinedButton(onClick = { onDraftChange(draft.copy(groups = draft.groups + freshGroup())) }, shape = CircleShape) {
-                    androidx.compose.material3.Icon(Icons.Filled.Add, null); Text("Add group")
+                    SoundprintIcon(SoundprintIcons.Plus, null); Text("Add group")
                 }
                 Text("Sort and limit", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 NativeChoice(draft.sortField.name, SmartSortField.entries.map { it.name to it.name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase) }) { value ->
@@ -620,7 +603,7 @@ private fun AddSongsDialog(
                                 Text(track.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(track.artist, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            androidx.compose.material3.Icon(Icons.Filled.Add, null, tint = MaterialTheme.colorScheme.primary)
+                            SoundprintIcon(SoundprintIcons.Plus, null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                     if (candidates.isEmpty()) Text("No songs match this search.", Modifier.padding(14.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -635,7 +618,7 @@ private fun AddSongsDialog(
 private fun EmptyPlaylistState(onAdd: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(vertical = 34.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(60.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-            androidx.compose.material3.Icon(Icons.Filled.QueueMusic, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(26.dp))
+            SoundprintIcon(SoundprintIcons.ListMusic, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(26.dp))
         }
         Text("This playlist is empty", Modifier.padding(top = 12.dp), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         Text("Add songs from your library to start building it.", Modifier.padding(top = 4.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -653,7 +636,7 @@ private fun NativeTrackRow(track: MusicTrack, onClick: () -> Unit, onRemove: (()
         }
         Text(formatNativeDuration(track.durationMs), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (onRemove != null) {
-            androidx.compose.material3.Icon(Icons.Filled.Close, "Remove", Modifier.padding(start = 7.dp).size(17.dp).clickable(onClick = onRemove), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            SoundprintIcon(SoundprintIcons.X, "Remove", Modifier.padding(start = 7.dp).size(17.dp).clickable(onClick = onRemove), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -666,7 +649,7 @@ private fun PlaylistPageHeader(title: String, subtitle: String, action: (() -> U
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (back != null) {
                 Box(Modifier.size(36.dp).clip(CircleShape).clickable(onClick = back), contentAlignment = Alignment.Center) {
-                    androidx.compose.material3.Icon(Icons.Filled.ArrowBack, null, tint = MaterialTheme.colorScheme.onSurface)
+                    SoundprintIcon(SoundprintIcons.ArrowLeft, null, tint = MaterialTheme.colorScheme.onSurface)
                 }
                 Spacer(Modifier.width(8.dp))
             }
@@ -675,7 +658,7 @@ private fun PlaylistPageHeader(title: String, subtitle: String, action: (() -> U
                 if (subtitle.isNotBlank()) Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (action != null) Box(Modifier.size(36.dp).clip(CircleShape).clickable(onClick = action), contentAlignment = Alignment.Center) {
-                androidx.compose.material3.Icon(Icons.Filled.Add, "New playlist", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
+                SoundprintIcon(SoundprintIcons.Plus, "New playlist", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f))
@@ -687,13 +670,13 @@ private fun PlaylistSearchBox(value: String, onValueChange: (String) -> Unit, pl
     Row(Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)
         .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(16.dp)).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        androidx.compose.material3.Icon(Icons.Filled.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp))
+        SoundprintIcon(SoundprintIcons.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp))
         Spacer(Modifier.width(9.dp))
         Box(Modifier.weight(1f)) {
             if (value.isEmpty()) Text(placeholder, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             BasicTextField(value, onValueChange, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth())
         }
-        if (value.isNotEmpty()) androidx.compose.material3.Icon(Icons.Filled.Close, "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp).clickable { onValueChange("") })
+        if (value.isNotEmpty()) SoundprintIcon(SoundprintIcons.X, "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp).clickable { onValueChange("") })
     }
 }
 
