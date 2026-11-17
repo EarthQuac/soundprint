@@ -79,6 +79,7 @@ internal object SoundprintIcons {
     val Timer = LucideR.drawable.lucide_ic_timer
     val CircleAlert = LucideR.drawable.lucide_ic_circle_alert
     val AudioLines = LucideR.drawable.lucide_ic_audio_lines
+    val Tags = LucideR.drawable.lucide_ic_tags
     val Music = LucideR.drawable.lucide_ic_music
     val EighthNotes = R.drawable.lucide_ic_eighth_notes
     val User = LucideR.drawable.lucide_ic_user
