@@ -394,7 +394,7 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                 }
                 if (mode == "sign-up") OutlinedTextField(displayName, { displayName = it.take(60) }, Modifier.fillMaxWidth(), label = { Text("Display name") }, leadingIcon = { SoundprintIcon(SoundprintIcons.UserRound, null) }, singleLine = true)
                 OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
-                if (mode == "sign-up") OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
+                if (mode == "sign-up" || (mode == "sign-in" && !otpRequested)) OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                 if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                 if (otpRequested) {
                     Text(
@@ -478,22 +478,45 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                             else -> if (!email.contains("@")) {
                                 message = "Enter your email address."
                                 messageError = true
+                            } else if (password.isBlank()) {
+                                message = "Enter your password, or choose email sign-in code."
+                                messageError = true
                             } else perform {
-                                supabase.auth.signInWith(OTP) { this.email = email.trim() }
-                                otpIsSignup = false
-                                otpRequested = true
-                                otpCode = ""
-                                message = "Sign-in code sent. Enter it below to sign in."
+                                supabase.auth.signInWith(Email) {
+                                    this.email = email.trim()
+                                    this.password = password
+                                }
+                                refreshAccount()
+                                password = ""
+                                message = "You're signed in."
                                 messageError = false
                             }
                         }
                     },
-                    enabled = !busy && email.isNotBlank() && (mode != "sign-up" || password.isNotBlank()),
+                    enabled = !busy && email.isNotBlank() && (mode == "forgot" || password.isNotBlank()),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    else Text(when (mode) { "sign-up" -> "Create account"; "forgot" -> "Send reset code"; else -> "Send sign-in code" })
+                    else Text(when (mode) { "sign-up" -> "Create account"; "forgot" -> "Send reset code"; else -> "Sign in" })
                 }
+                if (mode == "sign-in" && !otpRequested) TextButton(
+                    onClick = {
+                        if (!email.contains("@")) {
+                            message = "Enter your email address."
+                            messageError = true
+                        } else perform {
+                            supabase.auth.signInWith(OTP) { this.email = email.trim() }
+                            otpIsSignup = false
+                            otpIsRecovery = false
+                            otpRequested = true
+                            otpCode = ""
+                            message = "Sign-in code sent. Enter it below to sign in."
+                            messageError = false
+                        }
+                    },
+                    enabled = !busy && email.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Email me a sign-in code") }
                 if (mode != "forgot" && !otpRequested) TextButton(onClick = { mode = "forgot"; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Forgot password?") }
                 if (!otpRequested) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     Text(if (mode == "sign-up") "Already have an account?" else "New to SoundPrint?", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
