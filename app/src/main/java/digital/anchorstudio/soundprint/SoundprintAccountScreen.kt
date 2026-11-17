@@ -56,6 +56,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.buildJsonObject
 
 @Serializable
 private data class SoundprintProfileUpdate(@SerialName("display_name") val displayName: String)
@@ -179,6 +180,36 @@ internal fun SoundprintAccountScreen(
         }
     }
 
+    suspend fun callDeleteAccountFunction(payload: String): String {
+        val accessToken = supabase.auth.currentAccessTokenOrNull()
+            ?: error("Your session has expired. Sign in again and restart account deletion.")
+        return withContext(Dispatchers.IO) {
+            val connection = (URL("${SoundprintSupabase.SUPABASE_URL}/functions/v1/delete-account").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 15_000
+                readTimeout = 30_000
+                doOutput = true
+                setRequestProperty("Authorization", "Bearer $accessToken")
+                setRequestProperty("apikey", SoundprintSupabase.PUBLISHABLE_KEY)
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+            }
+            try {
+                connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+                val status = connection.responseCode
+                val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                if (status !in 200..299) {
+                    val detail = Regex("""\"message\"\s*:\s*\"([^\"]+)\"""").find(body)?.groupValues?.get(1)
+                    error(detail ?: "The account request failed. Please try again.")
+                }
+                body
+            } finally {
+                connection.disconnect()
+            }
+        }
+    }
+
     fun requestAccountDeletionCode() {
         val requestedEmail = deletionEmail.trim().lowercase()
         val currentId = userId
@@ -214,16 +245,12 @@ internal fun SoundprintAccountScreen(
             return
         }
         perform {
-            supabase.auth.verifyEmailOtp(
-                type = OtpType.Email.EMAIL,
-                email = deletionEmail,
-                token = deletionCode
-            )
-            val verifiedUser = supabase.auth.currentUserOrNull()
-            if (verifiedUser?.id != deletionOriginalUserId) {
-                supabase.auth.signOut()
-                error("The verification code did not confirm the account you started with. Sign in again and retry.")
-            }
+            val payload = buildJsonObject {
+                put("action", "verify")
+                put("email", deletionEmail)
+                put("token", deletionCode)
+            }.toString()
+            callDeleteAccountFunction(payload)
             deletionCode = ""
             deletionStep = "confirm"
             message = "Email verified. Enter SOUNDPRINT/DELETE to permanently delete your account."
@@ -250,33 +277,11 @@ internal fun SoundprintAccountScreen(
             return
         }
         perform {
-            val accessToken = supabase.auth.currentAccessTokenOrNull()
-                ?: error("Your verified session has expired. Sign in and request a new code.")
-            withContext(Dispatchers.IO) {
-                val connection = (URL("${SoundprintSupabase.SUPABASE_URL}/functions/v1/delete-account").openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    connectTimeout = 15_000
-                    readTimeout = 30_000
-                    doOutput = true
-                    setRequestProperty("Authorization", "Bearer $accessToken")
-                    setRequestProperty("apikey", SoundprintSupabase.PUBLISHABLE_KEY)
-                    setRequestProperty("Content-Type", "application/json")
-                    setRequestProperty("Accept", "application/json")
-                }
-                try {
-                    connection.outputStream.use { it.write("""{"confirmation":"SOUNDPRINT/DELETE"}""".toByteArray(Charsets.UTF_8)) }
-                    val status = connection.responseCode
-                    val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
-                        ?.bufferedReader()?.use { it.readText() }.orEmpty()
-                    if (status !in 200..299) {
-                        val detail = Regex("""\"message\"\s*:\s*\"([^\"]+)\"""").find(body)?.groupValues?.get(1)
-                        error(detail ?: "Account deletion failed. Please try again.")
-                    }
-                    body
-                } finally {
-                    connection.disconnect()
-                }
-            }
+            val payload = buildJsonObject {
+                put("action", "delete")
+                put("confirmation", "SOUNDPRINT/DELETE")
+            }.toString()
+            callDeleteAccountFunction(payload)
             supabase.auth.signOut()
             refreshAccount()
             deletionStep = "idle"
