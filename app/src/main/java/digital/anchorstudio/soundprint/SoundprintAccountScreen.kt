@@ -345,7 +345,7 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                 }
                 if (mode == "sign-up") OutlinedTextField(displayName, { displayName = it.take(60) }, Modifier.fillMaxWidth(), label = { Text("Display name") }, leadingIcon = { Icon(Icons.Filled.Person, null) }, singleLine = true)
                 OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { Icon(Icons.Filled.MailOutline, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
-                if (mode != "forgot") OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { Icon(Icons.Filled.Lock, null) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
+                if (mode == "sign-up") OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { Icon(Icons.Filled.Lock, null) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                 if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                 if (otpRequested) {
                     Text("Enter the 6-digit code sent to ${email.trim()}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -486,7 +486,7 @@ private fun EmailOtpCodeEntry(code: String, onCodeChange: (String) -> Unit) {
                         }
                     }
                 }
-                Box(Modifier.size(1.dp)) { innerTextField() }
+                Box(Modifier.matchParentSize()) { innerTextField() }
             }
         }
     )
