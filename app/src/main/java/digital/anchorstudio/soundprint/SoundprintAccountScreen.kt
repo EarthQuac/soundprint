@@ -49,6 +49,7 @@ import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.providers.builtin.OTP
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.launch
@@ -369,7 +370,7 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                     TextButton(onClick = {
                         perform {
                             if (otpIsSignup) supabase.auth.resendEmail(OtpType.Email.SIGNUP, email.trim())
-                            else supabase.auth.sendOtpTo(Email) { this.email = email.trim() }
+                            else supabase.auth.signInWith(OTP) { this.email = email.trim() }
                             otpCode = ""
                             message = "A new verification code has been sent."
                             messageError = false
@@ -406,7 +407,7 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                                 message = "Enter your email address."
                                 messageError = true
                             } else perform {
-                                supabase.auth.sendOtpTo(Email) { this.email = email.trim() }
+                                supabase.auth.signInWith(OTP) { this.email = email.trim() }
                                 otpIsSignup = false
                                 otpRequested = true
                                 otpCode = ""
