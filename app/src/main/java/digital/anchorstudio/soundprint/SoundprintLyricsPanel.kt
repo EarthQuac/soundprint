@@ -697,7 +697,7 @@ fun SoundprintLyricsPanel(
                             }
                             Column(
                                 Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                    .border(1.dp, if (index == 0) Color(0xFF16A36A).copy(alpha = .5f) else MaterialTheme.colorScheme.outline.copy(alpha = .45f), RoundedCornerShape(12.dp))
+                                    
                                     .background(MaterialTheme.colorScheme.surface).clickable(enabled = !loading) { findLyrics(match) }
                                     .padding(horizontal = 12.dp, vertical = 10.dp)
                             ) {
