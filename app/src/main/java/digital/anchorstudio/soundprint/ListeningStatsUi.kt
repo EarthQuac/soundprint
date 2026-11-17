@@ -61,7 +61,7 @@ fun ListeningStatsScreen(libraryManager:MusicLibraryManager,onBack:()->Unit) {
                     Text("Music statistics",fontSize=27.sp,lineHeight=32.sp,fontWeight=FontWeight.Bold,letterSpacing=(-0.8).sp,color=MaterialTheme.colorScheme.onBackground)
                     Text("Your music, your story.",fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Box(Modifier.size(42.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface).border(1.dp,MaterialTheme.colorScheme.outline.copy(alpha=.45f),CircleShape).clickable { resetDialog=true },contentAlignment=Alignment.Center) {
+                Box(Modifier.size(42.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface).clickable { resetDialog=true },contentAlignment=Alignment.Center) {
                     SoundprintIcon(SoundprintIcons.RefreshCw,contentDescription="Reset listening statistics",tint=MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -173,7 +173,7 @@ private fun StatsRankSection(title:String,subtitle:String,rows:List<Triple<Int,S
                     }
                     Text(row.third.second,fontSize=11.sp,fontWeight=FontWeight.Medium,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if(index!=rows.lastIndex) androidx.compose.material3.HorizontalDivider(color=MaterialTheme.colorScheme.outline.copy(alpha=.32f))
+                if(index!=rows.lastIndex) Spacer(Modifier.height(0.dp))
             }
         }
     }
