@@ -365,7 +365,7 @@ private fun ScanStatusMark(kind: String) {
         Modifier.size(18.dp)
             .clip(CircleShape)
             .background(if (kind == "pending") Color.Transparent else color.copy(alpha = 0.14f))
-            .border(1.dp, color.copy(alpha = if (kind == "pending") 0.65f else 0.95f), CircleShape),
+            ,
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -494,7 +494,7 @@ fun ClapDiscoverScreen(
                     .padding(top = 4.dp, bottom = 22.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f), RoundedCornerShape(18.dp))
+                    
                     .padding(14.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -546,10 +546,7 @@ fun ClapDiscoverScreen(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                androidx.compose.material3.HorizontalDivider(
-                    Modifier.padding(vertical = 12.dp),
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-                )
+                Spacer(Modifier.height(0.dp))
                 Text(
                     "SONG-BY-SONG STATUS · ${tracks.size}",
                     fontSize = 9.sp,
@@ -631,7 +628,7 @@ fun ClapDiscoverScreen(
                 Row(
                     modifier = Modifier.clip(CircleShape)
                         .background(if (active) MaterialTheme.colorScheme.primary else Color.Transparent)
-                        .border(1.dp, if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f), CircleShape)
+                        
                         .clickable { selectedMood = mood }
                         .padding(horizontal = 11.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -743,7 +740,7 @@ fun ClapDiscoverScreen(
                             }
                         }
                     }
-                    androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+                    Spacer(Modifier.height(0.dp))
                 }
             }
         }
