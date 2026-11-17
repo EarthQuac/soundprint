@@ -39,6 +39,9 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Report Android signing fingerprints
+        run: ./gradlew --no-daemon signingReport
+
       - name: Run library database tests
         run: ./gradlew --no-daemon testDebugUnitTest
 
