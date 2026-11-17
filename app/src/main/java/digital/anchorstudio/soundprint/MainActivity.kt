@@ -1130,7 +1130,7 @@ private fun HomeScreen(
     }
     val recentAddedTracks = libraryTracks.take(6)
     val shortcutTiles = listOf(
-        Triple("Songs", SoundprintIcons.Music, 1),
+        Triple("Songs", SoundprintIcons.EighthNotes, 1),
         Triple("Albums", SoundprintIcons.Disc3, 2),
         Triple("Artists", SoundprintIcons.User, -1),
         Triple("Genres", SoundprintIcons.AudioLines, -1),
@@ -1208,17 +1208,18 @@ private fun HomeScreen(
                                     if (tileIndex < shortcutTiles.size) {
                                         val tile = shortcutTiles[tileIndex]
                                         Row(
-                                            Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(16.dp))
-                                                .background(MaterialTheme.colorScheme.surface)
+                                            Modifier.weight(1f).height(56.dp)
+                                                .clip(RoundedCornerShape(22.dp))
+                                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.52f))
                                                 .clickable {
                                                     if (tile.third >= 0) onOpenTab(tile.third) else selectedShortcut = tile.first
                                                 }
-                                                .padding(horizontal = 12.dp),
+                                                .padding(horizontal = 16.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            SoundprintIcon(tile.second, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                                            SoundprintIcon(tile.second, null, Modifier.size(if (tile.first == "Songs") 22.dp else 18.dp), tint = MaterialTheme.colorScheme.primary)
                                             Spacer(Modifier.width(12.dp))
-                                            Text(tile.first, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
+                                            Text(tile.first, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
                                         }
                                     } else {
                                         Spacer(Modifier.weight(1f))
@@ -1230,7 +1231,7 @@ private fun HomeScreen(
                 }
                 item {
                     AddMusicMenuButton(
-                        modifier = Modifier.fillMaxWidth().height(44.dp).padding(bottom = 4.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp).padding(bottom = 4.dp),
                         secondary = true,
                         onAudioPicker = onImportAudio,
                         onSinglePicker = onImportSingle,
@@ -1734,37 +1735,55 @@ private fun AddMusicMenuButton(
     Box(modifier = modifier) {
         Row(
             modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(50))
-                .background(if (secondary) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
                 .clickable { expanded = true }.padding(horizontal = 18.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SoundprintIcon(SoundprintIcons.FolderPlus, null, Modifier.size(16.dp), tint = if (secondary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary)
-            Spacer(Modifier.width(8.dp))
-            Text("Add music", color = if (secondary) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            SoundprintIcon(SoundprintIcons.FolderPlus, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(10.dp))
+            Text("Add music", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text("Audio picker") },
-                leadingIcon = { SoundprintIcon(SoundprintIcons.FileMusic, null) },
-                onClick = { expanded = false; onAudioPicker() }
-            )
-            DropdownMenuItem(
-                text = { Text("Single picker") },
-                leadingIcon = { SoundprintIcon(SoundprintIcons.Music2, null) },
-                onClick = { expanded = false; onSinglePicker() }
-            )
-            DropdownMenuItem(
-                text = { Text("Folder picker") },
-                leadingIcon = { SoundprintIcon(SoundprintIcons.Library, null) },
-                onClick = { expanded = false; onFolderPicker() }
-            )
-            Spacer(Modifier.height(0.dp))
-            DropdownMenuItem(
-                text = { Text("Rescan folders") },
-                leadingIcon = { SoundprintIcon(SoundprintIcons.AudioWaveform, null) },
-                onClick = { expanded = false; onRescan() }
-            )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.width(292.dp).background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp)),
+            shape = RoundedCornerShape(18.dp)
+        ) {
+            Column(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp)) {
+                Text(
+                    "Music stays on this device",
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp
+                )
+                DropdownMenuItem(
+                    text = { Text("Pick audio files", fontSize = 16.sp) },
+                    leadingIcon = { SoundprintIcon(SoundprintIcons.FileMusic, null, Modifier.size(22.dp)) },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
+                    onClick = { expanded = false; onAudioPicker() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Scan a folder", fontSize = 16.sp) },
+                    leadingIcon = { SoundprintIcon(SoundprintIcons.Library, null, Modifier.size(22.dp)) },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
+                    onClick = { expanded = false; onFolderPicker() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Rescan folders", fontSize = 16.sp) },
+                    leadingIcon = { SoundprintIcon(SoundprintIcons.RefreshCw, null, Modifier.size(22.dp)) },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
+                    onClick = { expanded = false; onRescan() }
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "You can also drag songs or folders anywhere onto Soundprint.",
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+            }
         }
     }
 }
