@@ -861,10 +861,7 @@ private fun SoundprintApp(
                     onNext = { playbackConnection.next() },
                     onClear = { playbackConnection.clearQueue() }
                 )
-                androidx.compose.material3.HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.42f),
-                    thickness = 0.7.dp
-                )
+                Spacer(Modifier.height(0.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1172,7 +1169,7 @@ private fun HomeScreen(
                 Column(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
                         .background(MaterialTheme.colorScheme.surface)
-                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(22.dp))
+                        
                         .padding(20.dp)
                 ) {
                     Box(Modifier.size(44.dp).clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
@@ -1193,7 +1190,7 @@ private fun HomeScreen(
                         onRescan = onRescan
                     )
                     Spacer(Modifier.height(28.dp))
-                    androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                    Spacer(Modifier.height(0.dp))
                     Spacer(Modifier.height(16.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         FeatureLabel(SoundprintIcons.Music, "Your own music")
@@ -1338,7 +1335,7 @@ private fun HomeScreen(
                             }
                         }
                     }
-                    androidx.compose.material3.HorizontalDivider()
+                    Spacer(Modifier.height(0.dp))
                     androidx.compose.material3.OutlinedTextField(
                         value = newPlaylistName,
                         onValueChange = { newPlaylistName = it },
@@ -1762,10 +1759,7 @@ private fun AddMusicMenuButton(
                 leadingIcon = { SoundprintIcon(SoundprintIcons.Library, null) },
                 onClick = { expanded = false; onFolderPicker() }
             )
-            androidx.compose.material3.HorizontalDivider(
-                modifier = Modifier.padding(vertical = 4.dp),
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f)
-            )
+            Spacer(Modifier.height(0.dp))
             DropdownMenuItem(
                 text = { Text("Rescan folders") },
                 leadingIcon = { SoundprintIcon(SoundprintIcons.AudioWaveform, null) },
@@ -1839,7 +1833,7 @@ private fun PlaylistsScreen(onBack: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxWidth()
-                .border(width = 0.dp, color = Color.Transparent)
+                
                 .padding(
                     start = 12.dp, end = 12.dp,
                     top = 12.dp,
@@ -1860,7 +1854,7 @@ private fun PlaylistsScreen(onBack: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) { SoundprintIcon(SoundprintIcons.Plus, "New playlist", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp)) }
         }
-        androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+        Spacer(Modifier.height(0.dp))
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
@@ -1925,9 +1919,7 @@ private fun DiscoverScreen(onBack: () -> Unit) {
                 Text("Pick a feeling or a moment. Soundprint finds the tracks in your own library that fit.", modifier = Modifier.padding(top = 4.dp), fontSize = 14.sp, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(
-                Modifier.fillMaxWidth().border(
-                    width = 0.dp, color = Color.Transparent
-                ).padding(vertical = 10.dp)
+                Modifier.fillMaxWidth().padding(vertical = 10.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF4DAA78)))
@@ -1954,7 +1946,7 @@ private fun DiscoverScreen(onBack: () -> Unit) {
             if (selectedMood != null) {
                 Column(
                     Modifier.fillMaxWidth().padding(top = 4.dp)
-                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(18.dp))
+                        
                         .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
                         .padding(16.dp)
                 ) {
@@ -1973,7 +1965,7 @@ private fun SearchBox(value: String, onValueChange: (String) -> Unit, placeholde
     Row(
         modifier = Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+            
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1994,7 +1986,7 @@ private fun UtilityButton(icon: Int, label: String, modifier: Modifier = Modifie
     Row(
         modifier = modifier.height(40.dp).clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(12.dp))
+            
             .clickable(onClick = onClick).padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
@@ -2053,7 +2045,7 @@ private fun MoodChip(mood: String, selected: Boolean, modifier: Modifier = Modif
     Row(
         modifier = modifier.height(37.dp).clip(RoundedCornerShape(50))
             .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
-            .border(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f), RoundedCornerShape(50))
+            
             .clickable(onClick = onClick).padding(horizontal = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
@@ -2087,7 +2079,7 @@ private fun PageTitle(title: String, subtitle: String, onBack: () -> Unit, showD
                 if (subtitle.isNotBlank()) Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        if (showDivider) androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f))
+        if (showDivider) Spacer(Modifier.height(0.dp))
     }
 }
 
@@ -2298,7 +2290,7 @@ private fun SettingsScreen(
                                 Box(
                                     Modifier.width(31.dp).height(30.dp).clip(RoundedCornerShape(9.dp))
                                         .background(if (crossfade == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-                                        .border(1.dp, if (crossfade == seconds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(9.dp))
+                                        
                                         .clickable {
                                             crossfade = seconds
                                             playbackPrefs.edit().putInt("crossfade_seconds", seconds).apply()
@@ -2334,7 +2326,7 @@ private fun SettingsScreen(
                                         Box(
                                             Modifier.weight(1f).height(36.dp).clip(RoundedCornerShape(12.dp))
                                                 .background(if (seekSeconds == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
-                                                .border(1.dp, if (seekSeconds == seconds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
+                                                
                                                 .clickable { seekSeconds = seconds; playbackPrefs.edit().putInt("double_tap_seek_seconds", seconds).apply() },
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -2513,7 +2505,7 @@ private fun SettingsScreen(
                     .heightIn(max = configuration.screenHeightDp.dp * 0.85f)
                     .clip(RoundedCornerShape(24.dp))
                     .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.65f), RoundedCornerShape(24.dp))
+                    
                     .verticalScroll(rememberScrollState())
                     .padding(24.dp)
             ) {
@@ -2747,7 +2739,7 @@ private fun ThemeChoice(modifier: Modifier, label: String, icon: Int?, selected:
     Column(
         modifier = modifier.height(76.dp).clip(RoundedCornerShape(16.dp))
             .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
-            .border(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(16.dp))
+            
             .clickable(onClick = onClick).padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -2768,12 +2760,12 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
     Row(
         modifier = modifier.height(76.dp).clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+            
             .clickable(onClick = onClick).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy((-6).dp)) {
-            colors.forEach { color -> Box(Modifier.size(20.dp).clip(CircleShape).background(color).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)) }
+            colors.forEach { color -> Box(Modifier.size(20.dp).clip(CircleShape).background(color)) }
         }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
