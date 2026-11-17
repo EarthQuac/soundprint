@@ -1,5 +1,8 @@
 package digital.anchorstudio.soundprint
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -108,7 +111,8 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
     fun signInWithGoogle() {
         scope.launch {
             busy = true
-            message = null
+            message = "Opening Google sign-in…"
+            messageError = false
             try {
                 val rawNonce = UUID.randomUUID().toString()
                 val digest = MessageDigest.getInstance("SHA-256")
@@ -125,9 +129,11 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                 val request = GetCredentialRequest.Builder()
                     .addCredentialOption(googleOption)
                     .build()
-                val credentialManager = CredentialManager.create(context)
+                val activity = context.findActivity()
+                    ?: error("Google sign-in needs an active Android screen. Close and reopen SoundPrint, then try again.")
+                val credentialManager = CredentialManager.create(activity)
                 val result = credentialManager.getCredential(
-                    context = context,
+                    context = activity,
                     request = request
                 )
                 val googleCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
@@ -147,12 +153,12 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                     is androidx.credentials.exceptions.GetCredentialCancellationException ->
                         "Google sign-in was cancelled."
                     else -> error.message?.take(220)
-                        ?: "Google sign-in couldn't start. Check Google Play services and try again."
+                        ?: "Google sign-in couldn't start (${error::class.simpleName}). Check Google Play services and try again."
                 }
                 messageError = true
             } catch (error: Exception) {
                 message = error.message?.take(220)
-                    ?: "Google sign-in failed. Check your connection and OAuth configuration."
+                    ?: "Google sign-in failed (${error::class.simpleName}). Check your connection and OAuth configuration."
                 messageError = true
             } finally {
                 busy = false
@@ -344,4 +350,11 @@ private fun AccountPanel(content: @Composable ColumnScope.() -> Unit) {
             .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .55f), RoundedCornerShape(20.dp)).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) { content(this) }
+}
+
+
+private fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
