@@ -94,7 +94,6 @@ internal object SoundprintIcons {
     val RotateCcw = LucideR.drawable.lucide_ic_rotate_ccw
     val Settings2 = LucideR.drawable.lucide_ic_settings_2
     val Maximize = LucideR.drawable.lucide_ic_maximize
-    val EighthNotes = R.drawable.lucide_ic_eighth_notes
 }
 
 @Composable
