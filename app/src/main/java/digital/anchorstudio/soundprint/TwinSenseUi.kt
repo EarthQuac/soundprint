@@ -131,7 +131,7 @@ internal fun SongsLibraryScreen(
                 Text("Add music", fontSize = 12.sp)
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f))
+        Spacer(Modifier.height(0.dp))
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -197,7 +197,7 @@ internal fun SongsLibraryScreen(
             if (soundprintOpen) {
                 item {
                     Column(Modifier.padding(horizontal = 16.dp)) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f))
+                        Spacer(Modifier.height(0.dp))
                         Column(Modifier.padding(vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 SoundprintIcon(SoundprintIcons.AudioWaveform, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
@@ -311,7 +311,7 @@ internal fun SongsLibraryScreen(
                             }
                             if (scanError.isNotBlank()) Text(scanError, fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                        Spacer(Modifier.height(0.dp))
                     }
                 }
             }
