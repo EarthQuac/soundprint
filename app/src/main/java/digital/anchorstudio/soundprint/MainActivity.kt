@@ -2087,7 +2087,7 @@ private fun PageTitle(title: String, subtitle: String, onBack: () -> Unit) {
                 if (subtitle.isNotBlank()) Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f))
+        // Settings header is separated by spacing, not a divider line.
     }
 }
 
@@ -2219,7 +2219,7 @@ private fun SettingsScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(MaterialTheme.colorScheme.surface)
-                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
+                        
                 ) {
                     if (settingSearchResults.isEmpty()) {
                         Text("No settings found. Try another search.", Modifier.padding(14.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2606,7 +2606,7 @@ private fun SettingsSearchBox(value: String, onValueChange: (String) -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 2.dp)
             .heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(16.dp))
+            
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -2633,7 +2633,6 @@ private fun SettingsToggleRow(label: String, description: String, checked: Boole
             }
             Switch(checked = checked, onCheckedChange = onCheckedChange)
         }
-        SettingsDivider()
     }
 }
 
@@ -2675,7 +2674,6 @@ private fun FolderAutoWatchSettingsRow(
                 }
             }
         }
-        SettingsDivider()
     }
 }
 
@@ -2699,7 +2697,6 @@ private fun SettingsActionRow(
             }
             Text(action, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, maxLines = 1)
         }
-        SettingsDivider()
     }
 }
 
@@ -2713,7 +2710,6 @@ private fun SettingsValueRow(label: String, description: String, modifier: Modif
             }
             control()
         }
-        SettingsDivider()
     }
 }
 
@@ -2729,13 +2725,13 @@ private fun HelpInfoTopic(title: String, body: String) {
 private fun SettingsSection(title: String, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
         Text(title, fontSize = 11.sp, letterSpacing = 1.6.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
-        Column(Modifier.fillMaxWidth().shadow(1.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.70f), RoundedCornerShape(18.dp))) { content() }
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surface)) { content() }
     }
 }
 
 @Composable
 private fun SettingsDivider() {
-    androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.80f), thickness = 0.7.dp)
+    Spacer(Modifier.height(0.dp))
 }
 
 @Composable
