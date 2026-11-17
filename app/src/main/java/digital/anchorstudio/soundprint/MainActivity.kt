@@ -1134,7 +1134,7 @@ private fun HomeScreen(
         Triple("Songs", SoundprintIcons.EighthNotes, 1),
         Triple("Albums", SoundprintIcons.Disc3, 2),
         Triple("Artists", SoundprintIcons.User, -1),
-        Triple("Genres", SoundprintIcons.AudioLines, -1),
+        Triple("Genres", SoundprintIcons.Tags, -1),
         Triple("Playlists", SoundprintIcons.ListMusic, 3),
         Triple("Folders", SoundprintIcons.FolderPlus, -1),
         Triple("Favorites", SoundprintIcons.Heart, -1)
