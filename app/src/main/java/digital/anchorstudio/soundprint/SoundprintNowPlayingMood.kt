@@ -220,7 +220,7 @@ fun SoundprintNowPlayingMoodSection(
                 Modifier.fillMaxWidth().padding(top = 12.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
+                    
                     .padding(16.dp)
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
