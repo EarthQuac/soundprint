@@ -2063,7 +2063,7 @@ private fun MoodChip(mood: String, selected: Boolean, modifier: Modifier = Modif
 }
 
 @Composable
-private fun PageTitle(title: String, subtitle: String, onBack: () -> Unit) {
+private fun PageTitle(title: String, subtitle: String, onBack: () -> Unit, showDivider: Boolean = true) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(
@@ -2087,7 +2087,7 @@ private fun PageTitle(title: String, subtitle: String, onBack: () -> Unit) {
                 if (subtitle.isNotBlank()) Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        // Settings header is separated by spacing, not a divider line.
+        if (showDivider) androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f))
     }
 }
 
@@ -2211,7 +2211,7 @@ private fun SettingsScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        PageTitle("Settings", "", onBack)
+        PageTitle("Settings", "", onBack, showDivider = false)
         Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
             SettingsSearchBox(query, { query = it })
             if (needle.isNotBlank()) {
