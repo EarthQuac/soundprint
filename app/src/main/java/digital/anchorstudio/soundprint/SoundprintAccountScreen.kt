@@ -83,6 +83,8 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
     var otpRequested by remember { mutableStateOf(false) }
     var otpCode by remember { mutableStateOf("") }
     var otpIsSignup by remember { mutableStateOf(false) }
+    var otpIsRecovery by remember { mutableStateOf(false) }
+    var resetOtpVerified by remember { mutableStateOf(false) }
     val authSessionState by supabase.auth.sessionStatus.collectAsState()
 
     suspend fun refreshAccount() {
@@ -309,6 +311,57 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                     Text("Sign out")
                 }
             } else {
+                if (resetOtpVerified) {
+                    AccountPanel {
+                        Text("Choose a new password", fontSize = 25.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text("Your email has been verified. Set a new password for your SoundPrint account.", fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    OutlinedTextField(
+                        password, { password = it }, Modifier.fillMaxWidth(),
+                        label = { Text("New password") },
+                        leadingIcon = { Icon(Icons.Filled.Lock, null) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(),
+                        label = { Text("Confirm new password") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true
+                    )
+                    Button(
+                        onClick = {
+                            if (password.length < 8 || password != confirmPassword) {
+                                message = "Use at least 8 characters and make sure both passwords match."
+                                messageError = true
+                            } else perform {
+                                supabase.auth.updateUser { this.password = password }
+                                supabase.auth.signOut()
+                                resetOtpVerified = false
+                                otpIsRecovery = false
+                                mode = "sign-in"
+                                password = ""
+                                confirmPassword = ""
+                                message = "Password reset successfully. You can now sign in."
+                                messageError = false
+                            }
+                        },
+                        enabled = !busy && password.isNotBlank() && confirmPassword.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Save new password") }
+                    TextButton(
+                        onClick = {
+                            resetOtpVerified = false
+                            otpIsRecovery = false
+                            mode = "sign-in"
+                            password = ""
+                            confirmPassword = ""
+                            message = null
+                        },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Back to sign in") }
+                } else {
                 AccountPanel {
                     Text(
                         when (mode) {
@@ -349,33 +402,53 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                 if (mode == "sign-up") OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { Icon(Icons.Filled.Lock, null) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                 if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                 if (otpRequested) {
-                    Text("Enter the 6-digit code sent to ${email.trim()}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        if (otpIsRecovery) "Enter the 6-digit password reset code sent to ${email.trim()}"
+                        else "Enter the 6-digit code sent to ${email.trim()}",
+                        fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     EmailOtpCodeEntry(code = otpCode, onCodeChange = { otpCode = it })
                     Button(onClick = {
                         if (otpCode.length != 6) { message = "Enter all six digits."; messageError = true }
                         else perform {
                             supabase.auth.verifyEmailOtp(
-                                type = if (otpIsSignup) OtpType.Email.SIGNUP else OtpType.Email.EMAIL,
+                                type = when {
+                                    otpIsRecovery -> OtpType.Email.RECOVERY
+                                    otpIsSignup -> OtpType.Email.SIGNUP
+                                    else -> OtpType.Email.EMAIL
+                                },
                                 email = email.trim(), token = otpCode
                             )
                             otpRequested = false
                             otpCode = ""
-                            refreshAccount()
-                            message = "Email verified. You're signed in."
+                            if (otpIsRecovery) {
+                                resetOtpVerified = true
+                                message = "Code verified. Choose a new password below."
+                            } else {
+                                refreshAccount()
+                                message = "Email verified. You're signed in."
+                                password = ""
+                                confirmPassword = ""
+                            }
                             messageError = false
-                            password = ""
-                            confirmPassword = ""
                         }
-                    }, enabled = !busy && otpCode.length == 6, modifier = Modifier.fillMaxWidth()) { Text("Verify email") }
+                    }, enabled = !busy && otpCode.length == 6, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (otpIsRecovery) "Verify reset code" else "Verify email")
+                    }
                     TextButton(onClick = {
                         perform {
-                            if (otpIsSignup) supabase.auth.resendEmail(OtpType.Email.SIGNUP, email.trim())
-                            else supabase.auth.signInWith(OTP) { this.email = email.trim() }
+                            when {
+                                otpIsRecovery -> supabase.auth.resetPasswordForEmail(email.trim())
+                                otpIsSignup -> supabase.auth.resendEmail(OtpType.Email.SIGNUP, email.trim())
+                                else -> supabase.auth.signInWith(OTP) { this.email = email.trim() }
+                            }
                             otpCode = ""
                             message = "A new verification code has been sent."
                             messageError = false
                         }
-                    }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Resend code") }
+                    }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (otpIsRecovery) "Resend reset code" else "Resend code")
+                    }
                 }
                 if (!otpRequested) Button(
                     onClick = {
@@ -384,8 +457,12 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                                 message = "Enter the email address on your account."
                                 messageError = true
                             } else perform {
-                                supabase.auth.resetPasswordForEmail(email.trim(), redirectUrl = SoundprintSupabase.AUTH_REDIRECT)
-                                message = "Password reset email sent. Follow the link in your inbox, then return here to sign in."
+                                supabase.auth.resetPasswordForEmail(email.trim())
+                                otpIsRecovery = true
+                                otpIsSignup = false
+                                otpRequested = true
+                                otpCode = ""
+                                message = "If an account exists for that address, a password reset code has been sent."
                                 messageError = false
                             }
                             "sign-up" -> if (displayName.isBlank() || !email.contains("@") || password.length < 8 || password != confirmPassword) {
@@ -420,7 +497,7 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    else Text(when (mode) { "sign-up" -> "Create account"; "forgot" -> "Send reset email"; else -> "Send sign-in code" })
+                    else Text(when (mode) { "sign-up" -> "Create account"; "forgot" -> "Send reset code"; else -> "Send sign-in code" })
                 }
                 if (mode != "forgot" && !otpRequested) TextButton(onClick = { mode = "forgot"; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Forgot password?") }
                 if (!otpRequested) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
@@ -428,7 +505,8 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                     TextButton(onClick = { mode = if (mode == "sign-up") "sign-in" else "sign-up"; message = null }) { Text(if (mode == "sign-up") "Sign in" else "Create account") }
                 }
                 if (otpRequested) TextButton(onClick = { otpRequested = false; otpCode = ""; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Back") }
-                if (mode == "forgot") TextButton(onClick = { mode = "sign-in"; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Back to sign in") }
+                if (mode == "forgot") TextButton(onClick = { mode = "sign-in"; otpIsRecovery = false; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Back to sign in") }
+                }
             }
             if (busy) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
