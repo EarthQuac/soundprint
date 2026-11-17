@@ -201,7 +201,6 @@ internal fun SoundprintAccountScreen(
                     ?.bufferedReader()?.use { it.readText() }.orEmpty()
                 if (status !in 200..299) {
                     error("The account request failed ($status). ${body.take(160)}")
-                    error(detail ?: "The account request failed. Please try again.")
                 }
                 body
             } finally {
