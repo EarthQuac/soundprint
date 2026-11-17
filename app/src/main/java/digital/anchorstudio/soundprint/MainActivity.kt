@@ -68,6 +68,7 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.LinearProgressIndicator
@@ -1453,14 +1454,47 @@ private fun HomeRecentlyAddedRow(
             androidx.compose.material3.IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(36.dp)) {
                 SoundprintIcon(SoundprintIcons.EllipsisVertical, contentDescription = "Song options", modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                DropdownMenuItem(text = { Text("Play next") }, onClick = { menuExpanded = false; onAction("Play next") })
-                DropdownMenuItem(text = { Text("Add to queue") }, onClick = { menuExpanded = false; onAction("Add to queue") })
-                DropdownMenuItem(text = { Text(if (track.isFavorite) "Remove from favorites" else "Add to favorites") }, onClick = { menuExpanded = false; onAction("Favorite") })
-                DropdownMenuItem(text = { Text("Add to playlist") }, onClick = { menuExpanded = false; onAction("Playlist") })
-                DropdownMenuItem(text = { Text("Edit song information") }, onClick = { menuExpanded = false; onAction("Edit") })
-                DropdownMenuItem(text = { Text("Go to artist") }, onClick = { menuExpanded = false; onAction("Artist") })
-                DropdownMenuItem(text = { Text("Move to recycle bin", color = MaterialTheme.colorScheme.error) }, onClick = { menuExpanded = false; onAction("Recycle") })
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+                modifier = Modifier.width(224.dp)
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Play next") },
+                    leadingIcon = { SoundprintIcon(SoundprintIcons.ListPlus, null, Modifier.size(18.dp)) },
+                    onClick = { menuExpanded = false; onAction("Play next") }
+                )
+                DropdownMenuItem(
+                    text = { Text("Add to queue") },
+                    leadingIcon = { SoundprintIcon(SoundprintIcons.ListMusic, null, Modifier.size(18.dp)) },
+                    onClick = { menuExpanded = false; onAction("Add to queue") }
+                )
+                DropdownMenuItem(
+                    text = { Text(if (track.isFavorite) "Remove favorite" else "Add to favorites") },
+                    leadingIcon = { SoundprintIcon(SoundprintIcons.Heart, null, Modifier.size(18.dp)) },
+                    onClick = { menuExpanded = false; onAction("Favorite") }
+                )
+                DropdownMenuItem(
+                    text = { Text("Add to playlist") },
+                    leadingIcon = { SoundprintIcon(SoundprintIcons.Plus, null, Modifier.size(18.dp)) },
+                    onClick = { menuExpanded = false; onAction("Playlist") }
+                )
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text("Edit song info") },
+                    leadingIcon = { SoundprintIcon(SoundprintIcons.Pencil, null, Modifier.size(18.dp)) },
+                    onClick = { menuExpanded = false; onAction("Edit") }
+                )
+                DropdownMenuItem(
+                    text = { Text("Go to artist") },
+                    leadingIcon = { SoundprintIcon(SoundprintIcons.User, null, Modifier.size(18.dp)) },
+                    onClick = { menuExpanded = false; onAction("Artist") }
+                )
+                DropdownMenuItem(
+                    text = { Text("Move to Recycle Bin", color = MaterialTheme.colorScheme.error) },
+                    leadingIcon = { SoundprintIcon(SoundprintIcons.Trash2, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) },
+                    onClick = { menuExpanded = false; onAction("Recycle") }
+                )
             }
         }
     }
@@ -1484,15 +1518,47 @@ private fun SoundprintCompactTrackMenu(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(text = { Text("Play next") }, onClick = {
-                expanded = false
-                onAction("Play next")
-            })
-            DropdownMenuItem(text = { Text("Add to queue") }, onClick = {
-                expanded = false
-                onAction("Add to queue")
-            })
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.width(224.dp)
+        ) {
+            DropdownMenuItem(
+                text = { Text("Play next") },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.ListPlus, null, Modifier.size(18.dp)) },
+                onClick = { expanded = false; onAction("Play next") }
+            )
+            DropdownMenuItem(
+                text = { Text("Add to queue") },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.ListMusic, null, Modifier.size(18.dp)) },
+                onClick = { expanded = false; onAction("Add to queue") }
+            )
+            DropdownMenuItem(
+                text = { Text(if (track.isFavorite) "Remove favorite" else "Add to favorites") },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.Heart, null, Modifier.size(18.dp)) },
+                onClick = { expanded = false; onAction("Favorite") }
+            )
+            DropdownMenuItem(
+                text = { Text("Add to playlist") },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.Plus, null, Modifier.size(18.dp)) },
+                onClick = { expanded = false; onAction("Playlist") }
+            )
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text("Edit song info") },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.Pencil, null, Modifier.size(18.dp)) },
+                onClick = { expanded = false; onAction("Edit") }
+            )
+            DropdownMenuItem(
+                text = { Text("Go to artist") },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.User, null, Modifier.size(18.dp)) },
+                onClick = { expanded = false; onAction("Artist") }
+            )
+            DropdownMenuItem(
+                text = { Text("Move to Recycle Bin", color = MaterialTheme.colorScheme.error) },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.Trash2, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) },
+                onClick = { expanded = false; onAction("Recycle") }
+            )
         }
     }
 }
