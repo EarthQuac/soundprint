@@ -64,6 +64,8 @@ dependencies {
     implementation("io.ktor:ktor-client-android:3.2.3")
     implementation("androidx.credentials:credentials:1.5.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
+    // Fallback Google account flow when the device has no Credential Manager provider.
+    implementation("com.google.android.gms:play-services-auth:21.4.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     androidTestImplementation(composeBom)
