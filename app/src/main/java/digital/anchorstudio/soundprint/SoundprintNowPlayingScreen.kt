@@ -404,7 +404,7 @@ fun SoundprintNowPlayingScreen(
                                 contentAlignment = Alignment.Center) {
                                 if (discStyle == PlayerDiscStyle.ARTWORK) TrackArtwork(artwork, title, Modifier.fillMaxSize().clip(CircleShape), seed = trackId)
                                 else Box(Modifier.fillMaxWidth(.34f).aspectRatio(1f).clip(CircleShape)
-                                    .border(4.dp, Color.Black.copy(alpha=.70f), CircleShape)) {
+                                    ) {
                                     TrackArtwork(artwork, title, Modifier.fillMaxSize().clip(CircleShape), seed = trackId)
                                 }
                                 if (discStyle == PlayerDiscStyle.VINYL) {
@@ -723,7 +723,7 @@ fun SoundprintNowPlayingScreen(
                         Column(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
-                                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.14f), RoundedCornerShape(18.dp))
+                                
                                 .padding(13.dp)
                         ) {
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -753,7 +753,7 @@ fun SoundprintNowPlayingScreen(
                                         Column(
                                             Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
                                                 .background(MaterialTheme.colorScheme.surface)
-                                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.13f), RoundedCornerShape(12.dp))
+                                                
                                                 .padding(horizontal = 11.dp, vertical = 10.dp)
                                         ) {
                                             Text(
