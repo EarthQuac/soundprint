@@ -22,6 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,6 +88,11 @@ internal fun SoundprintAccountScreen(
     var otpIsSignup by remember { mutableStateOf(false) }
     var otpIsRecovery by remember { mutableStateOf(false) }
     var resetOtpVerified by remember { mutableStateOf(false) }
+    var deletionStep by remember { mutableStateOf("idle") }
+    var deletionEmail by remember { mutableStateOf("") }
+    var deletionCode by remember { mutableStateOf("") }
+    var deletionConfirmation by remember { mutableStateOf("") }
+    var deletionOriginalUserId by remember { mutableStateOf<String?>(null) }
     val authSessionState by supabase.auth.sessionStatus.collectAsState()
 
     LaunchedEffect(resetToSignInKey) {
@@ -166,6 +176,115 @@ internal fun SoundprintAccountScreen(
                 message = error.message?.take(220) ?: "Something went wrong. Please try again."
                 messageError = true
             } finally { busy = false }
+        }
+    }
+
+    fun requestAccountDeletionCode() {
+        val requestedEmail = deletionEmail.trim().lowercase()
+        val currentId = userId
+        if (currentId == null || requestedEmail.isBlank() || !requestedEmail.contains("@")) {
+            message = "Enter the email address for the account you're signed in to."
+            messageError = true
+            return
+        }
+        if (requestedEmail != accountEmail.trim().lowercase()) {
+            message = "Enter the email address associated with this SoundPrint account."
+            messageError = true
+            return
+        }
+        perform {
+            supabase.auth.signInWith(OTP) {
+                email = requestedEmail
+                createUser = false
+            }
+            deletionEmail = requestedEmail
+            deletionOriginalUserId = currentId
+            deletionCode = ""
+            deletionConfirmation = ""
+            deletionStep = "code"
+            message = "A six-digit verification code has been sent to $requestedEmail."
+            messageError = false
+        }
+    }
+
+    fun verifyAccountDeletionCode() {
+        if (deletionCode.length != 6) {
+            message = "Enter all six digits."
+            messageError = true
+            return
+        }
+        perform {
+            supabase.auth.verifyEmailOtp(
+                type = OtpType.Email.EMAIL,
+                email = deletionEmail,
+                token = deletionCode
+            )
+            val verifiedUser = supabase.auth.currentUserOrNull()
+            if (verifiedUser?.id != deletionOriginalUserId) {
+                supabase.auth.signOut()
+                error("The verification code did not confirm the account you started with. Sign in again and retry.")
+            }
+            deletionCode = ""
+            deletionStep = "confirm"
+            message = "Email verified. Enter SOUNDPRINT/DELETE to permanently delete your account."
+            messageError = false
+        }
+    }
+
+    fun resendAccountDeletionCode() {
+        perform {
+            supabase.auth.signInWith(OTP) {
+                email = deletionEmail
+                createUser = false
+            }
+            deletionCode = ""
+            message = "A new six-digit verification code has been sent."
+            messageError = false
+        }
+    }
+
+    fun permanentlyDeleteAccount() {
+        if (deletionConfirmation != "SOUNDPRINT/DELETE") {
+            message = "Type SOUNDPRINT/DELETE exactly to confirm."
+            messageError = true
+            return
+        }
+        perform {
+            val accessToken = supabase.auth.currentAccessTokenOrNull()
+                ?: error("Your verified session has expired. Sign in and request a new code.")
+            val responseText = withContext(Dispatchers.IO) {
+                val connection = (URL("${SoundprintSupabase.SUPABASE_URL}/functions/v1/delete-account").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 15_000
+                    readTimeout = 30_000
+                    doOutput = true
+                    setRequestProperty("Authorization", "Bearer $accessToken")
+                    setRequestProperty("apikey", SoundprintSupabase.PUBLISHABLE_KEY)
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                }
+                try {
+                    connection.outputStream.use { it.write("""{"confirmation":"SOUNDPRINT/DELETE"}""".toByteArray(Charsets.UTF_8)) }
+                    val status = connection.responseCode
+                    val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
+                        ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                    if (status !in 200..299) {
+                        val detail = Regex("""\"message\"\s*:\s*\"([^\"]+)\"""").find(body)?.groupValues?.get(1)
+                        error(detail ?: "Account deletion failed. Please try again.")
+                    }
+                    body
+                } finally {
+                    connection.disconnect()
+                }
+            }
+            supabase.auth.signOut()
+            refreshAccount()
+            deletionStep = "idle"
+            deletionEmail = ""
+            deletionConfirmation = ""
+            deletionOriginalUserId = null
+            message = "Your SoundPrint account has been permanently deleted."
+            messageError = false
         }
     }
 
@@ -319,6 +438,101 @@ internal fun SoundprintAccountScreen(
                             messageError = false
                         }
                     }, enabled = !busy && newPassword.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Update password") }
+                }
+                if (deletionStep == "idle") {
+                    AccountPanel {
+                        Text("SENSITIVE", fontSize = 10.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                        Text("Delete account", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        Text("Permanently delete your SoundPrint account and its cloud profile. This cannot be undone. Music files and your local library stored on this device are not deleted.", fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Button(
+                            onClick = {
+                                deletionEmail = accountEmail
+                                deletionOriginalUserId = userId
+                                deletionCode = ""
+                                deletionConfirmation = ""
+                                deletionStep = "email"
+                                message = null
+                                messageError = false
+                            },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError)
+                        ) { Text("Request account deletion") }
+                    }
+                } else {
+                    AccountPanel {
+                        Text("SENSITIVE · DELETE ACCOUNT", fontSize = 10.sp, letterSpacing = 1.3.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                        Text(
+                            when (deletionStep) {
+                                "email" -> "Verify your email"
+                                "code" -> "Enter your verification code"
+                                else -> "Confirm permanent deletion"
+                            },
+                            fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            when (deletionStep) {
+                                "email" -> "Enter the email address linked to this SoundPrint account. We'll send a six-digit security code before continuing."
+                                "code" -> "Enter the six-digit code sent to $deletionEmail. You can paste the full code into the boxes."
+                                else -> "Your email is verified. To permanently delete this account, enter SOUNDPRINT/DELETE below. This action cannot be undone."
+                            },
+                            fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (deletionStep == "email") {
+                            OutlinedTextField(
+                                value = deletionEmail,
+                                onValueChange = { deletionEmail = it.trim() },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("Account email") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                singleLine = true
+                            )
+                            Button(
+                                onClick = { requestAccountDeletionCode() },
+                                enabled = !busy && deletionEmail.isNotBlank(),
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text(if (busy) "Sending code…" else "Send verification code") }
+                        }
+                        if (deletionStep == "code") {
+                            EmailOtpCodeEntry(code = deletionCode, onCodeChange = { deletionCode = it })
+                            Button(
+                                onClick = { verifyAccountDeletionCode() },
+                                enabled = !busy && deletionCode.length == 6,
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text(if (busy) "Verifying…" else "Verify email") }
+                            TextButton(onClick = { resendAccountDeletionCode() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                                Text("Resend code")
+                            }
+                        }
+                        if (deletionStep == "confirm") {
+                            OutlinedTextField(
+                                value = deletionConfirmation,
+                                onValueChange = { deletionConfirmation = it.uppercase() },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("Type SOUNDPRINT/DELETE") },
+                                placeholder = { Text("SOUNDPRINT/DELETE") },
+                                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
+                                singleLine = true
+                            )
+                            Button(
+                                onClick = { permanentlyDeleteAccount() },
+                                enabled = !busy && deletionConfirmation == "SOUNDPRINT/DELETE",
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError)
+                            ) { Text(if (busy) "Deleting account…" else "Permanently delete account") }
+                        }
+                        TextButton(
+                            onClick = {
+                                deletionStep = "idle"
+                                deletionCode = ""
+                                deletionConfirmation = ""
+                                message = null
+                                messageError = false
+                            },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Cancel") }
+                    }
                 }
                 TextButton(onClick = { perform { supabase.auth.signOut(); refreshAccount(); message = "Signed out."; messageError = false } }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                     Text("Sign out")
