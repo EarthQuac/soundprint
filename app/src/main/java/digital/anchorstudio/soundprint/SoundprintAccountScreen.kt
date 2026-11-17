@@ -452,12 +452,15 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                                 message = "Enter the email address on your account."
                                 messageError = true
                             } else perform {
-                                supabase.auth.resetPasswordForEmail(email.trim())
-                                otpIsRecovery = true
+                                supabase.auth.resetPasswordForEmail(
+                                    email = email.trim(),
+                                    redirectUrl = SoundprintSupabase.PASSWORD_RESET_REDIRECT
+                                )
+                                otpIsRecovery = false
                                 otpIsSignup = false
-                                otpRequested = true
+                                otpRequested = false
                                 otpCode = ""
-                                message = "If an account exists for that address, a password reset code has been sent."
+                                message = "If an account exists for that address, a secure password reset link has been sent to your inbox."
                                 messageError = false
                             }
                             "sign-up" -> if (displayName.isBlank() || !email.contains("@") || password.length < 8 || password != confirmPassword) {
@@ -497,7 +500,7 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    else Text(when (mode) { "sign-up" -> "Create account"; "forgot" -> "Send reset code"; else -> "Sign in" })
+                    else Text(when (mode) { "sign-up" -> "Create account"; "forgot" -> "Send reset link"; else -> "Sign in" })
                 }
                 if (mode == "sign-in" && !otpRequested) TextButton(
                     onClick = {
