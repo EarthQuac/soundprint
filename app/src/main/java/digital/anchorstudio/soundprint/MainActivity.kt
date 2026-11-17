@@ -190,11 +190,37 @@ private val LavenderDark = SoundprintPalette(
     primary = Color(0xFFC4B5FD), muted = Color(0xFFA5A5B2),
     border = Color(0xFF2A2933), onPrimary = Color(0xFF171321)
 )
+private val AuroraLight = SoundprintPalette(
+    background = Color(0xFFF5FAFA), foreground = Color(0xFF102326),
+    surface = Color(0xFFFFFFFF), surface2 = Color(0xFFE5F1F0),
+    primary = Color(0xFF087F83), muted = Color(0xFF587174),
+    border = Color(0xFFD2E3E1), onPrimary = Color.White
+)
+private val AuroraDark = SoundprintPalette(
+    background = Color(0xFF071719), foreground = Color(0xFFE9FAF7),
+    surface = Color(0xFF0E2426), surface2 = Color(0xFF153437),
+    primary = Color(0xFF63E0D2), muted = Color(0xFF9AB9B6),
+    border = Color(0xFF244548), onPrimary = Color(0xFF06201F)
+)
+private val SakuraLight = SoundprintPalette(
+    background = Color(0xFFFFF8FA), foreground = Color(0xFF2B1721),
+    surface = Color(0xFFFFFFFF), surface2 = Color(0xFFF8E8EE),
+    primary = Color(0xFFC34F78), muted = Color(0xFF806773),
+    border = Color(0xFFEED5DF), onPrimary = Color.White
+)
+private val SakuraDark = SoundprintPalette(
+    background = Color(0xFF1B1018), foreground = Color(0xFFF9EDF3),
+    surface = Color(0xFF291824), surface2 = Color(0xFF382333),
+    primary = Color(0xFFF29AB8), muted = Color(0xFFC3A8B5),
+    border = Color(0xFF4B3345), onPrimary = Color(0xFF29121F)
+)
 private fun palette(name: String, dark: Boolean): SoundprintPalette = when (name) {
     "Blue" -> if (dark) BlueDark else BlueLight
     "Emerald" -> if (dark) EmeraldDark else EmeraldLight
     "Mono" -> if (dark) MonoDark else MonoLight
     "Lavender" -> if (dark) LavenderDark else LavenderLight
+    "Aurora" -> if (dark) AuroraDark else AuroraLight
+    "Sakura" -> if (dark) SakuraDark else SakuraLight
     else -> if (dark) AmberDark else AmberLight
 }
 
@@ -2270,7 +2296,7 @@ private fun SettingsScreen(
     }
     val settingSearchEntries = listOf(
         Triple("Theme", "theme", "appearance light dark system"),
-        Triple("Colour palette", "palette", "appearance colors colours amber blue emerald mono lavender purple"),
+        Triple("Colour palette", "palette", "appearance colors colours amber blue emerald mono lavender purple aurora teal turquoise sakura rose pink cherry blossom"),
         Triple("Gapless playback", "gapless", "audio seamless track transitions"),
         Triple("Fade on pause", "fade", "audio pause stop fade"),
         Triple("Loudness leveling", "loudness", "audio volume consistent"),
@@ -2358,15 +2384,19 @@ private fun SettingsScreen(
                         Spacer(Modifier.height(8.dp))
                         Column(Modifier.bringIntoViewRequester(settingRequesters.getValue("palette")), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PaletteChoice("Amber", selectedPalette == "Amber", Modifier.weight(1f)) { onPaletteChange("Amber") }
-                                PaletteChoice("Blue & white", selectedPalette == "Blue", Modifier.weight(1f)) { onPaletteChange("Blue") }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PaletteChoice("Emerald", selectedPalette == "Emerald", Modifier.weight(1f)) { onPaletteChange("Emerald") }
-                                PaletteChoice("Mono", selectedPalette == "Mono", Modifier.weight(1f)) { onPaletteChange("Mono") }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 PaletteChoice("Lavender", selectedPalette == "Lavender", Modifier.weight(1f)) { onPaletteChange("Lavender") }
+                                PaletteChoice("Amber", selectedPalette == "Amber", Modifier.weight(1f)) { onPaletteChange("Amber") }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                PaletteChoice("Blue & white", selectedPalette == "Blue", Modifier.weight(1f)) { onPaletteChange("Blue") }
+                                PaletteChoice("Emerald", selectedPalette == "Emerald", Modifier.weight(1f)) { onPaletteChange("Emerald") }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                PaletteChoice("Mono", selectedPalette == "Mono", Modifier.weight(1f)) { onPaletteChange("Mono") }
+                                PaletteChoice("Aurora", selectedPalette == "Aurora", Modifier.weight(1f)) { onPaletteChange("Aurora") }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                PaletteChoice("Sakura", selectedPalette == "Sakura", Modifier.weight(1f)) { onPaletteChange("Sakura") }
                                 Spacer(Modifier.weight(1f))
                             }
                         }
@@ -2860,6 +2890,8 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
         "Emerald" -> listOf(Color(0xFF10271F), Color(0xFF5ACA94))
         "Mono" -> listOf(Color(0xFF141414), Color(0xFFE8E8E8))
         "Lavender" -> listOf(Color(0xFF14141B), Color(0xFFC4B5FD))
+        "Aurora" -> listOf(Color(0xFF0E2426), Color(0xFF63E0D2))
+        "Sakura" -> listOf(Color(0xFF291824), Color(0xFFF29AB8))
         else -> listOf(Color(0xFF24211E), Color(0xFFE6A15D))
     }
     Row(
@@ -2880,6 +2912,8 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
                     "Emerald", "Mono" -> "Unlock with Pro"
                     "Amber" -> "Original warm dark theme"
                     "Lavender" -> "Charcoal with soft lavender accents"
+                    "Aurora" -> "Midnight teal with aurora glow"
+                    "Sakura" -> "Soft cherry blossom rose"
                     else -> "Cool blue on clean white"
                 },
                 fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
