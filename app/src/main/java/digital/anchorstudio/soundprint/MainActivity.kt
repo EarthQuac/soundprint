@@ -178,10 +178,23 @@ private val MonoDark = SoundprintPalette(
     primary = Color(0xFFE8E8E8), muted = Color(0xFFA4A4A4),
     border = Color(0x1FFFFFFF), onPrimary = Color(0xFF141414)
 )
+private val LavenderLight = SoundprintPalette(
+    background = Color(0xFFFAF9FC), foreground = Color(0xFF19171F),
+    surface = Color(0xFFFFFFFF), surface2 = Color(0xFFF0EDF6),
+    primary = Color(0xFF765CB8), muted = Color(0xFF716C7C),
+    border = Color(0xFFE2DDEB), onPrimary = Color.White
+)
+private val LavenderDark = SoundprintPalette(
+    background = Color(0xFF090A0D), foreground = Color(0xFFF5F5F6),
+    surface = Color(0xFF14141B), surface2 = Color(0xFF211E2B),
+    primary = Color(0xFFC4B5FD), muted = Color(0xFFA5A5B2),
+    border = Color(0xFF2A2933), onPrimary = Color(0xFF171321)
+)
 private fun palette(name: String, dark: Boolean): SoundprintPalette = when (name) {
     "Blue" -> if (dark) BlueDark else BlueLight
     "Emerald" -> if (dark) EmeraldDark else EmeraldLight
     "Mono" -> if (dark) MonoDark else MonoLight
+    "Lavender" -> if (dark) LavenderDark else LavenderLight
     else -> if (dark) AmberDark else AmberLight
 }
 
@@ -196,7 +209,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val preferences = remember { getSharedPreferences("soundprint_native_preferences", MODE_PRIVATE) }
             var themeMode by remember { mutableStateOf(preferences.getString("theme", "dark") ?: "dark") }
-            var selectedPalette by remember { mutableStateOf(preferences.getString("palette", "Amber") ?: "Amber") }
+            var selectedPalette by remember { mutableStateOf(preferences.getString("palette", "Lavender") ?: "Lavender") }
             var enteredLibrary by remember { mutableStateOf(preferences.getBoolean("has_seen_launch_landing", false)) }
             val libraryRepository = remember { MusicLibraryRepository.getInstance(applicationContext) }
             val libraryManager = remember { MusicLibraryManager.getInstance(applicationContext) }
@@ -2257,7 +2270,7 @@ private fun SettingsScreen(
     }
     val settingSearchEntries = listOf(
         Triple("Theme", "theme", "appearance light dark system"),
-        Triple("Colour palette", "palette", "appearance colors colours amber blue emerald mono"),
+        Triple("Colour palette", "palette", "appearance colors colours amber blue emerald mono lavender purple"),
         Triple("Gapless playback", "gapless", "audio seamless track transitions"),
         Triple("Fade on pause", "fade", "audio pause stop fade"),
         Triple("Loudness leveling", "loudness", "audio volume consistent"),
@@ -2330,7 +2343,7 @@ private fun SettingsScreen(
                     }
                 }
             }
-            if (matches("appearance theme colour palette amber blue emerald mono")) {
+            if (matches("appearance theme colour palette amber blue emerald mono lavender purple")) {
                 SettingsSection("APPEARANCE") {
                     Column(Modifier.fillMaxWidth().bringIntoViewRequester(settingRequesters.getValue("theme")).padding(horizontal = 16.dp, vertical = 14.dp)) {
                         Text("Theme", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
@@ -2351,6 +2364,10 @@ private fun SettingsScreen(
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 PaletteChoice("Emerald", selectedPalette == "Emerald", Modifier.weight(1f)) { onPaletteChange("Emerald") }
                                 PaletteChoice("Mono", selectedPalette == "Mono", Modifier.weight(1f)) { onPaletteChange("Mono") }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                PaletteChoice("Lavender", selectedPalette == "Lavender", Modifier.weight(1f)) { onPaletteChange("Lavender") }
+                                Spacer(Modifier.weight(1f))
                             }
                         }
                     }
@@ -2842,6 +2859,7 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
         "Blue & white" -> listOf(Color(0xFFFFFFFF), Color(0xFF527FE2))
         "Emerald" -> listOf(Color(0xFF10271F), Color(0xFF5ACA94))
         "Mono" -> listOf(Color(0xFF141414), Color(0xFFE8E8E8))
+        "Lavender" -> listOf(Color(0xFF14141B), Color(0xFFC4B5FD))
         else -> listOf(Color(0xFF24211E), Color(0xFFE6A15D))
     }
     Row(
@@ -2857,7 +2875,16 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(name, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-            Text(if (name == "Emerald" || name == "Mono") "Unlock with Pro" else if (name == "Amber") "Original warm dark theme" else "Cool blue on clean white", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+            Text(
+                when (name) {
+                    "Emerald", "Mono" -> "Unlock with Pro"
+                    "Amber" -> "Original warm dark theme"
+                    "Lavender" -> "Charcoal with soft lavender accents"
+                    else -> "Cool blue on clean white"
+                },
+                fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
