@@ -11,6 +11,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -46,6 +49,7 @@ import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
@@ -75,6 +79,9 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
     var mode by remember { mutableStateOf("sign-in") }
     var message by remember { mutableStateOf<String?>(null) }
     var messageError by remember { mutableStateOf(false) }
+    var otpRequested by remember { mutableStateOf(false) }
+    var otpCode by remember { mutableStateOf("") }
+    var otpIsSignup by remember { mutableStateOf(false) }
     val authSessionState by supabase.auth.sessionStatus.collectAsState()
 
     suspend fun refreshAccount() {
@@ -340,7 +347,36 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                 OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { Icon(Icons.Filled.MailOutline, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
                 if (mode != "forgot") OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { Icon(Icons.Filled.Lock, null) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                 if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
-                Button(
+                if (otpRequested) {
+                    Text("Enter the 6-digit code sent to ${email.trim()}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    EmailOtpCodeEntry(code = otpCode, onCodeChange = { otpCode = it })
+                    Button(onClick = {
+                        if (otpCode.length != 6) { message = "Enter all six digits."; messageError = true }
+                        else perform {
+                            supabase.auth.verifyEmailOtp(
+                                type = if (otpIsSignup) OtpType.Email.SIGNUP else OtpType.Email.EMAIL,
+                                email = email.trim(), token = otpCode
+                            )
+                            otpRequested = false
+                            otpCode = ""
+                            refreshAccount()
+                            message = "Email verified. You're signed in."
+                            messageError = false
+                            password = ""
+                            confirmPassword = ""
+                        }
+                    }, enabled = !busy && otpCode.length == 6, modifier = Modifier.fillMaxWidth()) { Text("Verify email") }
+                    TextButton(onClick = {
+                        perform {
+                            if (otpIsSignup) supabase.auth.resendEmail(OtpType.Email.SIGNUP, email.trim())
+                            else supabase.auth.sendOtpTo(Email) { this.email = email.trim() }
+                            otpCode = ""
+                            message = "A new verification code has been sent."
+                            messageError = false
+                        }
+                    }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Resend code") }
+                }
+                if (!otpRequested) Button(
                     onClick = {
                         when (mode) {
                             "forgot" -> if (!email.contains("@")) {
@@ -360,35 +396,37 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                                     this.password = password
                                     data = kotlinx.serialization.json.buildJsonObject { put("display_name", displayName.trim()) }
                                 }
-                                refreshAccount()
-                                message = if (signedIn) "Your SoundPrint account is ready." else "Account created. Check your email and verify your address before signing in."
+                                otpIsSignup = true
+                                otpRequested = true
+                                otpCode = ""
+                                message = "Verification code sent. Enter it below to finish creating your account."
                                 messageError = false
-                                password = ""
-                                confirmPassword = ""
                             }
-                            else -> if (!email.contains("@") || password.isBlank()) {
-                                message = "Enter your email and password."
+                            else -> if (!email.contains("@")) {
+                                message = "Enter your email address."
                                 messageError = true
                             } else perform {
-                                supabase.auth.signInWith(Email) { this.email = email.trim(); this.password = password }
-                                refreshAccount()
-                                message = "You're signed in."
+                                supabase.auth.sendOtpTo(Email) { this.email = email.trim() }
+                                otpIsSignup = false
+                                otpRequested = true
+                                otpCode = ""
+                                message = "Sign-in code sent. Enter it below to sign in."
                                 messageError = false
-                                password = ""
                             }
                         }
                     },
-                    enabled = !busy && email.isNotBlank() && (mode == "forgot" || password.isNotBlank()),
+                    enabled = !busy && email.isNotBlank() && (mode != "sign-up" || password.isNotBlank()),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    else Text(when (mode) { "sign-up" -> "Create account"; "forgot" -> "Send reset email"; else -> "Sign in" })
+                    else Text(when (mode) { "sign-up" -> "Create account"; "forgot" -> "Send reset email"; else -> "Send sign-in code" })
                 }
-                if (mode != "forgot") TextButton(onClick = { mode = "forgot"; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Forgot password?") }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                if (mode != "forgot" && !otpRequested) TextButton(onClick = { mode = "forgot"; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Forgot password?") }
+                if (!otpRequested) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     Text(if (mode == "sign-up") "Already have an account?" else "New to SoundPrint?", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = { mode = if (mode == "sign-up") "sign-in" else "sign-up"; message = null }) { Text(if (mode == "sign-up") "Sign in" else "Create account") }
                 }
+                if (otpRequested) TextButton(onClick = { otpRequested = false; otpCode = ""; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Back") }
                 if (mode == "forgot") TextButton(onClick = { mode = "sign-in"; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Back to sign in") }
             }
             if (busy) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
@@ -415,4 +453,41 @@ private fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+
+@Composable
+private fun EmailOtpCodeEntry(code: String, onCodeChange: (String) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    BasicTextField(
+        value = code,
+        onValueChange = { incoming -> onCodeChange(incoming.filter(Char::isDigit).take(6)) },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+        cursorBrush = SolidColor(Color.Transparent),
+        textStyle = LocalTextStyle.current.copy(color = Color.Transparent),
+        decorationBox = { innerTextField ->
+            Box(Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    repeat(6) { index ->
+                        Box(
+                            modifier = Modifier.weight(1f).height(56.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(colors.surface)
+                                .border(1.dp, if (index == code.length.coerceAtMost(5)) colors.primary else colors.outline, RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(code.getOrNull(index)?.toString().orEmpty(), fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
+                        }
+                    }
+                }
+                Box(Modifier.size(1.dp)) { innerTextField() }
+            }
+        }
+    )
 }
