@@ -233,7 +233,7 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                 SoundprintIcon(SoundprintIcons.UserRound, null, Modifier.padding(10.dp).size(18.dp), tint = MaterialTheme.colorScheme.primary)
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
+        Spacer(Modifier.height(0.dp))
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 22.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -288,7 +288,7 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                             messageError = false
                         }
                     }, enabled = !busy && newEmail.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Change email") }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = .45f))
+                    Spacer(Modifier.height(0.dp))
                     OutlinedTextField(newPassword, { newPassword = it }, Modifier.fillMaxWidth(), label = { Text("New password") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                     Button(onClick = {
                         if (newPassword.length < 8) {
@@ -387,9 +387,9 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
                         Text("Continue with Google", fontWeight = FontWeight.SemiBold)
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .55f))
+                        Spacer(Modifier.height(0.dp))
                         Text("OR", Modifier.padding(horizontal = 12.dp), fontSize = 10.sp, letterSpacing = 1.2.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .55f))
+                        Spacer(Modifier.height(0.dp))
                     }
                 }
                 if (mode == "sign-up") OutlinedTextField(displayName, { displayName = it.take(60) }, Modifier.fillMaxWidth(), label = { Text("Display name") }, leadingIcon = { SoundprintIcon(SoundprintIcons.UserRound, null) }, singleLine = true)
@@ -540,7 +540,7 @@ internal fun SoundprintAccountScreen(onBack: () -> Unit) {
 private fun AccountPanel(content: @Composable ColumnScope.() -> Unit) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .55f), RoundedCornerShape(20.dp)).padding(18.dp),
+            .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) { content(this) }
 }
@@ -576,7 +576,7 @@ private fun EmailOtpCodeEntry(code: String, onCodeChange: (String) -> Unit) {
                             modifier = Modifier.weight(1f).height(56.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(colors.surface)
-                                .border(1.dp, if (index == code.length.coerceAtMost(5)) colors.primary else colors.outline, RoundedCornerShape(12.dp)),
+                                ,
                             contentAlignment = Alignment.Center
                         ) {
                             Text(code.getOrNull(index)?.toString().orEmpty(), fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
