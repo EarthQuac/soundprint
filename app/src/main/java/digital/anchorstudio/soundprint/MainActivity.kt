@@ -629,7 +629,7 @@ private data class TabItem(val label: String, val icon: Int)
 
 private val tabs = listOf(
     TabItem("Home", SoundprintIcons.House),
-    TabItem("Songs", SoundprintIcons.Music2),
+    TabItem("Songs", SoundprintIcons.EighthNotes),
     TabItem("Albums", SoundprintIcons.Disc3),
     TabItem("Playlists", SoundprintIcons.ListMusic),
     TabItem("Discover", SoundprintIcons.AudioLines)
@@ -835,7 +835,7 @@ private fun SoundprintApp(
                                 onOpenTab = { selectedTab = it },
                                 onOpenAlbum = { albumId -> homeAlbumToOpen = albumId; selectedTab = 2 }
                             )
-                            1 -> LibraryScreen("Songs", "Your music, all in one place.", SoundprintIcons.Music2, libraryManager, playbackConnection, onImportFiles) { selectedTab = 0 }
+                            1 -> LibraryScreen("Songs", "Your music, all in one place.", SoundprintIcons.EighthNotes, libraryManager, playbackConnection, onImportFiles) { selectedTab = 0 }
                             2 -> SoundprintAlbumsScreen(
                                 libraryManager, playbackConnection, onImportFiles, libraryTrackCount,
                                 initialAlbumId = homeAlbumToOpen,

@@ -8,8 +8,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 
 /**
- * Soundprint's single icon catalogue. Every entry is supplied by
- * com.composables:icons-lucide-android; do not add Material or hand-drawn icon assets.
+ * Soundprint's single icon catalogue. Standard glyphs come from
+ * com.composables:icons-lucide-android. EighthNotes preserves the supplied Lucide
+ * vector because that exact glyph is not included in the Android pack.
  */
 internal object SoundprintIcons {
     val Clock = LucideR.drawable.lucide_ic_clock
@@ -93,6 +94,7 @@ internal object SoundprintIcons {
     val RotateCcw = LucideR.drawable.lucide_ic_rotate_ccw
     val Settings2 = LucideR.drawable.lucide_ic_settings_2
     val Maximize = LucideR.drawable.lucide_ic_maximize
+    val EighthNotes = R.drawable.lucide_ic_eighth_notes
 }
 
 @Composable
