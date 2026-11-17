@@ -1211,6 +1211,7 @@ private fun HomeScreen(
                                             Modifier.weight(1f).height(56.dp)
                                                 .clip(RoundedCornerShape(22.dp))
                                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.52f))
+                                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.28f), RoundedCornerShape(22.dp))
                                                 .clickable {
                                                     if (tile.third >= 0) onOpenTab(tile.third) else selectedShortcut = tile.first
                                                 }
@@ -1747,7 +1748,9 @@ private fun AddMusicMenuButton(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.width(292.dp).background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp)),
+            modifier = Modifier.width(292.dp)
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.30f), RoundedCornerShape(18.dp)),
             shape = RoundedCornerShape(18.dp)
         ) {
             Column(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp)) {
