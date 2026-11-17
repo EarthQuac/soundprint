@@ -1,6 +1,7 @@
 package digital.anchorstudio.soundprint
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -100,13 +101,13 @@ fun SoundprintAlbumsScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(Modifier.size(64.dp).clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-                    androidx.compose.material3.Icon(Icons.Filled.Album, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(29.dp))
+                    androidx.compose.material3.Icon(painterResource(R.drawable.lucide_ic_disc_3), null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(29.dp))
                 }
                 Text("No albums yet", Modifier.padding(top = 15.dp), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
                 Text("Add music to your device and scan your library — albums are grouped from your files' tags.",
                     Modifier.padding(top = 5.dp), fontSize = 12.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 Button(onClick = onImportFiles, modifier = Modifier.padding(top = 16.dp), shape = CircleShape) {
-                    androidx.compose.material3.Icon(Icons.Filled.MusicNote, null, modifier = Modifier.size(16.dp))
+                    androidx.compose.material3.Icon(painterResource(R.drawable.lucide_ic_music_2), null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Add music")
                 }
@@ -171,12 +172,12 @@ private fun AlbumDetailNative(
                 Modifier.fillMaxWidth().padding(top = 4.dp), textAlign = TextAlign.Center, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.fillMaxWidth().padding(top = 17.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 Button(onClick = { playback.playTracks(tracks) }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
-                    androidx.compose.material3.Icon(Icons.Filled.PlayArrow, null)
+                    androidx.compose.material3.Icon(painterResource(R.drawable.lucide_ic_play), null)
                     Spacer(Modifier.width(5.dp))
                     Text("Play all")
                 }
                 OutlinedButton(onClick = { playback.playTracks(tracks, shuffle = true) }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
-                    androidx.compose.material3.Icon(Icons.Filled.Shuffle, null)
+                    androidx.compose.material3.Icon(painterResource(R.drawable.lucide_ic_shuffle), null)
                     Spacer(Modifier.width(5.dp))
                     Text("Shuffle")
                 }
@@ -205,7 +206,7 @@ private fun AlbumPageHeader(title: String, subtitle: String, onBack: (() -> Unit
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null) {
                 Box(Modifier.size(36.dp).clip(CircleShape).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
-                    androidx.compose.material3.Icon(Icons.Filled.ArrowBack, null, tint = MaterialTheme.colorScheme.onSurface)
+                    androidx.compose.material3.Icon(painterResource(R.drawable.lucide_ic_arrow_left), null, tint = MaterialTheme.colorScheme.onSurface)
                 }
                 Spacer(Modifier.width(8.dp))
             }
@@ -223,13 +224,13 @@ private fun AlbumSearchBox(value: String, onValueChange: (String) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).height(46.dp).clip(RoundedCornerShape(16.dp))
         .background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(16.dp)).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        androidx.compose.material3.Icon(Icons.Filled.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp))
+        androidx.compose.material3.Icon(painterResource(R.drawable.lucide_ic_search), null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp))
         Spacer(Modifier.width(9.dp))
         Box(Modifier.weight(1f)) {
             if (value.isEmpty()) Text("Filter albums or artists…", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             BasicTextField(value, onValueChange, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth())
         }
-        if (value.isNotEmpty()) androidx.compose.material3.Icon(Icons.Filled.Close, "Clear filter", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp).clickable { onValueChange("") })
+        if (value.isNotEmpty()) androidx.compose.material3.Icon(painterResource(R.drawable.lucide_ic_x), "Clear filter", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp).clickable { onValueChange("") })
     }
 }
 
