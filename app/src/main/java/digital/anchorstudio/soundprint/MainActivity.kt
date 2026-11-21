@@ -800,7 +800,7 @@ private fun SoundprintApp(
         repeat(12) {
             if (SoundprintProAccess.hasSession()) {
                 runCatching { SoundprintProAccess.refresh() }
-                    .onSuccess { proStatus = it; SoundprintProGate.hasPro = it.hasPro }
+                    .onSuccess { proStatus = it; SoundprintProGate.hasPro = it.hasPro; SoundprintProGate.isResolved = true }
                 return@LaunchedEffect
             }
             delay(500L)
