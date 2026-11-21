@@ -1,0 +1,3 @@
+-- Retired historical migration placeholder.
+-- Trial-specific founder eligibility was removed with the trial entitlement system.
+-- Founder claims now require no trial-specific exception.
