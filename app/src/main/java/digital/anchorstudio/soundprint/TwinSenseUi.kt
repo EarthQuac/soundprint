@@ -224,7 +224,7 @@ internal fun SongsLibraryScreen(
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(
                                     onClick = {
-                                        if (!scanning) {
+                                        if (SoundprintProGate.require("TwinSense") && !scanning) {
                                             scanError = ""
                                             scanning = true
                                             scanProgress = TwinSenseScanProgress(0, songs.size, "", 0, 0)
@@ -270,7 +270,7 @@ internal fun SongsLibraryScreen(
                                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 if (cleanupTracks.isNotEmpty()) {
-                                    OutlinedButton(onClick = { confirmSmartCleanup = true }) {
+                                    OutlinedButton(onClick = { if (SoundprintProGate.require("TwinSense")) confirmSmartCleanup = true }) {
                                         SoundprintIcon(SoundprintIcons.Trash2, null, modifier = Modifier.size(16.dp))
                                         Spacer(Modifier.width(7.dp))
                                         Text("Smart Cleanup · ${cleanupTracks.size}")
