@@ -79,7 +79,7 @@ private val freeFeatures = listOf(
 )
 
 @Composable
-fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, trialEndsAt: String? = null,
+fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, trialEndsAt: String? = null, entitlementSource: String? = null,
               onStartTrial: (() -> Unit)? = null, onClaimFounder: (() -> Unit)? = null,
               founderRemaining: Int = 0, founderCapacity: Int = 100, founderOfferEnabled: Boolean = false, founderMessage: String? = null,
               trialClaimed: Boolean = false, signedIn: Boolean = false, onSignIn: (() -> Unit)? = null) {
@@ -89,7 +89,7 @@ fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, trialEndsAt: String
             .padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)) {
             if (entitled) {
-                ProActiveCard(trialEndsAt)
+                ProActiveCard(trialEndsAt, entitlementSource)
                 ProTutorialSection()
                 ProFeaturesGrid()
             } else {
@@ -339,7 +339,7 @@ private fun ProFeaturesGrid() {
 }
 
 @Composable
-private fun ProActiveCard(trialEndsAt: String?) {
+private fun ProActiveCard(trialEndsAt: String?, entitlementSource: String?) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surface)
         .padding(18.dp)) {
         Row(Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)).padding(horizontal = 12.dp, vertical = 7.dp),
@@ -348,10 +348,19 @@ private fun ProActiveCard(trialEndsAt: String?) {
             Spacer(Modifier.width(7.dp))
             Text("Pro active", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
         }
-        Text(if (trialEndsAt != null) "Your 14-day Pro trial is active" else "Welcome to Soundprint Pro",
+        Text(
+            when {
+                trialEndsAt != null -> "Your 14-day Pro trial is active"
+                entitlementSource == "founder" -> "Founder Access is active"
+                else -> "Welcome to Soundprint Pro"
+            },
             modifier = Modifier.padding(top = 16.dp), fontSize = 23.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-        Text(if (trialEndsAt != null) "Your no-payment trial ends " + trialEndsAt + ". No charge will be made, and access ends when the trial expires."
-            else "Your Pro entitlement is active on this account. Sign in on your other devices to access your account benefits.",
+        Text(
+            when {
+                trialEndsAt != null -> "Your no-payment trial ends $trialEndsAt. No charge will be made, and access ends when the trial expires."
+                entitlementSource == "founder" -> "Your lifetime Founder Access is active on this account. Sign in on your other devices to use Pro."
+                else -> "Your Pro entitlement is active on this account. Sign in on your other devices to access your account benefits."
+            },
             modifier = Modifier.padding(top = 8.dp), fontSize = 12.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
