@@ -2617,9 +2617,9 @@ private fun SettingsScreen(
                         }
                     }
                     SettingsActionRow("Pro Audio Lab", "Unlock the 10-band EQ, bass, treble and loudness controls", "Unlock", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("equalizer")), onClick = { SoundprintProGate.require("Pro Audio Lab") })
-                    SettingsValueRow("Crossfade · Pro", if (crossfade == 0) "Off" else "$crossfade seconds", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade"))) {
+                    SettingsValueRow("Crossfade · Pro", if (crossfade == 0) "Off" else "$crossfade seconds", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade")), controlBelow = true) {
                         Row(
-                            Modifier.clip(RoundedCornerShape(15.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)).padding(4.dp),
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)).padding(4.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             listOf(0, 2, 4, 6, 8).forEach { seconds ->
@@ -3050,14 +3050,29 @@ private fun SettingsActionRow(
 }
 
 @Composable
-private fun SettingsValueRow(label: String, description: String, modifier: Modifier = Modifier, control: @Composable () -> Unit) {
+private fun SettingsValueRow(
+    label: String,
+    description: String,
+    modifier: Modifier = Modifier,
+    controlBelow: Boolean = false,
+    control: @Composable () -> Unit
+) {
     Column(modifier) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f).padding(end = 6.dp)) {
+        if (controlBelow) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                 Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(12.dp))
+                control()
             }
-            control()
+        } else {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(end = 6.dp)) {
+                    Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                    Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                control()
+            }
         }
         SettingsDivider()
     }
