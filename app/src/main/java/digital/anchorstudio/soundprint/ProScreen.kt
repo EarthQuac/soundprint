@@ -96,7 +96,7 @@ fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, trialEndsAt: String
                 ProHero()
                 ProFounderOffer(onClaimFounder, founderRemaining, founderCapacity, founderOfferEnabled, founderMessage, signedIn, onSignIn)
                 ProPlans()
-                ProTrialCard(onStartTrial, trialClaimed)
+                ProTrialCard(onStartTrial, trialClaimed, signedIn, onSignIn)
                 ProTutorialSection()
                 ProFreeFeatures()
                 ProFeaturesGrid()
@@ -223,7 +223,7 @@ private fun ProPlanCard(title: String, price: String, cadence: String, descripti
 }
 
 @Composable
-private fun ProTrialCard(onStartTrial: (() -> Unit)?, trialClaimed: Boolean) {
+private fun ProTrialCard(onStartTrial: (() -> Unit)?, trialClaimed: Boolean, signedIn: Boolean, onSignIn: (() -> Unit)?) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surface)
         .padding(16.dp)) {
         Row(verticalAlignment = Alignment.Top) {
@@ -245,9 +245,13 @@ private fun ProTrialCard(onStartTrial: (() -> Unit)?, trialClaimed: Boolean) {
             modifier = Modifier.fillMaxWidth().padding(top = 13.dp).clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.background).padding(12.dp),
             fontSize = 11.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Button(onClick = { onStartTrial?.invoke() }, enabled = onStartTrial != null && !trialClaimed, modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-            shape = RoundedCornerShape(50.dp)) {
-            Text(if (trialClaimed) "Free trial already used" else if (onStartTrial == null) "Sign-in connection required" else "Start 14-day free trial")
+        Button(
+            onClick = { if (!signedIn) onSignIn?.invoke() else onStartTrial?.invoke() },
+            enabled = if (!signedIn) onSignIn != null else onStartTrial != null && !trialClaimed,
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            shape = RoundedCornerShape(50.dp)
+        ) {
+            Text(if (trialClaimed) "Free trial already used" else if (!signedIn) "Sign in to start your trial" else "Start 14-day free trial")
         }
     }
 }
