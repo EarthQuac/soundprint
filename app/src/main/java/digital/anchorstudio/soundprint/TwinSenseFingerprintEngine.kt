@@ -8,7 +8,12 @@ import android.media.MediaFormat
 import android.net.Uri
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -26,6 +31,8 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sqrt
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 private const val TWINSENSE_VERSION = 2
 private const val FEATURE_BANDS = 24
@@ -469,31 +476,54 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
         return result.copy(groups = buildGroups(remaining))
     }
 
-    suspend fun scan(onProgress: (TwinSenseScanProgress) -> Unit = {}): TwinSenseScanResult {
+    /**
+     * Basic Scan is deliberately conservative: one decoder at a time, so it remains
+     * compatible with lower-memory devices. Advanced Scan is Pro and runs two
+     * independent decoders concurrently. Neither mode inserts artificial delays
+     * or reduces the audio coverage/accuracy of the free scan.
+     */
+    suspend fun scan(
+        advanced: Boolean = false,
+        onProgress: (TwinSenseScanProgress) -> Unit = {}
+    ): TwinSenseScanResult {
         val tracks = withContext(Dispatchers.IO) { library.allSongs() }
-        val fingerprints = linkedMapOf<String, TwinSenseFingerprint>()
-        var reused = 0
-        var failed = 0
-        var completed = 0
-        for (track in tracks) {
+        val fingerprints = ConcurrentHashMap<String, TwinSenseFingerprint>()
+        val reused = AtomicInteger(0)
+        val failed = AtomicInteger(0)
+        val completed = AtomicInteger(0)
+        val decoderSlots = Semaphore(if (advanced) 2 else 1)
+
+        suspend fun fingerprintTrack(track: MusicTrack) {
             coroutineContext.ensureActive()
             try {
-                val cached = withContext(Dispatchers.IO) {
-                    library.twinSenseFingerprint(track.id, track.sizeBytes, track.modifiedAt)
+                decoderSlots.withPermit {
+                    val cached = withContext(Dispatchers.IO) {
+                        library.twinSenseFingerprint(track.id, track.sizeBytes, track.modifiedAt)
+                    }
+                    val fingerprint = cached ?: engine.create(track)
+                    if (cached != null) {
+                        reused.incrementAndGet()
+                    } else {
+                        withContext(Dispatchers.IO) { library.saveTwinSenseFingerprint(fingerprint) }
+                    }
+                    fingerprints[track.id] = fingerprint
                 }
-                val fingerprint = cached ?: engine.create(track)
-                if (cached != null) reused++ else withContext(Dispatchers.IO) {
-                    library.saveTwinSenseFingerprint(fingerprint)
-                }
-                fingerprints[track.id] = fingerprint
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (_: Exception) {
-                failed++
+                failed.incrementAndGet()
             } finally {
-                completed++
-                onProgress(TwinSenseScanProgress(completed, tracks.size, track.title, reused, failed))
+                val done = completed.incrementAndGet()
+                onProgress(TwinSenseScanProgress(done, tracks.size, track.title, reused.get(), failed.get()))
             }
+        }
+
+        if (advanced) {
+            coroutineScope {
+                tracks.map { track -> async { fingerprintTrack(track) } }.awaitAll()
+            }
+        } else {
+            for (track in tracks) fingerprintTrack(track)
         }
 
         val candidates = linkedMapOf<String, Pair<MusicTrack, MusicTrack>>()
@@ -556,7 +586,9 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
         }
         matches.sortWith(compareByDescending<TwinSenseMatch> { it.kind == TwinSenseMatchKind.EXACT_AUDIO }
             .thenByDescending { it.confidence })
-        val result = TwinSenseScanResult(buildGroups(matches), tracks.size - failed, reused, failed)
+        val failedCount = failed.get()
+        val reusedCount = reused.get()
+        val result = TwinSenseScanResult(buildGroups(matches), tracks.size - failedCount, reusedCount, failedCount)
         saveResult(result)
         return result
     }

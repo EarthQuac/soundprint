@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,7 +41,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -92,7 +94,7 @@ object SoundprintToast {
         kind: SoundprintToastKind,
         title: String,
         description: String? = null,
-        durationMs: Long = 1900L
+        durationMs: Long = -1L
     ) {
         val readableTitle = title.trim().ifBlank { "Something happened" }
         val key = "${kind.name}:$readableTitle:${description.orEmpty()}"
@@ -102,14 +104,21 @@ object SoundprintToast {
         lastShownAt = now
 
         handler.removeCallbacks(dismissRunnable)
-        mutableMessage.value = SoundprintToastMessage(++nextId, kind, readableTitle, description?.takeIf { it.isNotBlank() })
-        if (durationMs > 0L) handler.postDelayed(dismissRunnable, durationMs)
+        val readableDescription = description?.takeIf { it.isNotBlank() }
+        mutableMessage.value = SoundprintToastMessage(++nextId, kind, readableTitle, readableDescription)
+        val effectiveDuration = when {
+            durationMs >= 0L -> durationMs
+            readableTitle.length + readableDescription.orEmpty().length > 110 -> 0L
+            else -> 4_500L
+        }
+        if (effectiveDuration > 0L) handler.postDelayed(dismissRunnable, effectiveDuration)
     }
 }
 
 @Composable
 fun SoundprintToastHost(modifier: Modifier = Modifier) {
     val message by SoundprintToast.message.collectAsState()
+    val maxToastHeight = (LocalConfiguration.current.screenHeightDp * 0.45f).dp
     var displayedMessage by remember { mutableStateOf<SoundprintToastMessage?>(null) }
     LaunchedEffect(message) {
         if (message != null) displayedMessage = message
@@ -135,7 +144,7 @@ fun SoundprintToastHost(modifier: Modifier = Modifier) {
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFF1B1A18))
                         
-                        .heightIn(min = 56.dp)
+                        .heightIn(min = 56.dp, max = maxToastHeight)
                         .semantics { liveRegion = LiveRegionMode.Polite },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -170,15 +179,16 @@ fun SoundprintToastHost(modifier: Modifier = Modifier) {
                                 Text(glyph, color = accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
-                        androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+                        androidx.compose.foundation.layout.Column(
+                            Modifier.weight(1f).heightIn(max = maxToastHeight - 24.dp).verticalScroll(rememberScrollState())
+                        ) {
                             Text(
                                 toast.title,
                                 color = Color(0xFFF3F0E9),
                                 fontSize = 13.sp,
                                 lineHeight = 17.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
+                                maxLines = Int.MAX_VALUE
                             )
                             toast.description?.let {
                                 Text(
@@ -187,8 +197,7 @@ fun SoundprintToastHost(modifier: Modifier = Modifier) {
                                     color = Color(0xFFAAA59B),
                                     fontSize = 12.sp,
                                     lineHeight = 16.sp,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
+                                    maxLines = Int.MAX_VALUE
                                 )
                             }
                         }

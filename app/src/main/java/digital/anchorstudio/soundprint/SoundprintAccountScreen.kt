@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -31,6 +30,7 @@ import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
@@ -39,24 +39,19 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.GetCredentialProviderConfigurationException
 import androidx.credentials.exceptions.NoCredentialException
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.IDToken
-import java.security.MessageDigest
-import java.util.UUID
-import kotlinx.coroutines.CancellationException
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.providers.builtin.OTP
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import java.security.MessageDigest
+import java.util.UUID
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.put
@@ -86,6 +81,9 @@ internal fun SoundprintAccountScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var newEmail by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var newPasswordVisible by remember { mutableStateOf(false) }
     var mode by remember { mutableStateOf("sign-in") }
     var message by remember { mutableStateOf<String?>(null) }
     var messageError by remember { mutableStateOf(false) }
@@ -100,6 +98,26 @@ internal fun SoundprintAccountScreen(
     var deletionConfirmation by remember { mutableStateOf("") }
     var deletionOriginalUserId by remember { mutableStateOf<String?>(null) }
     val authSessionState by supabase.auth.sessionStatus.collectAsState()
+
+    // Account feedback belongs in the app-wide notification host, never in the form layout.
+    LaunchedEffect(message, messageError) {
+        val feedback = message?.trim()?.takeIf { it.isNotBlank() }
+        if (feedback != null) {
+            when {
+                messageError -> SoundprintToast.error(feedback)
+                feedback.contains("signed in", ignoreCase = true) ||
+                    feedback.contains("saved", ignoreCase = true) ||
+                    feedback.contains("updated", ignoreCase = true) ||
+                    feedback.contains("verified", ignoreCase = true) ||
+                    feedback.contains("deleted", ignoreCase = true) ||
+                    feedback.contains("sent", ignoreCase = true) ||
+                    feedback.contains("success", ignoreCase = true) ->
+                    SoundprintToast.success(feedback)
+                else -> SoundprintToast.info(feedback)
+            }
+            message = null
+        }
+    }
 
     LaunchedEffect(resetToSignInKey) {
         if (resetToSignInKey > 0) {
@@ -135,38 +153,6 @@ internal fun SoundprintAccountScreen(
         }
     }
 
-    // Fallback for Android builds that expose no usable Credential Manager provider.
-    val googleFallbackLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        scope.launch {
-            try {
-                if (result.resultCode != Activity.RESULT_OK) {
-                    message = "Google sign-in was cancelled."
-                    messageError = true
-                } else {
-                    val account = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                        .getResult(ApiException::class.java)
-                    val token = account.idToken
-                        ?: error("Google didn't return an ID token. Check the Web OAuth client configuration.")
-                    supabase.auth.signInWith(IDToken) {
-                        idToken = token
-                        provider = Google
-                    }
-                    refreshAccount()
-                    message = "You're signed in with Google."
-                    messageError = false
-                }
-            } catch (error: Exception) {
-                message = error.message?.take(220)
-                    ?: "Google sign-in failed (${error::class.simpleName}). Check Google Play services and OAuth configuration."
-                messageError = true
-            } finally {
-                busy = false
-            }
-        }
-    }
-
     LaunchedEffect(authSessionState) {
         try { refreshAccount() }
         catch (_: Exception) {
@@ -184,6 +170,35 @@ internal fun SoundprintAccountScreen(
                 message = error.message?.take(220) ?: "Something went wrong. Please try again."
                 messageError = true
             } finally { busy = false }
+        }
+    }
+
+    suspend fun requestPasswordResetForKnownAccount(requestedEmail: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            val payload = org.json.JSONObject().put("email", requestedEmail).toString()
+            val connection = (URL("${SoundprintSupabase.SUPABASE_URL}/functions/v1/request-password-reset").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 15_000
+                readTimeout = 30_000
+                doOutput = true
+                setRequestProperty("apikey", SoundprintSupabase.PUBLISHABLE_KEY)
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+            }
+            try {
+                connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+                val status = connection.responseCode
+                val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                val result = runCatching { org.json.JSONObject(body) }.getOrNull()
+                if (status !in 200..299) {
+                    error(result?.optString("message")?.takeIf { it.isNotBlank() }
+                        ?: "We couldn't process your password reset request. Please try again.")
+                }
+                result?.optBoolean("sent", false) == true
+            } finally {
+                connection.disconnect()
+            }
         }
     }
 
@@ -305,43 +320,23 @@ internal fun SoundprintAccountScreen(
             message = "Opening Google sign-in…"
             messageError = false
             var handedOffToFallback = false
-            fun launchGoogleFallback() {
-                try {
-                    val activity = context.findActivity()
-                        ?: error("Google sign-in needs an active Android screen.")
-                    val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                        .requestEmail()
-                        .requestIdToken(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
-                        .build()
-                    googleFallbackLauncher.launch(GoogleSignIn.getClient(activity, options).signInIntent)
-                    handedOffToFallback = true
-                    message = "Opening Google account picker…"
-                    messageError = false
-                } catch (fallbackError: Exception) {
-                    handedOffToFallback = false
-                    message = fallbackError.message?.take(220)
-                        ?: "Google sign-in couldn't start. Check Google Play services and OAuth configuration."
-                    messageError = true
-                }
-            }
             try {
-                val rawNonce = UUID.randomUUID().toString()
-                val digest = MessageDigest.getInstance("SHA-256")
-                    .digest(rawNonce.toByteArray(Charsets.UTF_8))
-                val hashedNonce = digest.joinToString("") { byte ->
-                    "%02x".format(byte.toInt() and 0xff)
-                }
+                val activity = context.findActivity()
+                    ?: error("Google sign-in needs an active Android screen. Close and reopen SoundPrint, then try again.")
 
-                val googleOption = GetGoogleIdOption.Builder()
-                    .setFilterByAuthorizedAccounts(false)
-                    .setServerClientId(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
+                val rawNonce = UUID.randomUUID().toString()
+                val hashedNonce = MessageDigest.getInstance("SHA-256")
+                    .digest(rawNonce.toByteArray(Charsets.UTF_8))
+                    .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+                val googleOption = GetSignInWithGoogleOption.Builder(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
                     .setNonce(hashedNonce)
                     .build()
                 val request = GetCredentialRequest.Builder()
                     .addCredentialOption(googleOption)
                     .build()
-                val activity = context.findActivity()
-                    ?: error("Google sign-in needs an active Android screen. Close and reopen SoundPrint, then try again.")
+
+                // Keep one identity flow. The old Activity-result fallback classified every
+                // RESULT_CANCELED response as a user cancellation, masking provider/config errors.
                 val credentialManager = CredentialManager.create(activity)
                 val result = credentialManager.getCredential(context = activity, request = request)
                 if (result.credential.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
@@ -362,25 +357,43 @@ internal fun SoundprintAccountScreen(
             } catch (error: NoCredentialException) {
                 // Credential Manager found no eligible credential. Open the account
                 // picker fallback so users can choose from Google accounts on-device.
-                launchGoogleFallback()
+                val activity = context.findActivity()
+                    ?: error("Google sign-in needs an active Android screen.")
+                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestEmail()
+                    .requestIdToken(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
+                    .build()
+                val client = GoogleSignIn.getClient(activity, options)
+                handedOffToFallback = true
+                message = "Opening Google sign-in…"
+                messageError = false
+                googleFallbackLauncher.launch(client.signInIntent)
             } catch (error: GetCredentialProviderConfigurationException) {
-                launchGoogleFallback()
+                val activity = context.findActivity()
+                    ?: error("Google sign-in needs an active Android screen.")
+                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestEmail()
+                    .requestIdToken(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
+                    .build()
+                val client = GoogleSignIn.getClient(activity, options)
+                handedOffToFallback = true
+                message = "Opening Google sign-in…"
+                messageError = false
+                googleFallbackLauncher.launch(client.signInIntent)
             } catch (error: GetCredentialException) {
-                if (error is androidx.credentials.exceptions.GetCredentialCancellationException) {
-                    message = "Google sign-in was cancelled."
-                    messageError = true
-                } else {
-                    // Credential Manager can fail on devices with an outdated or
-                    // unavailable provider. Give the installed Google Play services
-                    // picker a chance before showing a terminal error.
-                    launchGoogleFallback()
+                message = when (error) {
+                    is androidx.credentials.exceptions.GetCredentialCancellationException ->
+                        "Google sign-in was cancelled."
+                    else -> error.message?.take(220)
+                        ?: "Google sign-in couldn't start (${error::class.simpleName}). Check Google Play services and try again."
                 }
+                messageError = true
             } catch (error: Exception) {
                 message = error.message?.take(220)
-                    ?: "Google sign-in failed (${error::class.simpleName}). Check your connection and OAuth configuration."
+                    ?: "Google sign-in failed (${error.javaClass.simpleName}). Check the Google OAuth configuration and your connection."
                 messageError = true
             } finally {
-                if (!handedOffToFallback) busy = false
+                busy = false
             }
         }
     }
@@ -544,7 +557,7 @@ internal fun SoundprintAccountScreen(
                         }
                     }, enabled = !busy && newEmail.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Change email") }
                     Spacer(Modifier.height(0.dp))
-                    OutlinedTextField(newPassword, { newPassword = it }, Modifier.fillMaxWidth(), label = { Text("New password") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
+                    OutlinedTextField(newPassword, { newPassword = it }, Modifier.fillMaxWidth(), label = { Text("New password") }, visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { newPasswordVisible = !newPasswordVisible }) { Text(if (newPasswordVisible) "Hide" else "Show") } }, singleLine = true)
                     Button(onClick = {
                         if (newPassword.length < 8) {
                             message = "Use at least 8 characters for your new password."
@@ -665,13 +678,15 @@ internal fun SoundprintAccountScreen(
                         password, { password = it }, Modifier.fillMaxWidth(),
                         label = { Text("New password") },
                         leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) },
-                        visualTransformation = PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } },
                         singleLine = true
                     )
                     OutlinedTextField(
                         confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(),
                         label = { Text("Confirm new password") },
-                        visualTransformation = PasswordVisualTransformation(),
+                        visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } },
                         singleLine = true
                     )
                     Button(
@@ -738,8 +753,8 @@ internal fun SoundprintAccountScreen(
                     }
                 }
                 OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
-                if (mode == "sign-up" || (mode == "sign-in" && !otpRequested)) OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
-                if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
+                if (mode == "sign-up" || (mode == "sign-in" && !otpRequested)) OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } }, singleLine = true)
+                if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } }, singleLine = true)
                 if (otpRequested) {
                     Text(
                         if (otpIsRecovery) "Enter the 6-digit password reset code sent to ${email.trim()}"
@@ -796,16 +811,19 @@ internal fun SoundprintAccountScreen(
                                 message = "Enter the email address on your account."
                                 messageError = true
                             } else perform {
-                                supabase.auth.resetPasswordForEmail(
-                                    email = email.trim(),
-                                    redirectUrl = SoundprintSupabase.PASSWORD_RESET_REDIRECT
-                                )
+                                val requestedEmail = email.trim().lowercase()
+                                val resetEmailSent = requestPasswordResetForKnownAccount(requestedEmail)
                                 otpIsRecovery = false
                                 otpIsSignup = false
                                 otpRequested = false
                                 otpCode = ""
-                                message = "If an account exists for that address, a secure password reset link has been sent to your inbox."
-                                messageError = false
+                                if (resetEmailSent) {
+                                    message = "Check your email. If you don't see the password reset code, check your spam folder."
+                                    messageError = false
+                                } else {
+                                    message = "Your account doesn't exist. Please try a different account."
+                                    messageError = true
+                                }
                             }
                             "sign-up" -> if (!email.contains("@") || password.length < 8 || password != confirmPassword) {
                                 message = "Enter a valid email, matching passwords and at least 8 password characters."
@@ -877,7 +895,6 @@ internal fun SoundprintAccountScreen(
                 Spacer(Modifier.width(10.dp))
                 Text("Working securely…", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            message?.let { Text(it, Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background((if (messageError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary).copy(alpha = .10f)).padding(14.dp), fontSize = 12.sp, lineHeight = 18.sp, color = if (messageError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface) }
         }
     }
 }
@@ -917,70 +934,6 @@ private fun AccountIntroPanel(title: String, description: String, icon: Int) {
         Text(description, fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
-
-@Preview(showBackground = true, backgroundColor = 0xFF090A0D, name = "SoundPrint account · Lavender")
-@Composable
-private fun SoundprintAccountDesignPreview() {
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = Color(0xFFC4B5FD),
-            onPrimary = Color(0xFF171321),
-            background = Color(0xFF090A0D),
-            surface = Color(0xFF14141B),
-            onSurface = Color(0xFFF5F5F6),
-            surfaceVariant = Color(0xFF211E2B),
-            onSurfaceVariant = Color(0xFFA5A5B2),
-            outline = Color(0xFF2A2933)
-        )
-    ) {
-        Column(
-            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            AccountIntroPanel(
-                title = "Sign in to SoundPrint",
-                description = "Your music library stays on this device. Sign in to manage your SoundPrint identity.",
-                icon = SoundprintIcons.AudioWaveform
-            )
-            AccountPanel {
-                OutlinedButton(
-                    onClick = {},
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Text("G", color = Color(0xFF4285F4), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Spacer(Modifier.width(10.dp))
-                    Text("Continue with Google", fontWeight = FontWeight.SemiBold)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .55f))
-                    Text("OR CONTINUE WITH EMAIL", Modifier.padding(horizontal = 12.dp), fontSize = 9.sp, letterSpacing = 1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .55f))
-                }
-                OutlinedTextField(
-                    value = "listener@example.com",
-                    onValueChange = {},
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Email address") },
-                    leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = "password123",
-                    onValueChange = {},
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Password") },
-                    leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) },
-                    visualTransformation = PasswordVisualTransformation(),
-                    singleLine = true
-                )
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("Sign in") }
-                Text("Forgot password?", Modifier.align(Alignment.CenterHorizontally), color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
-            }
-        }
-    }
-}
-
 
 private fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this

@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -81,22 +82,25 @@ private val freeFeatures = listOf(
 )
 
 @Composable
-fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, trialEndsAt: String? = null,
-              onStartTrial: (() -> Unit)? = null, onClaimFounder: (() -> Unit)? = null) {
+fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, entitlementSource: String? = null,
+              onClaimFounder: (() -> Unit)? = null,
+              founderRemaining: Int = 0, founderCapacity: Int = 100, founderOfferEnabled: Boolean = false, founderMessage: String? = null,
+              signedIn: Boolean = false, onSignIn: (() -> Unit)? = null) {
     Column(Modifier.fillMaxSize()) {
         ProPageHeader(onBack)
         Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)) {
             if (entitled) {
-                ProActiveCard(trialEndsAt)
+                ProActiveCard(entitlementSource)
+                if (!signedIn && onSignIn != null) ProSignInButton(onSignIn)
                 ProTutorialSection()
                 ProFeaturesGrid()
             } else {
                 ProHero()
-                ProFounderOffer(onClaimFounder)
+                if (!signedIn && onSignIn != null) ProSignInButton(onSignIn)
+                ProFounderOffer(onClaimFounder, founderRemaining, founderCapacity, founderOfferEnabled, founderMessage, signedIn, onSignIn)
                 ProPlans()
-                ProTrialCard(onStartTrial)
                 ProTutorialSection()
                 ProFreeFeatures()
                 ProFeaturesGrid()
@@ -135,7 +139,7 @@ private fun ProHero() {
         .padding(22.dp)) {
         Row(Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
             .padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-            SoundprintIcon(SoundprintIcons.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+            SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
             Spacer(Modifier.width(7.dp))
             Text("Your music. Your way.", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
         }
@@ -153,24 +157,40 @@ private fun ProHero() {
 }
 
 @Composable
-private fun ProFounderOffer(onClaim: (() -> Unit)?) {
+private fun ProSignInButton(onSignIn: () -> Unit) {
+    OutlinedButton(
+        onClick = onSignIn,
+        modifier = Modifier.fillMaxWidth().height(46.dp),
+        shape = RoundedCornerShape(50.dp)
+    ) {
+        SoundprintIcon(SoundprintIcons.UserRound, null, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Sign in to claim", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun ProFounderOffer(onClaim: (() -> Unit)?, remaining: Int, capacity: Int, offerEnabled: Boolean, message: String?, signedIn: Boolean, onSignIn: (() -> Unit)?) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Get Pro free for life", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
-        Text("Founder Access is staying. The first 100 eligible accounts can claim lifetime Pro at no cost while spots remain.",
+        Text("The first 100 eligible, email-verified accounts can claim lifetime Pro at no cost. Claims are confirmed securely by Soundprint.",
             fontSize = 12.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.075f))
             .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f), RoundedCornerShape(24.dp))
             .padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SoundprintIcon(SoundprintIcons.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Founder offer — Pro free for the first 100", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                Text("Founder Access · Lifetime Pro", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
             }
-            Text("Sign in with a verified Soundprint account to check eligibility and claim a founder spot. Availability is confirmed by the account service.",
+            Text(if (!signedIn) "The first 100 eligible accounts can claim lifetime Pro. Sign in with a verified email address to check availability and claim your spot." else if (!offerEnabled) "Founder Access is currently closed." else if (remaining <= 0) "All founder spots have been claimed." else "$remaining of $capacity founder spots remain. Each verified account can claim once.",
                 modifier = Modifier.padding(top = 7.dp), fontSize = 11.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Button(onClick = { onClaim?.invoke() }, enabled = onClaim != null, modifier = Modifier.fillMaxWidth().padding(top = 12.dp), shape = RoundedCornerShape(50.dp)) {
-                Text(if (onClaim == null) "Account connection required" else "Claim free Pro")
+            message?.let { Text(it, modifier = Modifier.padding(top = 10.dp), fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            Button(onClick = { if (!signedIn) onSignIn?.invoke() else onClaim?.invoke() },
+                enabled = if (!signedIn) onSignIn != null else onClaim != null && offerEnabled && remaining > 0,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp), shape = RoundedCornerShape(50.dp)) {
+                Text(if (!signedIn) "Sign in to claim Founder Access" else if (!offerEnabled || remaining <= 0) "Founder offer unavailable" else "Claim founder offer")
             }
         }
     }
@@ -226,33 +246,6 @@ private fun ProPlanCard(title: String, price: String, cadence: String, descripti
             contentPadding = ButtonDefaults.ContentPadding) {
             Text(if (title == "Lifetime") "Lifetime checkout coming soon" else if (title == "Monthly") "Monthly plan coming soon" else "Annual plan coming soon",
                 fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-    }
-}
-
-@Composable
-private fun ProTrialCard(onStartTrial: (() -> Unit)?) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surface)
-        .padding(16.dp)) {
-        Row(verticalAlignment = Alignment.Top) {
-            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center) {
-                SoundprintIcon(SoundprintIcons.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
-            }
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("Try Pro for 14 days", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                Text("Try the Pro features without entering payment details. This trial does not auto-renew and will not charge you. One trial per account.",
-                    modifier = Modifier.padding(top = 5.dp), fontSize = 11.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        Text(if (onStartTrial == null) "A verified Soundprint account is required. Native account sign-in is not connected yet."
-            else "Start your trial below. No payment system is needed for the trial.",
-            modifier = Modifier.fillMaxWidth().padding(top = 13.dp).clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.background).padding(12.dp),
-            fontSize = 11.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Button(onClick = { onStartTrial?.invoke() }, enabled = onStartTrial != null, modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-            shape = RoundedCornerShape(50.dp)) {
-            Text(if (onStartTrial == null) "Sign-in connection required" else "Start 14-day free trial")
         }
     }
 }
@@ -330,7 +323,7 @@ private fun ProFeaturesGrid() {
                 verticalAlignment = Alignment.Top) {
                 Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
                     contentAlignment = Alignment.Center) {
-                    SoundprintIcon(feature.icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
+                    SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
                 }
                 Column(Modifier.weight(1f).padding(start = 11.dp)) {
                     Text(feature.title, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
@@ -342,19 +335,21 @@ private fun ProFeaturesGrid() {
 }
 
 @Composable
-private fun ProActiveCard(trialEndsAt: String?) {
+private fun ProActiveCard(entitlementSource: String?) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surface)
         .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.24f), RoundedCornerShape(24.dp))
         .padding(18.dp)) {
         Row(Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)).padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            SoundprintIcon(SoundprintIcons.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+            SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
             Spacer(Modifier.width(7.dp))
             Text("Pro active", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
         }
-        Text(if (trialEndsAt != null) "Your 14-day Pro trial is active" else "Welcome to Soundprint Pro",
+        Text(
+            if (entitlementSource == "founder") "Founder Access is active" else "Welcome to Soundprint Pro",
             modifier = Modifier.padding(top = 16.dp), fontSize = 23.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-        Text(if (trialEndsAt != null) "Your no-payment trial ends " + trialEndsAt + ". No charge will be made, and access ends when the trial expires."
+        Text(
+            if (entitlementSource == "founder") "Your lifetime Founder Access is active on this account. Sign in on your other devices to use Pro."
             else "Your Pro entitlement is active on this account. Sign in on your other devices to access your account benefits.",
             modifier = Modifier.padding(top = 8.dp), fontSize = 12.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

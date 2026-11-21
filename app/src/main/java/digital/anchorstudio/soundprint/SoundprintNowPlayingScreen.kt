@@ -219,7 +219,6 @@ fun SoundprintNowPlayingScreen(
     val playbackOptionsPrefs = remember { context.getSharedPreferences("soundprint_playback_options", 0) }
     var sleepRemaining by remember { mutableLongStateOf(0L) }
     var lyricsExpanded by remember { mutableStateOf(false) }
-    var auraNotice by remember { mutableStateOf(false) }
     var aura by remember { mutableStateOf(false) }
     var auraPreset by remember { mutableStateOf("Auto") }
     var audioLabOpen by remember { mutableStateOf(false) }
@@ -252,6 +251,19 @@ fun SoundprintNowPlayingScreen(
     }
     LaunchedEffect(crossfade) {
         playbackOptionsPrefs.edit().putInt("crossfade_seconds", crossfade).apply()
+    }
+    LaunchedEffect(SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
+        if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) {
+            audioLabOpen = false
+            sleepOpen = false
+            aura = false
+            gapless = false
+            loudness = false
+            stopAfterCurrent = false
+            crossfade = 0
+            sleepRemaining = 0L
+            playbackOptionsPrefs.edit().remove("sleep_ends_at").apply()
+        }
     }
 
     val progress = if (duration > 0L) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
@@ -569,18 +581,16 @@ fun SoundprintNowPlayingScreen(
                 Spacer(Modifier.height(12.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PlayerQuickAction("Audio Lab", SoundprintIcons.Gauge, Modifier.weight(1f), proFeature = true) { if (!proAccess.entitled) proAccess.onOpenPro() else audioLabOpen = true }
-                        PlayerQuickAction("Aura Mode", SoundprintIcons.Waves, Modifier.weight(1f), proFeature = true) { if (!proAccess.entitled) proAccess.onOpenPro() else auraNotice = true }
+                        PlayerQuickAction("Audio Lab", SoundprintIcons.Gauge, Modifier.weight(1f)) { audioLabOpen = true }
+                        PlayerQuickAction("Aura Mode", SoundprintIcons.Waves, Modifier.weight(1f)) { auraNotice = true }
                         PlayerQuickAction("Playlist", SoundprintIcons.Plus, Modifier.weight(1f)) { playlists = library.playlists(); playlistOpen = !playlistOpen }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PlayerQuickAction("Info", SoundprintIcons.Info, Modifier.weight(1f), selected = infoOpen) { infoOpen = !infoOpen }
                         PlayerQuickAction("Lyrics", SoundprintIcons.BookOpenText, Modifier.weight(1f)) { lyricsExpanded = true; scope.launch { delay(80); lyricsPanelRequester.bringIntoView() } }
-                        PlayerQuickAction(displaySleep, if (sleepRemaining > 0L) SoundprintIcons.TimerReset else SoundprintIcons.Moon, Modifier.weight(1f), selected = sleepOpen, proFeature = true) {
-                            if (!proAccess.entitled) proAccess.onOpenPro() else {
-                                sleepMinutes = if (sleepRemaining > 0L) ((sleepRemaining + 59_999L) / 60_000L).toString() else "30"
-                                sleepOpen = true
-                            }
+                        PlayerQuickAction(displaySleep, if (sleepRemaining > 0L) SoundprintIcons.TimerReset else SoundprintIcons.Moon, Modifier.weight(1f), selected = sleepOpen) {
+                            sleepMinutes = if (sleepRemaining > 0L) ((sleepRemaining + 59_999L) / 60_000L).toString() else "30"
+                            sleepOpen = true
                         }
                     }
                 }
@@ -809,12 +819,14 @@ fun SoundprintNowPlayingScreen(
                         seek = { target -> controller?.seekTo(target) },
                         onLyricsChanged = { lyricsForGenre = it },
                         onMetadataMatch = { matchedTitle, matchedArtist, matchedAlbum, matchedYear ->
-                            val nextTitle = matchedTitle.ifBlank { title }
-                            val nextArtist = matchedArtist.ifBlank { artist }
-                            val nextAlbum = matchedAlbum.ifBlank { album }
-                            val nextYear = matchedYear.takeIf { it in 1000..2100 } ?: year
-                            library.updateSongMetadata(trackId, nextTitle, nextArtist, nextAlbum, genre, nextYear)
-                            title = nextTitle; artist = nextArtist; album = nextAlbum; year = nextYear
+                            if (SoundprintProGate.require("Automatic song-info autofill")) {
+                                val nextTitle = matchedTitle.ifBlank { title }
+                                val nextArtist = matchedArtist.ifBlank { artist }
+                                val nextAlbum = matchedAlbum.ifBlank { album }
+                                val nextYear = matchedYear.takeIf { it in 1000..2100 } ?: year
+                                library.updateSongMetadata(trackId, nextTitle, nextArtist, nextAlbum, genre, nextYear)
+                                title = nextTitle; artist = nextArtist; album = nextAlbum; year = nextYear
+                            }
                         }
                     )
                 }
@@ -914,6 +926,12 @@ fun SoundprintNowPlayingScreen(
             }
         }
     }
+    if (aura) AuraListeningStage(
+        mood = genre,
+        preset = auraPreset,
+        onPreset = { auraPreset = it },
+        onExit = { aura = false }
+    )
     if (customizerOpen) {
         ArtworkCustomizerDialog(
             discStyle = discStyle,
@@ -979,9 +997,22 @@ fun SoundprintNowPlayingScreen(
         }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)).padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 listOf(15, 30, 45, 60).forEach { minutes ->
-                    OutlinedButton(onClick = { sleepMinutes = minutes.toString() }, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)) { Text("${minutes}m") }
+                    val selected = sleepMinutes == minutes.toString()
+                    Box(
+                        Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(12.dp))
+                            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable { sleepMinutes = minutes.toString() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("${minutes}m", fontSize = 12.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
             OutlinedTextField(sleepMinutes, { sleepMinutes = it }, label = { Text("Custom minutes") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -999,14 +1030,13 @@ fun SoundprintNowPlayingScreen(
         }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            PlayerToggle("Gapless playback", "Seamless transitions between queued tracks", proAccess.entitled && gapless, proFeature = true) { if (!proAccess.entitled) proAccess.onOpenPro() else gapless = it }
-            PlayerToggle("Loudness leveling", "Keep volume consistent", proAccess.entitled && loudness, proFeature = true) { if (!proAccess.entitled) proAccess.onOpenPro() else loudness = it }
-            PlayerToggle("Stop after this song", "Pause at the end of the current track", proAccess.entitled && stopAfterCurrent, proFeature = true) { if (!proAccess.entitled) proAccess.onOpenPro() else stopAfterCurrent = it }
+            PlayerToggle("Gapless playback", "Seamless transitions between queued tracks", gapless) { gapless = it }
+            PlayerToggle("Loudness leveling", "Keep volume consistent", loudness) { loudness = it }
+            PlayerToggle("Stop after this song", "Pause at the end of the current track", stopAfterCurrent) { stopAfterCurrent = it }
             Text("Crossfade", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             Text("Blend into the next queued track", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            PlayerChoiceRow(listOf("Off", "2s", "4s", "6s", "8s"), if (!proAccess.entitled || crossfade == 0) "Off" else "${crossfade}s") {
-                val seconds = it.removeSuffix("s").toIntOrNull() ?: 0
-                if (seconds > 0 && !proAccess.entitled) proAccess.onOpenPro() else crossfade = seconds
+            PlayerChoiceRow(listOf("Off", "2s", "4s", "6s", "8s"), if (crossfade == 0) "Off" else "${crossfade}s") {
+                crossfade = it.removeSuffix("s").toIntOrNull() ?: 0
             }
         }
     }
@@ -1264,22 +1294,21 @@ private fun PlayerQuickAction(
 ) {
     Column(
         modifier.height(84.dp).clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface)
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick).padding(horizontal = 6.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        SoundprintIcon(icon, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+        SoundprintIcon(icon, null, modifier = Modifier.size(20.dp), tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(8.dp))
         Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (proFeature) ProFeatureBadge()
     }
 }
 @Composable
 private fun PlayerAction(label: String, icon: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Column(
         modifier.height(68.dp).clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = .48f))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .78f))
             .clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -1298,7 +1327,20 @@ private fun PlayerPanel(title:String,onClose:()->Unit,content:@Composable Column
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PlayerChoiceRow(options:List<String>,selected:String,onSelect:(String)->Unit){
-    FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){options.forEach{item->FilterChip(selected=selected.equals(item,true)||selected.equals(item.replace(" ","_"),true),onClick={onSelect(item)},label={Text(item,fontSize=11.sp)})}}
+    FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+        options.forEach { item ->
+            val active = selected.equals(item, true) || selected.equals(item.replace(" ", "_"), true)
+            Box(
+                Modifier.clip(RoundedCornerShape(50.dp))
+                    .background(if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable { onSelect(item) }
+                    .padding(horizontal = 16.dp, vertical = 11.dp)
+            ) {
+                Text(item, fontSize = 11.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
 }
 @Composable
 private fun PlayerToggle(title:String,detail:String,checked:Boolean,proFeature:Boolean=false,onChange:(Boolean)->Unit){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)){Text(title,fontSize=12.sp,fontWeight=FontWeight.Medium);if(proFeature) ProFeatureBadge()};Text(detail,fontSize=10.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)};Switch(checked,onChange)}}
@@ -1333,7 +1375,19 @@ private fun AuraListeningStage(mood:String,preset:String,onPreset:(String)->Unit
             AnimatedContent(prompts[prompt],label="aura-copy"){Text(it,fontSize=22.sp,fontWeight=FontWeight.Light,color=Color.White,textAlign=TextAlign.Center,lineHeight=32.sp)}
             Text("Follow the sound",fontSize=9.sp,letterSpacing=3.sp,color=Color.White.copy(alpha=.4f))
             Text("SOUND ATMOSPHERE",fontSize=9.sp,letterSpacing=2.sp,color=Color.White.copy(alpha=.4f))
-            FlowRow(horizontalArrangement=Arrangement.Center){listOf("Auto","Slowed + Reverb","Pulse","Dreamscape","Midnight").forEach{FilterChip(selected=preset==it,onClick={onPreset(it)},label={Text(it,fontSize=10.sp)})}}
+            FlowRow(horizontalArrangement=Arrangement.Center, verticalArrangement=Arrangement.spacedBy(8.dp)){
+                listOf("Auto","Slowed + Reverb","Pulse","Dreamscape","Midnight").forEach { option ->
+                    val selected = preset == option
+                    Box(
+                        Modifier.clip(RoundedCornerShape(50.dp))
+                            .background(if (selected) Color(0xFFB7D9C5).copy(alpha = .22f) else Color.White.copy(alpha = .10f))
+                            .clickable { onPreset(option) }
+                            .padding(horizontal = 13.dp, vertical = 9.dp)
+                    ) {
+                        Text(option, fontSize = 10.sp, color = if (selected) Color(0xFFB7D9C5) else Color.White.copy(alpha = .84f))
+                    }
+                }
+            }
             Spacer(Modifier.height(20.dp))
             Text("BEST WITH HEADPHONES · KEEP VOLUME COMFORTABLE",fontSize=9.sp,color=Color.White.copy(alpha=.45f))
             TextButton(onClick=onExit){Text("Tap to return",color=Color.White.copy(alpha=.7f))}

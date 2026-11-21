@@ -390,6 +390,10 @@ fun ClapDiscoverScreen(
     playback: SoundprintPlaybackConnection,
     onBack: () -> Unit
 ) {
+    if (!SoundprintProGate.hasPro) {
+        ProFeatureLockedScreen("Discover music for your mood", "Explore your library through personalized mood and activity matching.")
+        return
+    }
     val scan by scanner.state.collectAsState()
     androidx.compose.runtime.LaunchedEffect(Unit) { scanner.refreshSummary() }
     var tracks by remember { mutableStateOf(emptyList<MusicTrack>()) }
@@ -627,22 +631,24 @@ fun ClapDiscoverScreen(
                 val active = selectedMood == mood
                 Row(
                     modifier = Modifier.clip(CircleShape)
-                        .background(if (active) MaterialTheme.colorScheme.primary else Color.Transparent)
-                        
+                        .background(
+                            if (active) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f)
+                        )
                         .clickable { selectedMood = mood }
-                        .padding(horizontal = 11.dp, vertical = 8.dp),
+                        .padding(horizontal = 14.dp, vertical = 11.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     SoundprintIcon(
                         moodIcon(mood), contentDescription = null,
-                        modifier = Modifier.size(13.dp),
-                        tint = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        modifier = Modifier.size(15.dp),
+                        tint = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        mood.title, fontSize = 11.sp,
+                        mood.title, fontSize = 12.sp,
                         fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-                        color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                     )
                 }
             }

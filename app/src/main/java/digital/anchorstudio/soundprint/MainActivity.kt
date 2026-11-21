@@ -761,19 +761,59 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 pendingArtworkImport?.let { pending ->
-                    AlertDialog(
+                    Dialog(
                         onDismissRequest = { finishArtworkImportChoice(pending, false) },
-                        title = { Text("Use custom artwork?") },
-                        text = {
-                            Text("Yes assigns a bundled Soundprint cover only when a song has no embedded cover. No skips assigning new bundled covers. Embedded covers and artwork already saved in your library are kept either way; songs without a saved cover still display a visual fallback in the library, queue and player.")
-                        },
-                        confirmButton = {
-                            TextButton(onClick = { finishArtworkImportChoice(pending, true) }) { Text("Yes, use artwork") }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { finishArtworkImportChoice(pending, false) }) { Text("No, thanks") }
+                        properties = DialogProperties(usePlatformDefaultWidth = false)
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(horizontal = 28.dp).widthIn(max = 360.dp)
+                                .clip(RoundedCornerShape(26.dp))
+                                .background(MaterialTheme.colorScheme.surface)
+                                .padding(22.dp)
+                        ) {
+                            Box(
+                                Modifier.size(46.dp).clip(RoundedCornerShape(15.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                SoundprintIcon(SoundprintIcons.Image, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+                            }
+                            Text(
+                                "A little more cover.",
+                                modifier = Modifier.padding(top = 16.dp),
+                                fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
+                                letterSpacing = (-0.45).sp, color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "Add Soundprint artwork to songs missing a cover?",
+                                modifier = Modifier.padding(top = 6.dp),
+                                fontSize = 13.sp, lineHeight = 19.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Row(
+                                Modifier.fillMaxWidth().padding(top = 22.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .clickable { finishArtworkImportChoice(pending, false) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("Not now", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                }
+                                Box(
+                                    Modifier.weight(1.25f).height(44.dp).clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.primary)
+                                        .clickable { finishArtworkImportChoice(pending, true) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("Add artwork", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimary)
+                                }
+                            }
                         }
-                    )
+                    }
                 }
                 }
                 }
@@ -843,8 +883,15 @@ private fun SoundprintApp(
             playbackConnection.close()
         }
     }
-    LaunchedEffect(enteredLibrary, libraryTrackCount) {
-        if (enteredLibrary && libraryTrackCount > 0 && clapScanner.autoScanEnabled()) clapScanner.startScan()
+    LaunchedEffect(enteredLibrary, libraryTrackCount, SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
+        if (enteredLibrary && libraryTrackCount > 0 &&
+            SoundprintProGate.isResolved && SoundprintProGate.hasPro &&
+            clapScanner.autoScanEnabled()
+        ) {
+            clapScanner.startScan()
+        } else if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) {
+            clapScanner.pause()
+        }
     }
     var selectedTab by remember { mutableIntStateOf(0) }
     var settingsOpen by remember { mutableStateOf(false) }
@@ -858,7 +905,57 @@ private fun SoundprintApp(
     }
     var statsOpen by remember { mutableStateOf(false) }
     var proOpen by remember { mutableStateOf(false) }
+<<<<<<< HEAD
     var twinSenseOpen by remember { mutableStateOf(false) }
+=======
+    var proStatus by remember { mutableStateOf(SoundprintProStatus()) }
+    var proMessage by remember { mutableStateOf<String?>(null) }
+    val authSessionState by SoundprintSupabase.client.auth.sessionStatus.collectAsState()
+    fun enforceFreeTierRestrictions() {
+        disableProPlaybackOptions(appContext)
+        if (selectedPalette == "Emerald" || selectedPalette == "Mono") onPaletteChange("Amber")
+        if (folderWatchEnabled) onToggleFolderWatch(false)
+        clapScanner.setAutoScanEnabled(false)
+    }
+    LaunchedEffect(authSessionState) {
+        SoundprintProGate.beginVerification()
+        if (SoundprintProAccess.hasSession()) {
+            runCatching { SoundprintProAccess.refresh() }
+                .onSuccess {
+                    proStatus = it
+                    SoundprintProGate.updateEntitlement(it.hasPro)
+                    if (!it.hasPro) enforceFreeTierRestrictions()
+                }
+                .onFailure {
+                    proStatus = SoundprintProStatus()
+                    SoundprintProGate.updateEntitlement(false)
+                    enforceFreeTierRestrictions()
+                }
+        } else {
+            proStatus = SoundprintProStatus()
+            SoundprintProGate.updateEntitlement(false)
+            enforceFreeTierRestrictions()
+        }
+    }
+    LaunchedEffect(proOpen) {
+        if (proOpen) {
+            proMessage = "Checking Founder Access availability…"
+            runCatching { SoundprintProAccess.refresh() }
+                .onSuccess {
+                    proStatus = it
+                    SoundprintProGate.updateEntitlement(it.hasPro)
+                    if (!it.hasPro) enforceFreeTierRestrictions()
+                    proMessage = null
+                }
+                .onFailure {
+                    proStatus = SoundprintProStatus()
+                    SoundprintProGate.updateEntitlement(false)
+                    enforceFreeTierRestrictions()
+                    proMessage = it.message ?: "Could not verify Pro access. Try again."
+                }
+        }
+    }
+>>>>>>> 250c53d7d8655ffcee7d128d9236b708100d74b4
     var nowPlayingOpen by remember { mutableStateOf(false) }
     var tagEditorOpen by remember { mutableStateOf(false) }
     var resumePrompt by remember { mutableStateOf<PlaybackResumePrompt?>(null) }
@@ -958,12 +1055,46 @@ private fun SoundprintApp(
                             onBack = { tagEditorOpen = false; settingsOpen = true },
                             onExportMp3 = onExportTaggedMp3
                         )
+<<<<<<< HEAD
                         "pro" -> ProScreen(onBack = { proOpen = false }, entitled = proEntitled)
                         "twinsense" -> SongsLibraryScreen(
                             library = libraryManager,
                             playback = playbackConnection,
                             onImportFiles = onImportFiles,
                             onBack = { twinSenseOpen = false }
+=======
+                        "pro" -> ProScreen(
+                            onBack = { proOpen = false },
+                            entitled = proStatus.hasPro,
+                            signedIn = SoundprintProAccess.hasSession(),
+                            onSignIn = {
+                                proOpen = false
+                                accountOpen = true
+                                accountReturnToSignInKey += 1
+                            },
+                            onClaimFounder = {
+                                screenScope.launch {
+                                    proMessage = "Checking eligibility and claiming your founder spot…"
+                                    runCatching { SoundprintProAccess.claimFounder() }
+                                        .onSuccess { result ->
+                                            if (result.optBoolean("claimed") || result.optBoolean("already_entitled")) {
+                                                val source = result.optString("source").takeUnless { it == "null" }
+                                                proStatus = proStatus.copy(hasPro = true, source = source, isFounder = source == "founder")
+                                                SoundprintProGate.updateEntitlement(true)
+                                            }
+                                            runCatching { SoundprintProAccess.refresh() }
+                                                .onSuccess { proStatus = it; SoundprintProGate.updateEntitlement(it.hasPro) }
+                                            proMessage = when {
+                                                result.optBoolean("already_entitled") -> "This account already has active Pro access."
+                                                result.optBoolean("claimed") -> "Founder Access claimed. Lifetime Pro is now active on this account."
+                                                result.optString("reason") == "sold_out" -> "All founder spots have been claimed."
+                                                else -> "Founder Access could not be claimed. Please check eligibility and try again."
+                                            }
+                                        }
+                                        .onFailure { proMessage = it.message ?: "Founder Access could not be claimed. Please try again." }
+                                }
+                            }
+>>>>>>> 250c53d7d8655ffcee7d128d9236b708100d74b4
                         )
                         "stats" -> ListeningStatsScreen(libraryManager = libraryManager, onBack = { statsOpen = false })
                         "account" -> SoundprintAccountScreen(
@@ -976,7 +1107,7 @@ private fun SoundprintApp(
                             themeMode = themeMode,
                             onThemeModeChange = onThemeModeChange,
                             selectedPalette = selectedPalette,
-                            onPaletteChange = onPaletteChange,
+                            onPaletteChange = { name -> if (name == "Emerald" || name == "Mono") { if (SoundprintProGate.require("Emerald & Monochrome palettes")) onPaletteChange(name) } else onPaletteChange(name) },
                             onBack = { settingsOpen = false },
                             onOpenPro = { settingsOpen = false; proOpen = true },
                             libraryTrackCount = libraryTrackCount,
@@ -986,11 +1117,11 @@ private fun SoundprintApp(
                             folderWatchEnabled = folderWatchEnabled,
                             folderWatchLastScan = folderWatchLastScan,
                             autoAddNewSongs = autoAddNewSongs,
-                            onAutoAddNewSongsChange = onAutoAddNewSongsChange,
-                            onChooseWatchedFolder = onChooseWatchedFolder,
-                            onToggleFolderWatch = onToggleFolderWatch,
+                            onAutoAddNewSongsChange = { enabled -> if (!enabled || SoundprintProGate.require("Folder auto-watch")) onAutoAddNewSongsChange(enabled) },
+                            onChooseWatchedFolder = { if (SoundprintProGate.require("Folder auto-watch")) onChooseWatchedFolder() },
+                            onToggleFolderWatch = { enabled -> if (!enabled || SoundprintProGate.require("Folder auto-watch")) onToggleFolderWatch(enabled) },
                             onForgetWatchedFolder = onForgetWatchedFolder,
-                            onScanWatchedFolder = onScanWatchedFolder,
+                            onScanWatchedFolder = { if (SoundprintProGate.require("Folder auto-watch")) onScanWatchedFolder() },
                             onOpenTagEditor = { settingsOpen = false; tagEditorOpen = true },
                             onImportMusic = onImportMusic,
                             onImportFiles = onImportFiles,
@@ -1074,12 +1205,23 @@ private fun SoundprintApp(
                             modifier = Modifier
                                 .weight(1f)
                                 .clickable {
+<<<<<<< HEAD
                                     if (index == tabs.lastIndex && !proEntitled) proOpen = true else {
                                         settingsOpen = false
                                         accountOpen = false
                                         statsOpen = false
                                         selectedTab = index
                                     }
+=======
+                                    // Selecting a destination must dismiss every full-screen overlay.
+                                    proOpen = false
+                                    settingsOpen = false
+                                    accountOpen = false
+                                    statsOpen = false
+                                    tagEditorOpen = false
+                                    nowPlayingOpen = false
+                                    selectedTab = index
+>>>>>>> 250c53d7d8655ffcee7d128d9236b708100d74b4
                                 }
                                 .padding(vertical = 10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -1116,6 +1258,28 @@ private fun SoundprintApp(
                     }
                 }
             }
+        }
+        SoundprintProGate.lockedFeature?.let { feature ->
+            AlertDialog(
+                onDismissRequest = { SoundprintProGate.lockedFeature = null },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(9.dp))
+                        Text("$feature is a Pro feature")
+                    }
+                },
+                text = { Text("Unlock Soundprint Pro to use $feature. Your music library and basic playback stay free.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        SoundprintProGate.lockedFeature = null
+                        proOpen = true
+                    }) { Text("Explore Pro") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { SoundprintProGate.lockedFeature = null }) { Text("Not now") }
+                }
+            )
         }
         resumePrompt?.let { prompt ->
             AlertDialog(
@@ -1944,17 +2108,18 @@ private fun AddMusicMenuButton(
     var expanded by remember { mutableStateOf(false) }
     Box(modifier = modifier) {
         Row(
-            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(50))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
-                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.42f), RoundedCornerShape(50))
+            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(if (secondary) 18.dp else 50.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f))
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.32f), RoundedCornerShape(if (secondary) 18.dp else 50.dp))
                 .clickable { expanded = true }.padding(horizontal = 18.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SoundprintIcon(SoundprintIcons.FolderPlus, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            SoundprintIcon(SoundprintIcons.FolderOpen, null, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(10.dp))
-            Text("Add music", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text("Add music", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
+<<<<<<< HEAD
         SoundprintDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, width = 292.dp) {
             Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) {
                 Row(
@@ -1979,8 +2144,87 @@ private fun AddMusicMenuButton(
                 SoundprintMenuItem("Choose a music folder", SoundprintIcons.FolderOpen) { expanded = false; onFolderPicker() }
                 SoundprintMenuItem("Rescan folders", SoundprintIcons.RefreshCw) { expanded = false; onRescan() }
                 Text("Add local tracks without uploading or moving your originals.", modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, lineHeight = 16.sp)
+=======
+        SoundprintDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, width = 304.dp) {
+            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text(
+                    "ADD TO YOUR LIBRARY",
+                    modifier = Modifier.padding(start = 4.dp, bottom = 3.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold
+                )
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.68f))
+                        .clickable { expanded = false; onAudioPicker() }.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    GoogleDriveMark(Modifier.size(25.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Google Drive", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        Text("Browse Drive or device files", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    SoundprintIcon(SoundprintIcons.ChevronRight, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                ImportMenuRow(SoundprintIcons.FileMusic, "Choose audio files", "Select one or more tracks") { expanded = false; onAudioPicker() }
+                ImportMenuRow(SoundprintIcons.FolderOpen, "Choose a folder", "Add music from a folder") { expanded = false; onFolderPicker() }
+                ImportMenuRow(SoundprintIcons.Link, "Import from link", "Paste a direct audio URL") { expanded = false; onLinkImport() }
+                androidx.compose.material3.HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 3.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
+                )
+                ImportMenuRow(SoundprintIcons.RefreshCw, "Rescan folders", "Check saved music locations") { expanded = false; onRescan() }
+>>>>>>> 250c53d7d8655ffcee7d128d9236b708100d74b4
             }
         }
+    }
+}
+
+@Composable
+private fun ImportMenuRow(icon: Int, title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(34.dp).clip(RoundedCornerShape(11.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            SoundprintIcon(icon, null, Modifier.size(17.dp), tint = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(Modifier.width(11.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+            Text(subtitle, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        SoundprintIcon(SoundprintIcons.ChevronRight, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun GoogleDriveMark(modifier: Modifier = Modifier) {
+    androidx.compose.foundation.Canvas(modifier) {
+        val s = size.width / 24f
+        val green = Color(0xFF0F9D58)
+        val yellow = Color(0xFFFFBA00)
+        val blue = Color(0xFF4285F4)
+        val left = androidx.compose.ui.graphics.Path().apply {
+            moveTo(8f*s, 2f*s); lineTo(13f*s, 2f*s); lineTo(4f*s, 18f*s); lineTo(0f, 18f*s)
+            close()
+        }
+        val right = androidx.compose.ui.graphics.Path().apply {
+            moveTo(13f*s, 2f*s); lineTo(24f*s, 20f*s); lineTo(19f*s, 20f*s); lineTo(8f*s, 2f*s)
+            close()
+        }
+        val base = androidx.compose.ui.graphics.Path().apply {
+            moveTo(4f*s, 18f*s); lineTo(24f*s, 18f*s); lineTo(21f*s, 23f*s); lineTo(1f*s, 23f*s)
+            close()
+        }
+        drawPath(left, green)
+        drawPath(right, yellow)
+        drawPath(base, blue)
     }
 }
 
@@ -2502,16 +2746,20 @@ private fun SettingsScreen(
             }
             if (matches("audio gapless playback fade pause loudness leveling equalizer crossfade")) {
                 SettingsSection("AUDIO") {
+<<<<<<< HEAD
                     SettingsToggleRow("Gapless playback", "Seamless transitions between queued tracks", proAccess.entitled && gapless, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("gapless")), proFeature = true) {
                         if (!proAccess.entitled) proAccess.onOpenPro() else {
                             gapless = it
                             playbackPrefs.edit().putBoolean("gapless_enabled", it).apply()
                         }
                     }
+=======
+>>>>>>> 250c53d7d8655ffcee7d128d9236b708100d74b4
                     SettingsToggleRow("Fade on pause", "Short fade instead of an abrupt stop", fadeOnPause, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("fade"))) {
                         fadeOnPause = it
                         playbackPrefs.edit().putBoolean("fade_on_pause", it).apply()
                     }
+<<<<<<< HEAD
                     SettingsToggleRow("Loudness leveling", "Keep playback volume more consistent", proAccess.entitled && loudness, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("loudness")), proFeature = true) {
                         if (!proAccess.entitled) proAccess.onOpenPro() else {
                             loudness = it
@@ -2541,9 +2789,52 @@ private fun SettingsScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(if (seconds == 0) "Off" else "$seconds s", fontSize = 9.sp, fontWeight = if (proAccess.entitled && crossfade == seconds) FontWeight.SemiBold else FontWeight.Normal, color = if (proAccess.entitled && crossfade == seconds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+=======
+                    if (SoundprintProGate.isResolved && SoundprintProGate.hasPro) {
+                        SettingsToggleRow("Gapless playback · Pro", "Seamless transitions between queued tracks", gapless, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("gapless"))) {
+                            if (SoundprintProGate.require("Gapless playback")) {
+                                gapless = it
+                                playbackPrefs.edit().putBoolean("gapless_enabled", it).apply()
+                            }
+                        }
+                        SettingsToggleRow("Loudness leveling · Pro", "Keep playback volume more consistent", loudness, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("loudness"))) {
+                            if (SoundprintProGate.require("Pro Audio Lab")) {
+                                loudness = it
+                                playbackPrefs.edit().putBoolean("loudness_leveling", it).apply()
+                            }
+                        }
+                        SettingsActionRow("Pro Audio Lab", "Unlock the 10-band EQ, bass, treble and loudness controls", "Unlock", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("equalizer")), onClick = { SoundprintProGate.require("Pro Audio Lab") })
+                        SettingsValueRow("Crossfade · Pro", if (crossfade == 0) "Off" else "$crossfade seconds", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade")), controlBelow = true) {
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)).padding(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                listOf(0, 2, 4, 6, 8).forEach { seconds ->
+                                    val selected = crossfade == seconds
+                                    Box(
+                                        Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(11.dp))
+                                            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                                            .clickable {
+                                                if (SoundprintProGate.require("Gapless playback & crossfade")) {
+                                                    crossfade = seconds
+                                                    playbackPrefs.edit().putInt("crossfade_seconds", seconds).apply()
+                                                }
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(if (seconds == 0) "Off" else "$seconds s", fontSize = 11.sp,
+                                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+>>>>>>> 250c53d7d8655ffcee7d128d9236b708100d74b4
                                 }
                             }
                         }
+                    } else {
+                        SettingsActionRow("Gapless playback · Pro", "Seamless transitions between queued tracks", "Unlock", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("gapless")), onClick = { SoundprintProGate.require("Gapless playback") })
+                        SettingsActionRow("Loudness leveling · Pro", "Keep playback volume more consistent", "Unlock", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("loudness")), onClick = { SoundprintProGate.require("Pro Audio Lab") })
+                        SettingsActionRow("Pro Audio Lab", "Unlock the 10-band EQ, bass, treble and loudness controls", "Unlock", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("equalizer")), onClick = { SoundprintProGate.require("Pro Audio Lab") })
+                        SettingsActionRow("Crossfade · Pro", "Blend the end of one track into the next", "Unlock", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade")), onClick = { SoundprintProGate.require("Gapless playback & crossfade") })
                     }
                 }
             }
@@ -2562,11 +2853,17 @@ private fun SettingsScreen(
                         Text("Choose how far to skip when you double-tap the Now Playing artwork.", modifier = Modifier.padding(top = 3.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(10.dp))
                         val seekOptions = listOf(5, 10, 15, 20, 30, 45, 60)
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)).padding(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
                             seekOptions.chunked(4).forEach { rowOptions ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                                     rowOptions.forEach { seconds ->
+                                        val selected = seekSeconds == seconds
                                         Box(
+<<<<<<< HEAD
                                             Modifier.weight(1f).height(36.dp).clip(RoundedCornerShape(12.dp))
                                                 .background(if (seekSeconds == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
                                                 .border(
@@ -2576,10 +2873,15 @@ private fun SettingsScreen(
                                                     RoundedCornerShape(12.dp)
                                                 )
                                                 
+=======
+                                            Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(13.dp))
+                                                .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+>>>>>>> 250c53d7d8655ffcee7d128d9236b708100d74b4
                                                 .clickable { seekSeconds = seconds; playbackPrefs.edit().putInt("double_tap_seek_seconds", seconds).apply() },
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("$seconds s", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = if (seekSeconds == seconds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                            Text("$seconds s", fontSize = 12.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                     }
                                     repeat(4 - rowOptions.size) { Spacer(Modifier.weight(1f)) }
@@ -2615,22 +2917,32 @@ private fun SettingsScreen(
             }
             if (matches("music intelligence background mood scan offline clap analysis")) {
                 SettingsSection("MUSIC INTELLIGENCE") {
-                    SettingsToggleRow(
-                        "Scan entire library in background",
-                        "Automatically build and save mood profiles for your songs while Soundprint is open",
-                        backgroundMoodScan,
-                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("mood-scan"))
-                    ) { enabled ->
-                        backgroundMoodScan = enabled
-                        scanner.setAutoScanEnabled(enabled)
+                    if (SoundprintProGate.hasPro) {
+                        SettingsToggleRow(
+                            "Scan entire library in background · Pro",
+                            "Build offline mood profiles for personalized Discover recommendations",
+                            backgroundMoodScan,
+                            modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("mood-scan"))
+                        ) { enabled ->
+                            backgroundMoodScan = enabled
+                            scanner.setAutoScanEnabled(enabled)
+                        }
+                        ClapScanSettingsStatus(
+                            state = scanState,
+                            enabled = backgroundMoodScan,
+                            onStart = { if (SoundprintProGate.require("Discover music for your mood")) scanner.startScan(allowModelDownload = true) },
+                            onPause = { if (SoundprintProGate.require("Discover music for your mood")) scanner.pause() },
+                            onRetry = { if (SoundprintProGate.require("Discover music for your mood")) scanner.startScan(retryFailedOnly = true, allowModelDownload = true) }
+                        )
+                    } else {
+                        SettingsActionRow(
+                            "Mood discovery · Pro",
+                            "Analyze your library and discover songs by mood and activity",
+                            "Unlock",
+                            modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("mood-scan")),
+                            onClick = { SoundprintProGate.require("Discover music for your mood") }
+                        )
                     }
-                    ClapScanSettingsStatus(
-                        state = scanState,
-                        enabled = backgroundMoodScan,
-                        onStart = { scanner.startScan(allowModelDownload = true) },
-                        onPause = { scanner.pause() },
-                        onRetry = { scanner.startScan(retryFailedOnly = true, allowModelDownload = true) }
-                    )
                 }
             }
             if (matches("library custom artwork add music your music rescan folders audio tag editor playback history backup restore ignore clips clear library recycle bin")) {
@@ -2902,10 +3214,14 @@ private fun FolderAutoWatchSettingsRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f).padding(end = 8.dp)) {
+<<<<<<< HEAD
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Folder auto-watch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                     ProFeatureBadge()
                 }
+=======
+                Text("Folder auto-watch · Pro", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+>>>>>>> 250c53d7d8655ffcee7d128d9236b708100d74b4
                 val detail = if (folderName.isNullOrBlank()) {
                     "Choose a folder to check every 30 seconds while Soundprint is open."
                 } else {
@@ -2955,6 +3271,7 @@ private fun SettingsActionRow(
 }
 
 @Composable
+<<<<<<< HEAD
 private fun SettingsValueRow(label: String, description: String, modifier: Modifier = Modifier, proFeature: Boolean = false, control: @Composable () -> Unit) {
     Column(modifier) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -2963,9 +3280,31 @@ private fun SettingsValueRow(label: String, description: String, modifier: Modif
                     Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                     if (proFeature) ProFeatureBadge()
                 }
+=======
+private fun SettingsValueRow(
+    label: String,
+    description: String,
+    modifier: Modifier = Modifier,
+    controlBelow: Boolean = false,
+    control: @Composable () -> Unit
+) {
+    Column(modifier) {
+        if (controlBelow) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+>>>>>>> 250c53d7d8655ffcee7d128d9236b708100d74b4
                 Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(12.dp))
+                control()
             }
-            control()
+        } else {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(end = 6.dp)) {
+                    Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                    Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                control()
+            }
         }
         SettingsDivider()
     }
@@ -3011,6 +3350,7 @@ private fun MoodCountCard(label: String, value: String) {
 private fun ThemeChoice(modifier: Modifier, label: String, icon: Int?, selected: Boolean, onClick: () -> Unit) {
     Column(
         modifier = modifier.height(76.dp).clip(RoundedCornerShape(16.dp))
+<<<<<<< HEAD
             .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
             .border(
                 1.dp,
@@ -3018,12 +3358,15 @@ private fun ThemeChoice(modifier: Modifier, label: String, icon: Int?, selected:
                 else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
                 RoundedCornerShape(16.dp)
             )
+=======
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f))
+>>>>>>> 250c53d7d8655ffcee7d128d9236b708100d74b4
             .clickable(onClick = onClick).padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         if (icon != null) SoundprintIcon(icon, null, Modifier.size(20.dp), tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(label, modifier = Modifier.padding(top = if (icon == null) 0.dp else 6.dp), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+        Text(label, modifier = Modifier.padding(top = if (icon == null) 0.dp else 6.dp), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -3041,6 +3384,7 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
     }
     Row(
         modifier = modifier.height(76.dp).clip(RoundedCornerShape(16.dp))
+<<<<<<< HEAD
             .background(MaterialTheme.colorScheme.surface)
             .border(
                 1.dp,
@@ -3048,6 +3392,9 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
                 else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
                 RoundedCornerShape(16.dp)
             )
+=======
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f))
+>>>>>>> 250c53d7d8655ffcee7d128d9236b708100d74b4
             .clickable(onClick = onClick).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -3082,4 +3429,14 @@ private suspend fun <T> runScanWithoutSwallowingCancellation(block: suspend () -
     throw cancelled
 } catch (error: Exception) {
     Result.failure(error)
+}
+
+private fun disableProPlaybackOptions(context: android.content.Context) {
+    context.getSharedPreferences("soundprint_playback_options", 0).edit()
+        .putBoolean("gapless_enabled", false)
+        .putBoolean("loudness_leveling", false)
+        .putBoolean("stop_after_current", false)
+        .putInt("crossfade_seconds", 0)
+        .remove("sleep_ends_at")
+        .apply()
 }

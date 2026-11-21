@@ -132,6 +132,13 @@ fun SoundprintPlaylistsScreen(
     var selectedPlaylistId by remember { mutableStateOf<String?>(null) }
     var selectedSmartId by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
+        if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) {
+            editorOpen = false
+            selectedSmartId = null
+        }
+    }
+
     LaunchedEffect(Unit) { clapScanner.refreshSummary() }
     LaunchedEffect(scan.completed, scan.failed, scan.running, scan.lastCompletedTrackId, refreshVersion) {
         data = withContext(Dispatchers.IO) {
@@ -226,13 +233,7 @@ fun SoundprintPlaylistsScreen(
                         }
                         Text("Automatically updated from your listening and library", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Button(onClick = {
-                        if (!proAccess.entitled) proAccess.onOpenPro() else {
-                            editingId = null
-                            draft = freshSmartPlaylist()
-                            editorOpen = true
-                        }
-                    }, shape = CircleShape, contentPadding = ButtonDefaults.ContentPadding) {
+                    Button(onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true }, shape = CircleShape, contentPadding = ButtonDefaults.ContentPadding) {
                         SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("New smart playlist", fontSize = 11.sp, maxLines = 1)
@@ -246,9 +247,7 @@ fun SoundprintPlaylistsScreen(
                             .background(MaterialTheme.colorScheme.surface).padding(11.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(Modifier.weight(1f).clickable {
-                            if (!proAccess.entitled) proAccess.onOpenPro() else selectedSmartId = rule.id
-                        }, verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.weight(1f).clickable { selectedSmartId = rule.id }, verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
                                 SoundprintIcon(SoundprintIcons.ListMusic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             }
@@ -263,12 +262,15 @@ fun SoundprintPlaylistsScreen(
                         } else {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 SoundprintIcon(SoundprintIcons.Pencil, "Edit ${rule.name}", Modifier.size(17.dp).clip(CircleShape).clickable {
+                                    if (SoundprintProGate.require("Smart playlists")) {
                                     editingId = rule.id
                                     draft = rule.copy(groups = rule.groups.map { it.copy(conditions = it.conditions.toList()) })
                                     editorOpen = true
+                                    }
                                 }.padding(2.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(Modifier.width(8.dp))
                                 SoundprintIcon(SoundprintIcons.Copy, "Duplicate ${rule.name}", Modifier.size(17.dp).clickable {
+                                    if (SoundprintProGate.require("Smart playlists")) {
                                     val copy = rule.copy(
                                         id = UUID.randomUUID().toString(),
                                         name = "${rule.name} copy",
@@ -277,12 +279,15 @@ fun SoundprintPlaylistsScreen(
                                     )
                                     libraryManager.saveSmartPlaylist(copy)
                                     refreshVersion++
+                                    }
                                 }, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(Modifier.width(8.dp))
-                                SoundprintIcon(SoundprintIcons.Trash2, "Delete ${rule.name}", Modifier.size(17.dp).clickable {
-                                    libraryManager.deleteSmartPlaylist(rule.id)
-                                    refreshVersion++
-                                }, tint = MaterialTheme.colorScheme.error)
+                                SoundprintIcon(SoundprintIcons.Trash2, "Delete ${rule.name}", Modifier.size(17.dp).clip(RoundedCornerShape(8.dp)).clickable {
+                                    if (SoundprintProGate.require("Smart playlists")) {
+                                        libraryManager.deleteSmartPlaylist(rule.id)
+                                        refreshVersion++
+                                    }
+                                }.padding(4.dp), tint = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
