@@ -79,27 +79,23 @@ private val freeFeatures = listOf(
 )
 
 @Composable
-fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, trialEndsAt: String? = null, entitlementSource: String? = null,
-              onStartTrial: (() -> Unit)? = null, onClaimFounder: (() -> Unit)? = null,
+fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, entitlementSource: String? = null,
+              onClaimFounder: (() -> Unit)? = null,
               founderRemaining: Int = 0, founderCapacity: Int = 100, founderOfferEnabled: Boolean = false, founderMessage: String? = null,
-              trialClaimed: Boolean = false, signedIn: Boolean = false, onSignIn: (() -> Unit)? = null) {
+              signedIn: Boolean = false, onSignIn: (() -> Unit)? = null) {
     Column(Modifier.fillMaxSize()) {
         ProPageHeader(onBack)
         Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)) {
             if (entitled) {
-                ProActiveCard(trialEndsAt, entitlementSource)
-                if (entitlementSource == "trial") {
-                    ProFounderOffer(onClaimFounder, founderRemaining, founderCapacity, founderOfferEnabled, founderMessage, signedIn, onSignIn)
-                }
+                ProActiveCard(entitlementSource)
                 ProTutorialSection()
                 ProFeaturesGrid()
             } else {
                 ProHero()
                 ProFounderOffer(onClaimFounder, founderRemaining, founderCapacity, founderOfferEnabled, founderMessage, signedIn, onSignIn)
                 ProPlans()
-                ProTrialCard(onStartTrial, trialClaimed, signedIn, onSignIn)
                 ProTutorialSection()
                 ProFreeFeatures()
                 ProFeaturesGrid()
@@ -226,40 +222,6 @@ private fun ProPlanCard(title: String, price: String, cadence: String, descripti
 }
 
 @Composable
-private fun ProTrialCard(onStartTrial: (() -> Unit)?, trialClaimed: Boolean, signedIn: Boolean, onSignIn: (() -> Unit)?) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surface)
-        .padding(16.dp)) {
-        Row(verticalAlignment = Alignment.Top) {
-            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center) {
-                SoundprintIcon(SoundprintIcons.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
-            }
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("Try Pro for 14 days", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                Text("Try the Pro features without entering payment details. This trial does not auto-renew and will not charge you. One trial per account.",
-                    modifier = Modifier.padding(top = 5.dp), fontSize = 11.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        Text(when {
-            trialClaimed -> "This account has already used its one-time trial."
-            onStartTrial == null -> "A verified Soundprint account is required to start the trial."
-            else -> "Start your one-time trial below. No payment details are needed and it will not auto-renew."
-        },
-            modifier = Modifier.fillMaxWidth().padding(top = 13.dp).clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.background).padding(12.dp),
-            fontSize = 11.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Button(
-            onClick = { if (!signedIn) onSignIn?.invoke() else onStartTrial?.invoke() },
-            enabled = if (!signedIn) onSignIn != null else onStartTrial != null && !trialClaimed,
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-            shape = RoundedCornerShape(50.dp)
-        ) {
-            Text(if (trialClaimed) "Free trial already used" else if (!signedIn) "Sign in to start your trial" else "Start 14-day free trial")
-        }
-    }
-}
-
-@Composable
 private fun ProTutorialSection() {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surface)
         .padding(16.dp),
@@ -342,7 +304,7 @@ private fun ProFeaturesGrid() {
 }
 
 @Composable
-private fun ProActiveCard(trialEndsAt: String?, entitlementSource: String?) {
+private fun ProActiveCard(entitlementSource: String?) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surface)
         .padding(18.dp)) {
         Row(Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)).padding(horizontal = 12.dp, vertical = 7.dp),
@@ -352,18 +314,11 @@ private fun ProActiveCard(trialEndsAt: String?, entitlementSource: String?) {
             Text("Pro active", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
         }
         Text(
-            when {
-                trialEndsAt != null -> "Your 14-day Pro trial is active"
-                entitlementSource == "founder" -> "Founder Access is active"
-                else -> "Welcome to Soundprint Pro"
-            },
+            if (entitlementSource == "founder") "Founder Access is active" else "Welcome to Soundprint Pro",
             modifier = Modifier.padding(top = 16.dp), fontSize = 23.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
         Text(
-            when {
-                trialEndsAt != null -> "Your no-payment trial ends $trialEndsAt. No charge will be made, and access ends when the trial expires."
-                entitlementSource == "founder" -> "Your lifetime Founder Access is active on this account. Sign in on your other devices to use Pro."
-                else -> "Your Pro entitlement is active on this account. Sign in on your other devices to access your account benefits."
-            },
+            if (entitlementSource == "founder") "Your lifetime Founder Access is active on this account. Sign in on your other devices to use Pro."
+            else "Your Pro entitlement is active on this account. Sign in on your other devices to access your account benefits.",
             modifier = Modifier.padding(top = 8.dp), fontSize = 12.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
