@@ -319,7 +319,6 @@ internal fun SoundprintAccountScreen(
             busy = true
             message = "Opening Google sign-in…"
             messageError = false
-            var handedOffToFallback = false
             try {
                 val activity = context.findActivity()
                     ?: error("Google sign-in needs an active Android screen. Close and reopen SoundPrint, then try again.")
@@ -355,31 +354,11 @@ internal fun SoundprintAccountScreen(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: NoCredentialException) {
-                // Credential Manager found no eligible credential. Open the account
-                // picker fallback so users can choose from Google accounts on-device.
-                val activity = context.findActivity()
-                    ?: error("Google sign-in needs an active Android screen.")
-                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                    .requestEmail()
-                    .requestIdToken(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
-                    .build()
-                val client = GoogleSignIn.getClient(activity, options)
-                handedOffToFallback = true
-                message = "Opening Google sign-in…"
-                messageError = false
-                googleFallbackLauncher.launch(client.signInIntent)
+                message = "No eligible Google account was found on this device. Add a Google account in Android settings, then try again."
+                messageError = true
             } catch (error: GetCredentialProviderConfigurationException) {
-                val activity = context.findActivity()
-                    ?: error("Google sign-in needs an active Android screen.")
-                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                    .requestEmail()
-                    .requestIdToken(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
-                    .build()
-                val client = GoogleSignIn.getClient(activity, options)
-                handedOffToFallback = true
-                message = "Opening Google sign-in…"
-                messageError = false
-                googleFallbackLauncher.launch(client.signInIntent)
+                message = "Google sign-in is unavailable on this device. Check Google Play services and try again."
+                messageError = true
             } catch (error: GetCredentialException) {
                 message = when (error) {
                     is androidx.credentials.exceptions.GetCredentialCancellationException ->

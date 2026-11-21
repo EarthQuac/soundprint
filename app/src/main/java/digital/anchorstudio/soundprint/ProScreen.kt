@@ -391,6 +391,6 @@ private fun ProScreenActivePreview() {
             outlineVariant = Color(0xFF34333D)
         )
     ) {
-        ProScreen(onBack = {}, entitled = true, trialEndsAt = "2 December")
+        ProScreen(onBack = {}, entitled = true, entitlementSource = "trial")
     }
 }

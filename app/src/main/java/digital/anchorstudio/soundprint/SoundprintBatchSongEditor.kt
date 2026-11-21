@@ -53,7 +53,7 @@ internal fun SoundprintSongsLibraryScreen(
     onOpenTwinSense: () -> Unit,
     onBack: () -> Unit
 ) {
-    val proAccess = LocalSoundprintProAccess.current
+    val proAccess = LocalSoundprintProUiAccess.current
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
     var tracks by remember { mutableStateOf(emptyList<MusicTrack>()) }

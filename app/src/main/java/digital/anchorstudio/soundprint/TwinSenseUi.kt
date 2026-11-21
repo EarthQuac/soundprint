@@ -62,7 +62,7 @@ internal fun SongsLibraryScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val proAccess = LocalSoundprintProAccess.current
+    val proAccess = LocalSoundprintProUiAccess.current
     val scope = rememberCoroutineScope()
     val scanner = remember(context, library) { TwinSenseScanner(context.applicationContext, library) }
     var songs by remember { mutableStateOf<List<MusicTrack>>(emptyList()) }

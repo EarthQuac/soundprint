@@ -17,16 +17,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-internal data class SoundprintProAccess(
+internal data class SoundprintProUiAccess(
     val entitled: Boolean = false,
     val onOpenPro: () -> Unit = {}
 )
 
-internal val LocalSoundprintProAccess = staticCompositionLocalOf { SoundprintProAccess() }
+internal val LocalSoundprintProUiAccess = staticCompositionLocalOf { SoundprintProUiAccess() }
 
 @Composable
 internal fun ProFeatureBadge(modifier: Modifier = Modifier) {
-    val access = LocalSoundprintProAccess.current
+    val access = LocalSoundprintProUiAccess.current
     if (!access.entitled) {
         Surface(
             modifier = modifier.clip(CircleShape).clickable(onClick = access.onOpenPro),
