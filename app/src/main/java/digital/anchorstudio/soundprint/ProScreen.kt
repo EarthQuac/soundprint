@@ -81,7 +81,7 @@ private val freeFeatures = listOf(
 @Composable
 fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, trialEndsAt: String? = null,
               onStartTrial: (() -> Unit)? = null, onClaimFounder: (() -> Unit)? = null,
-              founderRemaining: Int = 100, founderOfferEnabled: Boolean = true, founderMessage: String? = null) {
+              founderRemaining: Int = 0, founderOfferEnabled: Boolean = false, founderMessage: String? = null) {
     Column(Modifier.fillMaxSize()) {
         ProPageHeader(onBack)
         Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
