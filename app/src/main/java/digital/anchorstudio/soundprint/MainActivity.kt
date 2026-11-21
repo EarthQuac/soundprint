@@ -915,6 +915,12 @@ private fun SoundprintApp(
                                     proMessage = "Checking eligibility and claiming your founder spot…"
                                     runCatching { SoundprintProAccess.claimFounder() }
                                         .onSuccess { result ->
+                                            if (result.optBoolean("claimed") || result.optBoolean("already_entitled")) {
+                                                val source = result.optString("source").takeUnless { it == "null" }
+                                                proStatus = proStatus.copy(hasPro = true, source = source, isFounder = source == "founder")
+                                                SoundprintProGate.hasPro = true
+                                                SoundprintProGate.isResolved = true
+                                            }
                                             runCatching { SoundprintProAccess.refresh() }
                                                 .onSuccess { proStatus = it; SoundprintProGate.hasPro = it.hasPro }
                                             proMessage = when {
