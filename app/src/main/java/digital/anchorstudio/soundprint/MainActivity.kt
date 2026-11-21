@@ -796,11 +796,15 @@ private fun SoundprintApp(
     var proOpen by remember { mutableStateOf(false) }
     var proStatus by remember { mutableStateOf(SoundprintProStatus()) }
     var proMessage by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        runCatching { SoundprintProAccess.refresh() }
+            .onSuccess { proStatus = it; SoundprintProGate.hasPro = it.hasPro }
+    }
     LaunchedEffect(proOpen) {
         if (proOpen) {
             proMessage = null
             runCatching { SoundprintProAccess.refresh() }
-                .onSuccess { proStatus = it }
+                .onSuccess { proStatus = it; SoundprintProGate.hasPro = it.hasPro }
                 .onFailure { proMessage = it.message ?: "Could not verify Pro access. Try again." }
         }
     }
@@ -906,7 +910,7 @@ private fun SoundprintApp(
                                     runCatching { SoundprintProAccess.claimFounder() }
                                         .onSuccess { result ->
                                             runCatching { SoundprintProAccess.refresh() }
-                                                .onSuccess { proStatus = it }
+                                                .onSuccess { proStatus = it; SoundprintProGate.hasPro = it.hasPro }
                                             proMessage = when {
                                                 result.optBoolean("already_entitled") -> "This account already has active Pro access."
                                                 result.optBoolean("claimed") -> "Founder Access claimed. Lifetime Pro is now active on this account."
@@ -1064,6 +1068,28 @@ private fun SoundprintApp(
                     }
                 }
             }
+        }
+        SoundprintProGate.lockedFeature?.let { feature ->
+            AlertDialog(
+                onDismissRequest = { SoundprintProGate.lockedFeature = null },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(9.dp))
+                        Text("$feature is a Pro feature")
+                    }
+                },
+                text = { Text("Unlock Soundprint Pro to use $feature. Your music library and basic playback stay free.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        SoundprintProGate.lockedFeature = null
+                        proOpen = true
+                    }) { Text("Explore Pro") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { SoundprintProGate.lockedFeature = null }) { Text("Not now") }
+                }
+            )
         }
         resumePrompt?.let { prompt ->
             AlertDialog(
