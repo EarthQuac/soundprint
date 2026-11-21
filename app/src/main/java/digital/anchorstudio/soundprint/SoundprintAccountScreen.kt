@@ -193,7 +193,6 @@ internal fun SoundprintAccountScreen(
                 readTimeout = 20_000
                 doOutput = true
                 setRequestProperty("apikey", SoundprintSupabase.PUBLISHABLE_KEY)
-                setRequestProperty("Authorization", "Bearer ${SoundprintSupabase.PUBLISHABLE_KEY}")
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("Accept", "application/json")
             }
