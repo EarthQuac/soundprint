@@ -582,10 +582,10 @@ fun SoundprintLyricsPanel(
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
                 ) { Text(if (expanded) "Show less" else "Show more", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary) }
 
-                if (lines.isNotEmpty()) {
+                if (lines.isNotEmpty() && SoundprintProGate.hasPro) {
                     Column(
-                        Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.background.copy(alpha = .72f)).padding(12.dp),
+                        Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .72f)).padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -648,6 +648,21 @@ fun SoundprintLyricsPanel(
                             OutlinedButton(onClick = { changeOffset(-syncOffset) }, shape = CircleShape, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp)) { Text("Reset", fontSize = 11.sp) }
                             Spacer(Modifier.width(6.dp))
                             OutlinedButton(onClick = { changeOffset(.5f) }, shape = CircleShape, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp)) { Text("+0.5s", fontSize = 11.sp) }
+                        }
+                    }
+                } else if (lines.isNotEmpty()) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .72f)).padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Synced lyrics & karaoke · Pro", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Follow lyrics in time with the song, align timing and open the karaoke view.", modifier = Modifier.padding(top = 4.dp),
+                                fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Button(onClick = { SoundprintProGate.require("Synced lyrics & karaoke") }, modifier = Modifier.padding(start = 10.dp)) {
+                            SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(15.dp))
                         }
                     }
                 }
