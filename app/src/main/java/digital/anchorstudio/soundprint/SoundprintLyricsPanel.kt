@@ -547,14 +547,14 @@ fun SoundprintLyricsPanel(
                     Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Synced lyrics · ${lines.size} lines", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         TextButton(
-                            onClick = { openKaraoke() },
+                            onClick = { if (SoundprintProGate.require("Synced lyrics & karaoke")) openKaraoke() },
                             enabled = !karaokeLoading,
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             if (karaokeLoading) CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.8.dp)
                             else SoundprintIcon(SoundprintIcons.Maximize, null, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text(if (karaokeLoading) "Finding timed lyrics…" else "Karaoke mode", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(if (karaokeLoading) "Finding timed lyrics…" else "Karaoke mode · Pro", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 } else {
