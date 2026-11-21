@@ -794,6 +794,16 @@ private fun SoundprintApp(
     }
     var statsOpen by remember { mutableStateOf(false) }
     var proOpen by remember { mutableStateOf(false) }
+    var proStatus by remember { mutableStateOf(SoundprintProStatus()) }
+    var proMessage by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(proOpen) {
+        if (proOpen) {
+            proMessage = null
+            runCatching { SoundprintProAccess.refresh() }
+                .onSuccess { proStatus = it }
+                .onFailure { proMessage = it.message ?: "Could not verify Pro access. Try again." }
+        }
+    }
     var nowPlayingOpen by remember { mutableStateOf(false) }
     var tagEditorOpen by remember { mutableStateOf(false) }
     var resumePrompt by remember { mutableStateOf<PlaybackResumePrompt?>(null) }
@@ -884,7 +894,30 @@ private fun SoundprintApp(
                             onBack = { tagEditorOpen = false; settingsOpen = true },
                             onExportMp3 = onExportTaggedMp3
                         )
-                        "pro" -> ProScreen(onBack = { proOpen = false })
+                        "pro" -> ProScreen(
+                            onBack = { proOpen = false },
+                            entitled = proStatus.hasPro,
+                            founderRemaining = proStatus.founderRemaining,
+                            founderOfferEnabled = proStatus.founderOfferEnabled,
+                            founderMessage = proMessage,
+                            onClaimFounder = {
+                                screenScope.launch {
+                                    proMessage = "Checking eligibility and claiming your founder spot…"
+                                    runCatching { SoundprintProAccess.claimFounder() }
+                                        .onSuccess { result ->
+                                            runCatching { SoundprintProAccess.refresh() }
+                                                .onSuccess { proStatus = it }
+                                            proMessage = when {
+                                                result.optBoolean("already_entitled") -> "This account already has active Pro access."
+                                                result.optBoolean("claimed") -> "Founder Access claimed. Lifetime Pro is now active on this account."
+                                                result.optString("reason") == "sold_out" -> "All founder spots have been claimed."
+                                                else -> "Founder Access could not be claimed. Please check eligibility and try again."
+                                            }
+                                        }
+                                        .onFailure { proMessage = it.message ?: "Founder Access could not be claimed. Please try again." }
+                                }
+                            }
+                        )
                         "stats" -> ListeningStatsScreen(libraryManager = libraryManager, onBack = { statsOpen = false })
                         "account" -> SoundprintAccountScreen(
                             onBack = { accountOpen = false },
