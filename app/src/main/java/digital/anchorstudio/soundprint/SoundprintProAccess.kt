@@ -122,6 +122,7 @@ internal object SoundprintProGate {
     fun updateEntitlement(entitled: Boolean) {
         hasPro = entitled
         isResolved = true
+        if (entitled) lockedFeature = null
     }
 
     fun require(feature: String): Boolean {
