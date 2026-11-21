@@ -185,6 +185,35 @@ internal fun SoundprintAccountScreen(
         }
     }
 
+    suspend fun checkAccountExistsForRecovery(requestedEmail: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            val connection = (URL("${SoundprintSupabase.SUPABASE_URL}/rest/v1/rpc/soundprint_account_exists_for_recovery").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 15_000
+                readTimeout = 20_000
+                doOutput = true
+                setRequestProperty("apikey", SoundprintSupabase.PUBLISHABLE_KEY)
+                setRequestProperty("Authorization", "Bearer ${SoundprintSupabase.PUBLISHABLE_KEY}")
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+            }
+            try {
+                val payload = buildJsonObject { put("p_email", requestedEmail.trim().lowercase()) }.toString()
+                connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+                val status = connection.responseCode
+                val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                if (status !in 200..299) {
+                    error("We couldn't check your account right now. Please try again. ($status)")
+                }
+                body.trim().toBooleanStrictOrNull()
+                    ?: error("We couldn't verify your account status. Please try again.")
+            } finally {
+                connection.disconnect()
+            }
+        }
+    }
+
     suspend fun callDeleteAccountFunction(payload: String): String {
         val accessToken = supabase.auth.currentAccessTokenOrNull()
             ?: error("Your session has expired. Sign in again and restart account deletion.")
@@ -751,16 +780,26 @@ internal fun SoundprintAccountScreen(
                                 message = "Enter the email address on your account."
                                 messageError = true
                             } else perform {
-                                supabase.auth.resetPasswordForEmail(
-                                    email = email.trim(),
-                                    redirectUrl = SoundprintSupabase.PASSWORD_RESET_REDIRECT
-                                )
-                                otpIsRecovery = false
-                                otpIsSignup = false
-                                otpRequested = false
-                                otpCode = ""
-                                message = "If an account exists for that address, a secure password reset link has been sent to your inbox."
-                                messageError = false
+                                val requestedEmail = email.trim().lowercase()
+                                if (!checkAccountExistsForRecovery(requestedEmail)) {
+                                    otpIsRecovery = false
+                                    otpIsSignup = false
+                                    otpRequested = false
+                                    otpCode = ""
+                                    message = "Account not found in database. Please sign up."
+                                    messageError = true
+                                } else {
+                                    supabase.auth.resetPasswordForEmail(
+                                        email = requestedEmail,
+                                        redirectUrl = SoundprintSupabase.PASSWORD_RESET_REDIRECT
+                                    )
+                                    otpIsRecovery = false
+                                    otpIsSignup = false
+                                    otpRequested = false
+                                    otpCode = ""
+                                    message = "If an account exists for that address, a secure password reset link has been sent to your inbox."
+                                    messageError = false
+                                }
                             }
                             "sign-up" -> if (!email.contains("@") || password.length < 8 || password != confirmPassword) {
                                 message = "Enter a valid email, matching passwords and at least 8 password characters."
