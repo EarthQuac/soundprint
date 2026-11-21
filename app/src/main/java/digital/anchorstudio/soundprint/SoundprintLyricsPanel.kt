@@ -186,7 +186,7 @@ fun SoundprintLyricsPanel(
     }
 
     LaunchedEffect(SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
-        if (SoundprintProGate.isResolved && !SoundprintProGate.hasPro) karaokeMode = false
+        if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) karaokeMode = false
     }
 
     LaunchedEffect(trackId) {
