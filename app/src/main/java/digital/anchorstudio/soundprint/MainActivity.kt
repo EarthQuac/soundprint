@@ -816,9 +816,15 @@ private fun SoundprintApp(
     }
     LaunchedEffect(proOpen) {
         if (proOpen) {
-            proMessage = null
+            proMessage = "Checking Founder Access availability…"
             runCatching { SoundprintProAccess.refresh() }
-                .onSuccess { proStatus = it; SoundprintProGate.hasPro = it.hasPro }
+                .onSuccess {
+                    proStatus = it
+                    SoundprintProGate.hasPro = it.hasPro
+                    SoundprintProGate.isResolved = true
+                    if (!it.hasPro) disableProPlaybackOptions(appContext)
+                    proMessage = null
+                }
                 .onFailure { proMessage = it.message ?: "Could not verify Pro access. Try again." }
         }
     }
