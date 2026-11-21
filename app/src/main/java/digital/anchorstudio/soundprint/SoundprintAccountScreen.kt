@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -873,70 +872,6 @@ private fun AccountIntroPanel(title: String, description: String, icon: Int) {
         Text(description, fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
-
-@Preview(showBackground = true, backgroundColor = 0xFF090A0D, name = "SoundPrint account · Lavender")
-@Composable
-private fun SoundprintAccountDesignPreview() {
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = Color(0xFFC4B5FD),
-            onPrimary = Color(0xFF171321),
-            background = Color(0xFF090A0D),
-            surface = Color(0xFF14141B),
-            onSurface = Color(0xFFF5F5F6),
-            surfaceVariant = Color(0xFF211E2B),
-            onSurfaceVariant = Color(0xFFA5A5B2),
-            outline = Color(0xFF2A2933)
-        )
-    ) {
-        Column(
-            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            AccountIntroPanel(
-                title = "Sign in to SoundPrint",
-                description = "Your music library stays on this device. Sign in to manage your SoundPrint identity.",
-                icon = SoundprintIcons.AudioWaveform
-            )
-            AccountPanel {
-                OutlinedButton(
-                    onClick = {},
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Text("G", color = Color(0xFF4285F4), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Spacer(Modifier.width(10.dp))
-                    Text("Continue with Google", fontWeight = FontWeight.SemiBold)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .55f))
-                    Text("OR CONTINUE WITH EMAIL", Modifier.padding(horizontal = 12.dp), fontSize = 9.sp, letterSpacing = 1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .55f))
-                }
-                OutlinedTextField(
-                    value = "listener@example.com",
-                    onValueChange = {},
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Email address") },
-                    leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = "password123",
-                    onValueChange = {},
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Password") },
-                    leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) },
-                    visualTransformation = PasswordVisualTransformation(),
-                    singleLine = true
-                )
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("Sign in") }
-                Text("Forgot password?", Modifier.align(Alignment.CenterHorizontally), color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
-            }
-        }
-    }
-}
-
 
 private fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
