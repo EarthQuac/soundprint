@@ -933,11 +933,34 @@ private fun SoundprintApp(
                         "pro" -> ProScreen(
                             onBack = { proOpen = false },
                             entitled = proStatus.hasPro,
+                            trialEndsAt = proStatus.expiresAt.takeIf { proStatus.source == "trial" },
+                            trialClaimed = proStatus.trialClaimed,
                             founderRemaining = proStatus.founderRemaining,
+                            founderCapacity = proStatus.founderCapacity,
                             founderOfferEnabled = proStatus.founderOfferEnabled,
                             founderMessage = proMessage,
                             signedIn = SoundprintProAccess.hasSession(),
                             onSignIn = { proOpen = false; accountOpen = true },
+                            onStartTrial = {
+                                screenScope.launch {
+                                    proMessage = "Starting your 14-day trial…"
+                                    runCatching { SoundprintProAccess.startTrial() }
+                                        .onSuccess { result ->
+                                            runCatching { SoundprintProAccess.refresh() }
+                                                .onSuccess {
+                                                    proStatus = it
+                                                    SoundprintProGate.updateEntitlement(it.hasPro)
+                                                }
+                                            proMessage = when {
+                                                result.optBoolean("started") -> "Your 14-day Pro trial is now active."
+                                                result.optBoolean("already_entitled") -> "This account already has active Pro access."
+                                                result.optString("reason") == "trial_already_used" -> "This account has already used its free trial."
+                                                else -> "The free trial could not be started. Please try again."
+                                            }
+                                        }
+                                        .onFailure { proMessage = it.message ?: "The free trial could not be started." }
+                                }
+                            },
                             onClaimFounder = {
                                 screenScope.launch {
                                     proMessage = "Checking eligibility and claiming your founder spot…"
