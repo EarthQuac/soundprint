@@ -3,6 +3,7 @@ package digital.anchorstudio.soundprint
 import android.os.Bundle
 import android.app.Activity
 import io.github.jan.supabase.auth.handleDeeplinks
+import io.github.jan.supabase.auth.auth
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -796,14 +797,15 @@ private fun SoundprintApp(
     var proOpen by remember { mutableStateOf(false) }
     var proStatus by remember { mutableStateOf(SoundprintProStatus()) }
     var proMessage by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) {
-        repeat(12) {
-            if (SoundprintProAccess.hasSession()) {
-                runCatching { SoundprintProAccess.refresh() }
-                    .onSuccess { proStatus = it; SoundprintProGate.hasPro = it.hasPro; SoundprintProGate.isResolved = true }
-                return@LaunchedEffect
-            }
-            delay(500L)
+    val authSessionState by SoundprintSupabase.client.auth.sessionStatus.collectAsState()
+    LaunchedEffect(authSessionState) {
+        if (SoundprintProAccess.hasSession()) {
+            runCatching { SoundprintProAccess.refresh() }
+                .onSuccess { proStatus = it; SoundprintProGate.hasPro = it.hasPro; SoundprintProGate.isResolved = true }
+        } else {
+            proStatus = SoundprintProStatus()
+            SoundprintProGate.hasPro = false
+            SoundprintProGate.isResolved = true
         }
     }
     LaunchedEffect(proOpen) {
