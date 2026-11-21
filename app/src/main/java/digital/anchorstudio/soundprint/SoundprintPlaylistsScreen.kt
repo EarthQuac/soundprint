@@ -119,7 +119,7 @@ fun SoundprintPlaylistsScreen(
     playback: SoundprintPlaybackConnection,
     clapScanner: ClapLibraryScanner
 ) {
-    val proAccess = LocalSoundprintProAccess.current
+    val proAccess = LocalSoundprintProUiAccess.current
     val scan by clapScanner.state.collectAsState()
     var refreshVersion by remember { mutableIntStateOf(0) }
     var data by remember { mutableStateOf<PlaylistPageData?>(null) }
