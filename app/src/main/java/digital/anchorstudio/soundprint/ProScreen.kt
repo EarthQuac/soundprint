@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -90,10 +91,12 @@ fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, entitlementSource: 
             verticalArrangement = Arrangement.spacedBy(24.dp)) {
             if (entitled) {
                 ProActiveCard(entitlementSource)
+                if (!signedIn && onSignIn != null) ProSignInButton(onSignIn)
                 ProTutorialSection()
                 ProFeaturesGrid()
             } else {
                 ProHero()
+                if (!signedIn && onSignIn != null) ProSignInButton(onSignIn)
                 ProFounderOffer(onClaimFounder, founderRemaining, founderCapacity, founderOfferEnabled, founderMessage, signedIn, onSignIn)
                 ProPlans()
                 ProTutorialSection()
@@ -144,6 +147,19 @@ private fun ProHero() {
                     .padding(horizontal = 11.dp, vertical = 7.dp), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+}
+
+@Composable
+private fun ProSignInButton(onSignIn: () -> Unit) {
+    OutlinedButton(
+        onClick = onSignIn,
+        modifier = Modifier.fillMaxWidth().height(46.dp),
+        shape = RoundedCornerShape(50.dp)
+    ) {
+        SoundprintIcon(SoundprintIcons.UserRound, null, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Sign in to Soundprint", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -292,7 +308,7 @@ private fun ProFeaturesGrid() {
                 verticalAlignment = Alignment.Top) {
                 Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
                     contentAlignment = Alignment.Center) {
-                    SoundprintIcon(feature.icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
+                    SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
                 }
                 Column(Modifier.weight(1f).padding(start = 11.dp)) {
                     Text(feature.title, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
