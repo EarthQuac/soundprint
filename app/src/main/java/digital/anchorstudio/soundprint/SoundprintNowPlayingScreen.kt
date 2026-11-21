@@ -218,7 +218,6 @@ fun SoundprintNowPlayingScreen(
     val playbackOptionsPrefs = remember { context.getSharedPreferences("soundprint_playback_options", 0) }
     var sleepRemaining by remember { mutableLongStateOf(0L) }
     var lyricsExpanded by remember { mutableStateOf(false) }
-    var auraNotice by remember { mutableStateOf(false) }
     var aura by remember { mutableStateOf(false) }
     var auraPreset by remember { mutableStateOf("Auto") }
     var audioLabOpen by remember { mutableStateOf(false) }
@@ -256,7 +255,6 @@ fun SoundprintNowPlayingScreen(
         if (SoundprintProGate.isResolved && !SoundprintProGate.hasPro) {
             audioLabOpen = false
             sleepOpen = false
-            auraNotice = false
             aura = false
             gapless = false
             loudness = false
@@ -1038,12 +1036,26 @@ fun SoundprintNowPlayingScreen(
                 }
             } else {
                 Text("Gapless playback, crossfade and loudness leveling are Pro features.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedButton(onClick = { SoundprintProGate.require("Gapless playback & crossfade") }) { Text("Unlock playback controls with Pro") }
+                Button(
+                    onClick = { SoundprintProGate.require("Gapless playback & crossfade") },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface)
+                ) {
+                    SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(15.dp))
+                    Spacer(Modifier.width(7.dp))
+                    Text("Unlock playback controls with Pro")
+                }
             }
             if (SoundprintProGate.hasPro) {
                 PlayerToggle("Stop after this song", "Pause at the end of the current track", stopAfterCurrent) { stopAfterCurrent = it }
             } else {
-                TextButton(onClick = { SoundprintProGate.require("Enhanced sleep controls") }) { Text("Stop after this song · Pro") }
+                Button(
+                    onClick = { SoundprintProGate.require("Enhanced sleep controls") },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface)
+                ) {
+                    SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(15.dp))
+                    Spacer(Modifier.width(7.dp))
+                    Text("Stop after this song · Pro")
+                }
             }
         }
     }
