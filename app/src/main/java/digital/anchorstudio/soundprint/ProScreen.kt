@@ -90,6 +90,9 @@ fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, trialEndsAt: String
             verticalArrangement = Arrangement.spacedBy(24.dp)) {
             if (entitled) {
                 ProActiveCard(trialEndsAt, entitlementSource)
+                if (entitlementSource == "trial") {
+                    ProFounderOffer(onClaimFounder, founderRemaining, founderCapacity, founderOfferEnabled, founderMessage, signedIn, onSignIn)
+                }
                 ProTutorialSection()
                 ProFeaturesGrid()
             } else {
