@@ -1429,10 +1429,11 @@ private fun HomeScreen(
     }
 
     playlistTrack?.let { track ->
-        AlertDialog(
+        SoundprintDialog(
+            title = "Add to playlist",
+            icon = SoundprintIcons.ListMusic,
             onDismissRequest = { playlistTrack = null },
-            title = { Text("Add to playlist") },
-            text = {
+            content = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (playlistChoices.isEmpty()) {
                         Text("You don't have a playlist yet. Create one below to add this song.")
@@ -1452,7 +1453,6 @@ private fun HomeScreen(
                             }
                         }
                     }
-                    Spacer(Modifier.height(0.dp))
                     androidx.compose.material3.OutlinedTextField(
                         value = newPlaylistName,
                         onValueChange = { newPlaylistName = it },
@@ -1462,7 +1462,8 @@ private fun HomeScreen(
                     )
                 }
             },
-            confirmButton = {
+            actions = {
+                TextButton(onClick = { playlistTrack = null }) { Text("Cancel") }
                 TextButton(
                     enabled = newPlaylistName.isNotBlank(),
                     onClick = {
@@ -1471,17 +1472,17 @@ private fun HomeScreen(
                         playlistTrack = null
                         refreshVersion++
                     }
-                ) { Text("Create and add") }
-            },
-            dismissButton = { TextButton(onClick = { playlistTrack = null }) { Text("Cancel") } }
+                ) { Text("Create and add", fontWeight = FontWeight.SemiBold) }
+            }
         )
     }
 
     editTrack?.let { track ->
-        AlertDialog(
+        SoundprintDialog(
+            title = "Edit song information",
+            icon = SoundprintIcons.Pencil,
             onDismissRequest = { editTrack = null },
-            title = { Text("Edit song information") },
-            text = {
+            content = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     androidx.compose.material3.OutlinedTextField(editTitle, { editTitle = it }, label = { Text("Title") }, singleLine = true)
                     androidx.compose.material3.OutlinedTextField(editArtist, { editArtist = it }, label = { Text("Artist") }, singleLine = true)
@@ -1489,36 +1490,38 @@ private fun HomeScreen(
                     SoundprintGenreMenu(value = editGenre, suggestions = editGenreSuggestions, onSelect = { editGenre = it })
                 }
             },
-            confirmButton = {
+            actions = {
+                TextButton(onClick = { editTrack = null }) { Text("Cancel") }
                 TextButton(onClick = {
                     libraryManager.updateSongMetadata(track.id, editTitle, editArtist, editAlbum, editGenre)
                     editTrack = null
                     refreshVersion++
-                }) { Text("Save changes") }
-            },
-            dismissButton = { TextButton(onClick = { editTrack = null }) { Text("Cancel") } }
+                }) { Text("Save changes", fontWeight = FontWeight.SemiBold) }
+            }
         )
     }
 
     recycleConfirmationTrack?.let { track ->
-        AlertDialog(
+        SoundprintDialog(
+            title = "Move song to Recycle Bin?",
+            icon = SoundprintIcons.Trash2,
             onDismissRequest = { recycleConfirmationTrack = null },
-            title = { Text("Move song to Recycle Bin?") },
-            text = {
-                Text("\"${track.title}\" will be removed from your library and playback queue. You can restore it from the Recycle Bin for 30 days. The original audio file on your device will not be deleted.")
-            },
-            confirmButton = {
+            subtitle = "\"" + track.title + "\" will be removed from your library and playback queue. You can restore it from the Recycle Bin for 30 days. The original audio file on your device will not be deleted.",
+            actions = {
+                TextButton(onClick = { recycleConfirmationTrack = null }) { Text("Cancel") }
                 TextButton(onClick = {
                     libraryManager.moveToRecycleBin(track.id)
                     playback.removeTrackFromQueue(track.id)
                     recycleConfirmationTrack = null
                     refreshVersion++
-                }) { Text("Move to Recycle Bin", color = Color(0xFFE5484D)) }
-            },
-            dismissButton = { TextButton(onClick = { recycleConfirmationTrack = null }) { Text("Cancel") } }
+                }) { Text("Move to Recycle Bin", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
+            }
         )
     }
 }
+
+@Composable
+private fun HomeSectionHeader}
 
 @Composable
 private fun HomeSectionHeader(title: String, onSeeAll: (() -> Unit)? = null) {
