@@ -829,13 +829,13 @@ private fun SoundprintApp(
                 .onSuccess {
                     proStatus = it
                     SoundprintProGate.updateEntitlement(it.hasPro)
-                    if (!it.hasPro) disableProPlaybackOptions(appContext)
+                    if (!it.hasPro) enforceFreeTierRestrictions()
                     proMessage = null
                 }
                 .onFailure {
                     proStatus = SoundprintProStatus()
                     SoundprintProGate.updateEntitlement(false)
-                    disableProPlaybackOptions(appContext)
+                    enforceFreeTierRestrictions()
                     proMessage = it.message ?: "Could not verify Pro access. Try again."
                 }
         }
