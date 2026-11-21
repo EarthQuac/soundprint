@@ -252,7 +252,7 @@ fun SoundprintNowPlayingScreen(
         playbackOptionsPrefs.edit().putInt("crossfade_seconds", crossfade).apply()
     }
     LaunchedEffect(SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
-        if (SoundprintProGate.isResolved && !SoundprintProGate.hasPro) {
+        if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) {
             audioLabOpen = false
             sleepOpen = false
             aura = false
