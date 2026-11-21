@@ -801,11 +801,17 @@ private fun SoundprintApp(
     LaunchedEffect(authSessionState) {
         if (SoundprintProAccess.hasSession()) {
             runCatching { SoundprintProAccess.refresh() }
-                .onSuccess { proStatus = it; SoundprintProGate.hasPro = it.hasPro; SoundprintProGate.isResolved = true }
+                .onSuccess {
+                    proStatus = it
+                    SoundprintProGate.hasPro = it.hasPro
+                    SoundprintProGate.isResolved = true
+                    if (!it.hasPro) disableProPlaybackOptions(appContext)
+                }
         } else {
             proStatus = SoundprintProStatus()
             SoundprintProGate.hasPro = false
             SoundprintProGate.isResolved = true
+            disableProPlaybackOptions(appContext)
         }
     }
     LaunchedEffect(proOpen) {
@@ -2998,4 +3004,14 @@ private suspend fun <T> runScanWithoutSwallowingCancellation(block: suspend () -
     throw cancelled
 } catch (error: Exception) {
     Result.failure(error)
+}
+
+private fun disableProPlaybackOptions(context: android.content.Context) {
+    context.getSharedPreferences("soundprint_playback_options", 0).edit()
+        .putBoolean("gapless_enabled", false)
+        .putBoolean("loudness_leveling", false)
+        .putBoolean("stop_after_current", false)
+        .putInt("crossfade_seconds", 0)
+        .remove("sleep_ends_at")
+        .apply()
 }
