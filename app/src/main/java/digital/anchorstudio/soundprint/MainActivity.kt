@@ -935,6 +935,7 @@ private fun SoundprintApp(
                             onBack = { proOpen = false },
                             entitled = proStatus.hasPro,
                             trialEndsAt = proStatus.expiresAt.takeIf { proStatus.source == "trial" },
+                            entitlementSource = proStatus.source,
                             trialClaimed = proStatus.trialClaimed,
                             founderRemaining = proStatus.founderRemaining,
                             founderCapacity = proStatus.founderCapacity,
