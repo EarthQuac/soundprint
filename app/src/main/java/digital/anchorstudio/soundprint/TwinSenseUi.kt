@@ -90,6 +90,14 @@ internal fun SongsLibraryScreen(
         recycleItems = loaded.second
     }
 
+    LaunchedEffect(SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
+        if (SoundprintProGate.isResolved && !SoundprintProGate.hasPro) {
+            soundprintOpen = false
+            scanJob?.cancel()
+            scanning = false
+        }
+    }
+
     LaunchedEffect(library) {
         runCatching { refreshLibrary() }
         scanResult = scanner.loadSavedResults()
