@@ -1,0 +1,3 @@
+-- Retired historical migration placeholder.
+-- The public SECURITY DEFINER account-existence lookup was removed to prevent enumeration.
+-- Password recovery now uses Supabase Auth's generic recovery response.
