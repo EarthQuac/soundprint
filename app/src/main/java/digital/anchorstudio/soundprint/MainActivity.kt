@@ -1013,7 +1013,7 @@ private fun SoundprintApp(
     }
 
     CompositionLocalProvider(
-        LocalSoundprintProAccess provides SoundprintProUiAccess(proStatus.hasPro) {
+        LocalSoundprintProUiAccess provides SoundprintProUiAccess(proStatus.hasPro) {
             nowPlayingOpen = false
             tagEditorOpen = false
             proOpen = true
@@ -2529,7 +2529,7 @@ private fun SettingsScreen(
     onScanWatchedFolder: () -> Unit,
     onOpenTagEditor: () -> Unit
 ) {
-    val proAccess = LocalSoundprintProAccess.current
+    val proAccess = LocalSoundprintProUiAccess.current
     var query by remember { mutableStateOf("") }
     val settingsContext = LocalContext.current
     val settingsScope = rememberCoroutineScope()
