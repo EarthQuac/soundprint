@@ -1875,7 +1875,7 @@ private fun AddMusicMenuButton(
                     fontSize = 13.sp
                 )
                 DropdownMenuItem(
-                    text = { Text("Pick audio files", fontSize = 16.sp) },
+                    text = { Text("Choose files (device or Drive)", fontSize = 16.sp) },
                     leadingIcon = { SoundprintIcon(SoundprintIcons.FileMusic, null, Modifier.size(22.dp)) },
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
                     onClick = { expanded = false; onAudioPicker() }
