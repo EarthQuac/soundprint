@@ -132,7 +132,7 @@ fun SoundprintPlaylistsScreen(
     var selectedSmartId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
-        if (SoundprintProGate.isResolved && !SoundprintProGate.hasPro) {
+        if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) {
             editorOpen = false
             selectedSmartId = null
         }
