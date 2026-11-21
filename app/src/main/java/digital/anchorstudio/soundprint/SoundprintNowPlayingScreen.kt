@@ -102,7 +102,7 @@ fun SoundprintNowPlayingScreen(
     onBack: () -> Unit,
     onOpenAudioLab: () -> Unit = {}
 ) {
-    val proAccess = LocalSoundprintProAccess.current
+    val proAccess = LocalSoundprintProUiAccess.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val lyricsPanelRequester = remember { BringIntoViewRequester() }
