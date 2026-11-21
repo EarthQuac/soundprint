@@ -145,7 +145,7 @@ fun SoundprintLyricsPanel(
     onLyricsChanged: (String) -> Unit = {},
     onMetadataMatch: (String, String, String, Int) -> Unit = { _, _, _, _ -> }
 ) {
-    val proAccess = LocalSoundprintProAccess.current
+    val proAccess = LocalSoundprintProUiAccess.current
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("soundprint_now_playing", 0) }
     val scope = rememberCoroutineScope()
