@@ -699,19 +699,59 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 pendingArtworkImport?.let { pending ->
-                    AlertDialog(
+                    Dialog(
                         onDismissRequest = { finishArtworkImportChoice(pending, false) },
-                        title = { Text("Use custom artwork?") },
-                        text = {
-                            Text("Yes assigns a bundled Soundprint cover only when a song has no embedded cover. No skips assigning new bundled covers. Embedded covers and artwork already saved in your library are kept either way; songs without a saved cover still display a visual fallback in the library, queue and player.")
-                        },
-                        confirmButton = {
-                            TextButton(onClick = { finishArtworkImportChoice(pending, true) }) { Text("Yes, use artwork") }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { finishArtworkImportChoice(pending, false) }) { Text("No, thanks") }
+                        properties = DialogProperties(usePlatformDefaultWidth = false)
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(horizontal = 28.dp).widthIn(max = 360.dp)
+                                .clip(RoundedCornerShape(26.dp))
+                                .background(MaterialTheme.colorScheme.surface)
+                                .padding(22.dp)
+                        ) {
+                            Box(
+                                Modifier.size(46.dp).clip(RoundedCornerShape(15.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                SoundprintIcon(SoundprintIcons.Image, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+                            }
+                            Text(
+                                "A little more cover.",
+                                modifier = Modifier.padding(top = 16.dp),
+                                fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
+                                letterSpacing = (-0.45).sp, color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "Add Soundprint artwork to songs missing a cover?",
+                                modifier = Modifier.padding(top = 6.dp),
+                                fontSize = 13.sp, lineHeight = 19.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Row(
+                                Modifier.fillMaxWidth().padding(top = 22.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .clickable { finishArtworkImportChoice(pending, false) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("Not now", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                }
+                                Box(
+                                    Modifier.weight(1.25f).height(44.dp).clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.primary)
+                                        .clickable { finishArtworkImportChoice(pending, true) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("Add artwork", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimary)
+                                }
+                            }
                         }
-                    )
+                    }
                 }
                 }
                 }
@@ -1985,38 +2025,98 @@ private fun AddMusicMenuButton(
     var expanded by remember { mutableStateOf(false) }
     Box(modifier = modifier) {
         Row(
-            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(50))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
-                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.42f), RoundedCornerShape(50))
+            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(if (secondary) 18.dp else 50.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f))
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.32f), RoundedCornerShape(if (secondary) 18.dp else 50.dp))
                 .clickable { expanded = true }.padding(horizontal = 18.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SoundprintIcon(SoundprintIcons.FolderPlus, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            SoundprintIcon(SoundprintIcons.FolderOpen, null, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(10.dp))
-            Text("Add music", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text("Add music", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.width(7.dp))
+            SoundprintIcon(SoundprintIcons.ChevronDown, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        SoundprintDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, width = 292.dp) {
-            Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) {
+        SoundprintDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, width = 304.dp) {
+            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text(
-                    "Music stays on this device",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    "ADD TO YOUR LIBRARY",
+                    modifier = Modifier.padding(start = 4.dp, bottom = 3.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp
+                    fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold
                 )
-                SoundprintMenuItem("Choose files (device or Drive)", SoundprintIcons.FileMusic) { expanded = false; onAudioPicker() }
-                SoundprintMenuItem("Import from link", SoundprintIcons.Link) { expanded = false; onLinkImport() }
-                SoundprintMenuItem("Scan a folder", SoundprintIcons.Library) { expanded = false; onFolderPicker() }
-                SoundprintMenuItem("Rescan folders", SoundprintIcons.RefreshCw) { expanded = false; onRescan() }
-                Text(
-                    "Choose audio files or a folder to add music to your library.",
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.68f))
+                        .clickable { expanded = false; onAudioPicker() }.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    GoogleDriveMark(Modifier.size(25.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Google Drive", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        Text("Browse Drive or device files", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    SoundprintIcon(SoundprintIcons.ChevronRight, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                ImportMenuRow(SoundprintIcons.FileMusic, "Choose audio files", "Select one or more tracks") { expanded = false; onAudioPicker() }
+                ImportMenuRow(SoundprintIcons.FolderOpen, "Choose a folder", "Add music from a folder") { expanded = false; onFolderPicker() }
+                ImportMenuRow(SoundprintIcons.Link, "Import from link", "Paste a direct audio URL") { expanded = false; onLinkImport() }
+                androidx.compose.material3.HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 3.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
                 )
+                ImportMenuRow(SoundprintIcons.RefreshCw, "Rescan folders", "Check saved music locations") { expanded = false; onRescan() }
             }
         }
+    }
+}
+
+@Composable
+private fun ImportMenuRow(icon: Int, title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(34.dp).clip(RoundedCornerShape(11.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            SoundprintIcon(icon, null, Modifier.size(17.dp), tint = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(Modifier.width(11.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+            Text(subtitle, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        SoundprintIcon(SoundprintIcons.ChevronRight, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun GoogleDriveMark(modifier: Modifier = Modifier) {
+    androidx.compose.foundation.Canvas(modifier) {
+        val s = size.width / 24f
+        val green = Color(0xFF0F9D58)
+        val yellow = Color(0xFFFFBA00)
+        val blue = Color(0xFF4285F4)
+        val left = androidx.compose.ui.graphics.Path().apply {
+            moveTo(8f*s, 2f*s); lineTo(13f*s, 2f*s); lineTo(4f*s, 18f*s); lineTo(0f, 18f*s)
+            close()
+        }
+        val right = androidx.compose.ui.graphics.Path().apply {
+            moveTo(13f*s, 2f*s); lineTo(24f*s, 20f*s); lineTo(19f*s, 20f*s); lineTo(8f*s, 2f*s)
+            close()
+        }
+        val base = androidx.compose.ui.graphics.Path().apply {
+            moveTo(4f*s, 18f*s); lineTo(24f*s, 18f*s); lineTo(21f*s, 23f*s); lineTo(1f*s, 23f*s)
+            close()
+        }
+        drawPath(left, green)
+        drawPath(right, yellow)
+        drawPath(base, blue)
     }
 }
 
