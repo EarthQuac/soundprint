@@ -282,10 +282,12 @@ fun SoundprintPlaylistsScreen(
                                     }
                                 }, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(Modifier.width(8.dp))
-                                SoundprintIcon(SoundprintIcons.Trash2, "Delete ${rule.name}", Modifier.size(17.dp).clickable {
-                                    libraryManager.deleteSmartPlaylist(rule.id)
-                                    refreshVersion++
-                                }, tint = MaterialTheme.colorScheme.error)
+                                SoundprintIcon(SoundprintIcons.Trash2, "Delete ${rule.name}", Modifier.size(17.dp).clip(RoundedCornerShape(8.dp)).clickable {
+                                    if (SoundprintProGate.require("Smart playlists")) {
+                                        libraryManager.deleteSmartPlaylist(rule.id)
+                                        refreshVersion++
+                                    }
+                                }.padding(4.dp), tint = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
