@@ -267,6 +267,8 @@ class MainActivity : ComponentActivity() {
             val folderWatchMutex = remember { Mutex() }
             var importUiProgress by remember { mutableStateOf<SoundprintImportUiProgress?>(null) }
             var pendingArtworkImport by remember { mutableStateOf<PendingArtworkImport?>(null) }
+            var linkImportDialogOpen by remember { mutableStateOf(false) }
+            var linkImportText by remember { mutableStateOf("") }
             val scope = rememberCoroutineScope()
             suspend fun refreshLibraryState() {
                 val snapshot = withContext(Dispatchers.IO) {
@@ -651,6 +653,48 @@ class MainActivity : ComponentActivity() {
                             .align(Alignment.TopCenter)
                             .statusBarsPadding()
                             .padding(top = 68.dp, start = 16.dp, end = 16.dp)
+                    )
+                }
+                if (linkImportDialogOpen) {
+                    AlertDialog(
+                        onDismissRequest = { linkImportDialogOpen = false; linkImportText = "" },
+                        title = { Text("Import from link") },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text("Paste a direct link to an audio file. Public MP3, M4A, FLAC, WAV and other supported audio URLs work.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                                BasicTextField(
+                                    value = linkImportText,
+                                    onValueChange = { linkImportText = it },
+                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant).padding(14.dp),
+                                    singleLine = true,
+                                    textStyle = androidx.compose.ui.text.TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp),
+                                    decorationBox = { inner ->
+                                        Box {
+                                            if (linkImportText.isBlank()) Text("https://example.com/song.mp3", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                                            inner()
+                                        }
+                                    }
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                val url = linkImportText.trim()
+                                runCatching {
+                                    SoundprintMusicImportQueue.enqueueUrl(applicationContext, url, preferences.getBoolean("custom_artwork_enabled", true))
+                                }.onSuccess {
+                                    libraryStatus = "Link import queued. SoundPrint will download the audio and add it to your library."
+                                    linkImportDialogOpen = false
+                                    linkImportText = ""
+                                }.onFailure {
+                                    libraryStatus = it.message ?: "Could not queue this audio link."
+                                }
+                            }) { Text("Import") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { linkImportDialogOpen = false; linkImportText = "" }) { Text("Cancel") }
+                        }
                     )
                 }
                 pendingArtworkImport?.let { pending ->
@@ -1119,6 +1163,7 @@ private fun HomeScreen(
     onSettings: () -> Unit,
     onImportAudio: () -> Unit,
     onImportSingle: () -> Unit,
+    onImportLink: () -> Unit,
     onImportFolder: () -> Unit,
     onRescan: () -> Unit,
     onListeningStats: () -> Unit,
@@ -1797,6 +1842,7 @@ private fun AddMusicMenuButton(
     modifier: Modifier = Modifier,
     onAudioPicker: () -> Unit,
     onSinglePicker: () -> Unit,
+    onLinkImport: () -> Unit,
     onFolderPicker: () -> Unit,
     onRescan: () -> Unit,
     secondary: Boolean = false
@@ -1833,6 +1879,12 @@ private fun AddMusicMenuButton(
                     leadingIcon = { SoundprintIcon(SoundprintIcons.FileMusic, null, Modifier.size(22.dp)) },
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
                     onClick = { expanded = false; onAudioPicker() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Import from link", fontSize = 16.sp) },
+                    leadingIcon = { SoundprintIcon(SoundprintIcons.Link, null, Modifier.size(22.dp)) },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
+                    onClick = { expanded = false; onLinkImport() }
                 )
                 DropdownMenuItem(
                     text = { Text("Scan a folder", fontSize = 16.sp) },
