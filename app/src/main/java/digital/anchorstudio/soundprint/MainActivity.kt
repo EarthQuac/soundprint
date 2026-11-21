@@ -616,6 +616,7 @@ class MainActivity : ComponentActivity() {
                     // Include generic-MIME files too; the importer validates audio MIME types and extensions.
                     onImportFiles = { filesPicker.launch(arrayOf("audio/*", "application/octet-stream")) },
                     onImportSingle = { singleFilePicker.launch(arrayOf("audio/*", "application/octet-stream")) },
+                    onImportLink = { linkImportDialogOpen = true },
                     onRescan = {
                         scope.launch {
                             val result = runScanWithoutSwallowingCancellation { withContext(Dispatchers.IO) { libraryRepository.rescanAllSavedSources() } }
@@ -761,6 +762,7 @@ private fun SoundprintApp(
     onImportMusic: () -> Unit,
     onImportFiles: () -> Unit,
     onImportSingle: () -> Unit,
+    onImportLink: () -> Unit,
     onRescan: () -> Unit,
     onRemoveSource: (String) -> Unit,
     onBackup: () -> Unit,
@@ -937,7 +939,7 @@ private fun SoundprintApp(
                                 onSettings = { settingsOpen = true },
                                 onImportAudio = onImportFiles,
                                 onImportSingle = onImportSingle,
-                                onImportLink = { linkImportDialogOpen = true },
+                                onImportLink = onImportLink,
                                 onImportFolder = onImportMusic,
                                 onRescan = onRescan,
                                 onListeningStats = { statsOpen = true },
@@ -1507,6 +1509,7 @@ private fun HomeScreen(
             icon = SoundprintIcons.Trash2,
             onDismissRequest = { recycleConfirmationTrack = null },
             subtitle = "\"" + track.title + "\" will be removed from your library and playback queue. You can restore it from the Recycle Bin for 30 days. The original audio file on your device will not be deleted.",
+            content = { Spacer(Modifier.height(1.dp)) },
             actions = {
                 TextButton(onClick = { recycleConfirmationTrack = null }) { Text("Cancel") }
                 TextButton(onClick = {
@@ -1519,9 +1522,6 @@ private fun HomeScreen(
         )
     }
 }
-
-@Composable
-private fun HomeSectionHeader}
 
 @Composable
 private fun HomeSectionHeader(title: String, onSeeAll: (() -> Unit)? = null) {
