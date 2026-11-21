@@ -185,6 +185,10 @@ fun SoundprintLyricsPanel(
         } ?: -1
     }
 
+    LaunchedEffect(SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
+        if (SoundprintProGate.isResolved && !SoundprintProGate.hasPro) karaokeMode = false
+    }
+
     LaunchedEffect(trackId) {
         lyrics = prefs.getString("lyrics:$trackId", "").orEmpty()
         onLyricsChanged(lyrics)
