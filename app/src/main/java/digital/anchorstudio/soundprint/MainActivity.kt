@@ -1112,9 +1112,13 @@ private fun SoundprintApp(
                             modifier = Modifier
                                 .weight(1f)
                                 .clickable {
+                                    // Selecting a destination must dismiss every full-screen overlay.
+                                    proOpen = false
                                     settingsOpen = false
                                     accountOpen = false
                                     statsOpen = false
+                                    tagEditorOpen = false
+                                    nowPlayingOpen = false
                                     selectedTab = index
                                 }
                                 .padding(vertical = 10.dp),
