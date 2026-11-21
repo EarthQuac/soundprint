@@ -743,7 +743,8 @@ class MusicLibraryRepository(context:Context) {
     }
 
     private fun hasPersistedReadPermission(uri:Uri):Boolean =
-        app.contentResolver.persistedUriPermissions.any { it.uri==uri && it.isReadPermission }
+        uri.authority == android.provider.MediaStore.AUTHORITY ||
+            app.contentResolver.persistedUriPermissions.any { it.uri==uri && it.isReadPermission }
 
     private suspend fun scanRoot(root:DocumentFile,sourceUri:String,onProgress:(LibraryScanProgress)->Unit,useCustomArtwork:Boolean = isCustomArtworkEnabled()):LibraryScanResult {
         val scanId=UUID.randomUUID().toString()
