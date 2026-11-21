@@ -40,6 +40,10 @@ data class SmartPlaylistContext(
 private const val RECYCLE_BIN_RETENTION_MS=30L*24L*60L*60L*1000L
 
 private class LibraryManagementDatabase(context:Context):SQLiteOpenHelper(context.applicationContext,"soundprint_library_management.db",null,1) {
+    private val backupTables = listOf(
+        "history_events", "managed_playlists", "managed_playlist_tracks", "smart_playlists", "recycle_bin"
+    )
+
     init { setWriteAheadLoggingEnabled(true) }
 
     override fun onCreate(db:SQLiteDatabase) {
@@ -168,6 +172,67 @@ private class LibraryManagementDatabase(context:Context):SQLiteOpenHelper(contex
         buildList { while(c.moveToNext()) add(smartPlaylistFromJson(JSONObject(c.getString(0)))) }
     }
     fun deleteSmartPlaylist(id:String) { writableDatabase.delete("smart_playlists","id=? AND preset=0",arrayOf(id)) }
+
+    fun exportBackupTables():JSONObject = JSONObject().apply {
+        backupTables.forEach { table ->
+            val rows = JSONArray()
+            readableDatabase.rawQuery("SELECT * FROM $table", null).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val row = JSONObject()
+                    cursor.columnNames.forEachIndexed { index, name ->
+                        val value: Any? = when (cursor.getType(index)) {
+                            android.database.Cursor.FIELD_TYPE_NULL -> JSONObject.NULL
+                            android.database.Cursor.FIELD_TYPE_INTEGER -> cursor.getLong(index)
+                            android.database.Cursor.FIELD_TYPE_FLOAT -> cursor.getDouble(index)
+                            else -> cursor.getString(index)
+                        }
+                        row.put(name, value ?: JSONObject.NULL)
+                    }
+                    rows.put(row)
+                }
+            }
+            put(table, rows)
+        }
+    }
+
+    fun restoreBackupTables(tables:JSONObject, replaceExisting:Boolean):Int {
+        val db = writableDatabase
+        var restored = 0
+        db.beginTransaction()
+        try {
+            if (replaceExisting) backupTables.asReversed().forEach { db.delete(it, null, null) }
+            backupTables.forEach { table ->
+                val rows = tables.optJSONArray(table) ?: JSONArray()
+                val knownColumns = mutableSetOf<String>()
+                db.rawQuery("PRAGMA table_info($table)", null).use { cursor ->
+                    while (cursor.moveToNext()) knownColumns += cursor.getString(cursor.getColumnIndexOrThrow("name"))
+                }
+                for (index in 0 until rows.length()) {
+                    val row = rows.getJSONObject(index)
+                    val values = ContentValues()
+                    row.keys().forEach { key ->
+                        if (key !in knownColumns) return@forEach
+                        when (val value = row.opt(key)) {
+                            null, JSONObject.NULL -> values.putNull(key)
+                            is Boolean -> values.put(key, if (value) 1 else 0)
+                            is Int -> values.put(key, value)
+                            is Long -> values.put(key, value)
+                            is Double -> values.put(key, value)
+                            else -> values.put(key, value.toString())
+                        }
+                    }
+                    check(db.insertWithOnConflict(table, null, values, SQLiteDatabase.CONFLICT_REPLACE) != -1L) {
+                        "Could not restore row ${index + 1} from $table."
+                    }
+                    restored++
+                }
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        return restored
+    }
 
     fun addRecycleBinEntry(id:String,reason:String) {
         writableDatabase.insertWithOnConflict("recycle_bin",null,ContentValues().apply { put("track_id",id);put("removed_at",System.currentTimeMillis());put("reason",reason) },SQLiteDatabase.CONFLICT_REPLACE)
@@ -303,6 +368,16 @@ class MusicLibraryManager(context:Context) {
     fun clearAllLibraryData() {
         repository.clearLibrary()
         state.clearAllLibraryData()
+    }
+
+    fun writeBackup(output:java.io.OutputStream) = repository.writeBackup(output, state.exportBackupTables())
+
+    fun restoreBackup(input:java.io.InputStream, replaceExisting:Boolean=false):Int {
+        val bytes = input.readBytes()
+        val root = JSONObject(bytes.toString(Charsets.UTF_8))
+        val restoredLibrary = repository.restoreBackup(bytes.inputStream(), replaceExisting)
+        val restoredManagement = state.restoreBackupTables(root.optJSONObject("managementTables") ?: JSONObject(), replaceExisting)
+        return restoredLibrary + restoredManagement
     }
 
     fun createPlaylist(name:String,trackIds:List<String> = emptyList()):String {

@@ -62,6 +62,7 @@ internal fun SongsLibraryScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val proAccess = LocalSoundprintProAccess.current
     val scope = rememberCoroutineScope()
     val scanner = remember(context, library) { TwinSenseScanner(context.applicationContext, library) }
     var songs by remember { mutableStateOf<List<MusicTrack>>(emptyList()) }
@@ -171,12 +172,18 @@ internal fun SongsLibraryScreen(
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
-                            onClick = { soundprintOpen = !soundprintOpen; if (soundprintOpen) recycleOpen = false },
+                            onClick = {
+                                if (!proAccess.entitled) proAccess.onOpenPro() else {
+                                    soundprintOpen = !soundprintOpen
+                                    if (soundprintOpen) recycleOpen = false
+                                }
+                            },
                             modifier = Modifier.weight(1f)
                         ) {
                             SoundprintIcon(SoundprintIcons.AudioWaveform, null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("TwinSense", fontSize = 12.sp)
+                            ProFeatureBadge()
                         }
                         OutlinedButton(
                             onClick = {
@@ -204,7 +211,10 @@ internal fun SongsLibraryScreen(
                                 SoundprintIcon(SoundprintIcons.AudioWaveform, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text("TwinSense", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                                        Text("TwinSense", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                                        ProFeatureBadge()
+                                    }
                                     Text("Compare the actual audio stored on this device.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }

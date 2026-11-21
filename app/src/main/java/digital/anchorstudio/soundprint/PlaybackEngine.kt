@@ -352,7 +352,9 @@ class SoundprintPlaybackService : MediaSessionService() {
             return
         }
 
-        val fadeSeconds = playbackOptions.getInt(KEY_CROSSFADE_SECONDS, 0).coerceIn(0, 8)
+        val fadeSeconds = if (playbackOptions.getBoolean("pro_entitled", false)) {
+            playbackOptions.getInt(KEY_CROSSFADE_SECONDS, 0).coerceIn(0, 8)
+        } else 0
         if (fadeSeconds <= 0 || !player.isPlaying ||
             player.repeatMode == Player.REPEAT_MODE_ONE ||
             playbackOptions.getBoolean(KEY_STOP_AFTER_CURRENT, false) ||
@@ -482,16 +484,18 @@ class SoundprintPlaybackService : MediaSessionService() {
      */
     private fun applyPlaybackOptions() {
         if (!::player.isInitialized) return
+        val proEntitled = playbackOptions.getBoolean("pro_entitled", false)
         val endAt = playbackOptions.getLong(KEY_SLEEP_ENDS_AT, 0L)
-        val stopAfterCurrent = playbackOptions.getBoolean(KEY_STOP_AFTER_CURRENT, false)
+        val stopAfterCurrent = proEntitled && playbackOptions.getBoolean(KEY_STOP_AFTER_CURRENT, false)
         // ExoPlayer playlist transitions are gapless by default; do not pause between items.
         // Stop-after-current deliberately pauses at the end boundary instead.
-        val gaplessEnabled = playbackOptions.getBoolean(KEY_GAPLESS_ENABLED, true)
+        val gaplessEnabled = proEntitled && playbackOptions.getBoolean(KEY_GAPLESS_ENABLED, false)
         player.pauseAtEndOfMediaItems = stopAfterCurrent || !gaplessEnabled
         if (::standbyPlayer.isInitialized) standbyPlayer.pauseAtEndOfMediaItems = stopAfterCurrent || !gaplessEnabled
         applyLoudnessLeveling()
 
         val wasCrossfading = crossfadePending || crossfadeActive
+        if (!proEntitled && wasCrossfading) cancelCrossfade(restoreVolume = true)
         val volumeBeforeTimer = if (wasCrossfading) crossfadeBaseVolume else player.volume
         if ((endAt > 0L || stopAfterCurrent) && wasCrossfading) {
             cancelCrossfade(restoreVolume = true)
@@ -527,7 +531,8 @@ class SoundprintPlaybackService : MediaSessionService() {
 
     private fun applyLoudnessLeveling() {
         if (!::player.isInitialized) return
-        val enabled = playbackOptions.getBoolean(KEY_LOUDNESS_LEVELING, true)
+        val enabled = playbackOptions.getBoolean("pro_entitled", false) &&
+            playbackOptions.getBoolean(KEY_LOUDNESS_LEVELING, false)
         val sessionId = player.audioSessionId
         if (sessionId <= 0) return
         if (loudnessSessionId != sessionId) {

@@ -3,6 +3,7 @@ package digital.anchorstudio.soundprint
 import android.os.Bundle
 import android.app.Activity
 import io.github.jan.supabase.auth.handleDeeplinks
+import io.github.jan.supabase.auth.auth
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -73,6 +74,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -95,6 +97,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.Image
 import androidx.compose.ui.text.font.FontWeight
@@ -118,6 +121,13 @@ import java.text.DateFormat
 import java.util.Date
 
 private val SoundprintFontFamily = FontFamily(Font(R.font.inter_tight_variable))
+private val SoundprintShapes = Shapes(
+    extraSmall = RoundedCornerShape(14.dp),
+    small = RoundedCornerShape(18.dp),
+    medium = RoundedCornerShape(24.dp),
+    large = RoundedCornerShape(30.dp),
+    extraLarge = RoundedCornerShape(34.dp)
+)
 
 private data class SoundprintPalette(
     val background: Color,
@@ -263,12 +273,26 @@ class MainActivity : ComponentActivity() {
             var folderWatchEnabled by remember { mutableStateOf(preferences.getBoolean("folder_watch_enabled", false)) }
             var folderWatchLastScan by remember { mutableStateOf(preferences.getLong("folder_watch_last_scan", 0L)) }
             var autoAddNewSongs by remember { mutableStateOf(preferences.getBoolean("auto_add_new_songs", true)) }
+            var proEntitled by remember { mutableStateOf(false) }
+            var proEntitlementLoaded by remember { mutableStateOf(false) }
+            val authSessionState by SoundprintSupabase.client.auth.sessionStatus.collectAsState()
+            LaunchedEffect(authSessionState) {
+                proEntitled = runCatching {
+                    SoundprintSupabase.client.auth.currentUserOrNull()?.appMetadata
+                        ?.get("pro_entitled")?.toString()?.trim('"').equals("true", ignoreCase = true)
+                }.getOrDefault(false)
+                proEntitlementLoaded = true
+                getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit()
+                    .putBoolean("pro_entitled", proEntitled)
+                    .apply()
+            }
             var pendingTagExport by remember { mutableStateOf<SoundprintTagExportRequest?>(null) }
             val folderWatchMutex = remember { Mutex() }
             var importUiProgress by remember { mutableStateOf<SoundprintImportUiProgress?>(null) }
             var pendingArtworkImport by remember { mutableStateOf<PendingArtworkImport?>(null) }
             var linkImportDialogOpen by remember { mutableStateOf(false) }
             var linkImportText by remember { mutableStateOf("") }
+            var pendingUrlImport by remember { mutableStateOf<String?>(null) }
             val scope = rememberCoroutineScope()
             suspend fun refreshLibraryState() {
                 val snapshot = withContext(Dispatchers.IO) {
@@ -284,6 +308,23 @@ class MainActivity : ComponentActivity() {
                 } catch (error: Exception) {
                     libraryStatus = "$label could not be queued: ${error.message ?: "Check the selected file permissions and try again."}"
                 }
+            }
+            fun enqueueAudioLinkImport(url: String): Boolean {
+                val result = runCatching {
+                    SoundprintMusicImportQueue.enqueueUrl(applicationContext, url, preferences.getBoolean("custom_artwork_enabled", true))
+                }
+                result.onSuccess {
+                    libraryStatus = "Link import queued. SoundPrint will download the audio and add it to your library."
+                }.onFailure {
+                    libraryStatus = it.message ?: "Could not queue this audio link."
+                }
+                return result.isSuccess
+            }
+            val legacyStoragePermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+                val url = pendingUrlImport
+                pendingUrlImport = null
+                if (granted && url != null) enqueueAudioLinkImport(url)
+                else if (url != null) libraryStatus = "Storage permission is needed to save linked audio on this Android version."
             }
             fun finishArtworkImportChoice(pending: PendingArtworkImport, useArtwork: Boolean) {
                 preferences.edit().putBoolean("custom_artwork_enabled", useArtwork).apply()
@@ -301,7 +342,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             val watchedFolderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
-                if (uri != null) {
+                if (uri != null && proEntitlementLoaded && proEntitled) {
                     runCatching {
                         contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
@@ -342,7 +383,7 @@ class MainActivity : ComponentActivity() {
                 if (uri != null) scope.launch {
                     val result = runCatchingSuspend {
                         withContext(Dispatchers.IO) {
-                            contentResolver.openOutputStream(uri)?.use { libraryRepository.writeBackup(it) }
+                            contentResolver.openOutputStream(uri)?.use { libraryManager.writeBackup(it) }
                                 ?: error("Android could not create the backup file.")
                         }
                     }
@@ -353,7 +394,7 @@ class MainActivity : ComponentActivity() {
                 if (uri != null) scope.launch {
                     val result = runCatchingSuspend {
                         withContext(Dispatchers.IO) {
-                            contentResolver.openInputStream(uri)?.use { libraryRepository.restoreBackup(it, false) }
+                            contentResolver.openInputStream(uri)?.use { libraryManager.restoreBackup(it, false) }
                                 ?: error("Android could not open this backup.")
                         }
                     }
@@ -439,7 +480,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
             val lifecycleOwner = LocalLifecycleOwner.current
-            LaunchedEffect(watchedFolderUri, folderWatchEnabled, autoAddNewSongs) {
+            LaunchedEffect(watchedFolderUri, folderWatchEnabled, autoAddNewSongs, proEntitlementLoaded, proEntitled) {
+                if (!proEntitlementLoaded) return@LaunchedEffect
+                if (!proEntitled) {
+                    if (folderWatchEnabled) {
+                        folderWatchEnabled = false
+                        preferences.edit().putBoolean("folder_watch_enabled", false).apply()
+                    }
+                    return@LaunchedEffect
+                }
                 val watchedUri = watchedFolderUri ?: return@LaunchedEffect
                 if (!folderWatchEnabled) return@LaunchedEffect
                 while (true) {
@@ -475,6 +524,7 @@ class MainActivity : ComponentActivity() {
             }
 
             suspend fun scanWatchedFolderNow() {
+                if (!proEntitlementLoaded || !proEntitled) return
                 val raw = watchedFolderUri ?: return
                 val importsRunning = WorkManager.getInstance(applicationContext)
                     .getWorkInfosForUniqueWorkFlow("soundprint_music_import_queue").first()
@@ -565,13 +615,15 @@ class MainActivity : ComponentActivity() {
                     surface = colors.surface, onSurface = colors.foreground,
                     surfaceVariant = colors.surface2, onSurfaceVariant = colors.muted,
                     outline = colors.border
-                )
+                ),
+                shapes = SoundprintShapes
             ) {
                 CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(fontFamily = SoundprintFontFamily)) {
                 Box(Modifier.fillMaxSize()) {
                 SoundprintApp(
                     libraryManager = libraryManager,
                     accountReturnRequestCount = accountReturnRequestCount.intValue,
+                    proEntitled = proEntitled,
                     themeMode = themeMode,
                     onThemeModeChange = { mode -> themeMode = mode; preferences.edit().putString("theme", mode).apply() },
                     selectedPalette = selectedPalette,
@@ -589,13 +641,19 @@ class MainActivity : ComponentActivity() {
                     folderWatchLastScan = folderWatchLastScan,
                     autoAddNewSongs = autoAddNewSongs,
                     onAutoAddNewSongsChange = { enabled ->
-                        autoAddNewSongs = enabled
-                        preferences.edit().putBoolean("auto_add_new_songs", enabled).apply()
+                        if (proEntitlementLoaded && proEntitled) {
+                            autoAddNewSongs = enabled
+                            preferences.edit().putBoolean("auto_add_new_songs", enabled).apply()
+                        }
                     },
-                    onChooseWatchedFolder = { watchedFolderPicker.launch(null) },
+                    onChooseWatchedFolder = {
+                        if (proEntitlementLoaded && proEntitled) watchedFolderPicker.launch(null)
+                    },
                     onToggleFolderWatch = { enabled ->
-                        folderWatchEnabled = enabled
-                        preferences.edit().putBoolean("folder_watch_enabled", enabled).apply()
+                        if (!enabled || (proEntitlementLoaded && proEntitled)) {
+                            folderWatchEnabled = enabled
+                            preferences.edit().putBoolean("folder_watch_enabled", enabled).apply()
+                        }
                     },
                     onForgetWatchedFolder = {
                         watchedFolderUri = null
@@ -684,14 +742,19 @@ class MainActivity : ComponentActivity() {
                             TextButton(onClick = { linkImportDialogOpen = false; linkImportText = "" }) { Text("Cancel") }
                             TextButton(onClick = {
                                 val url = linkImportText.trim()
-                                runCatching {
-                                    SoundprintMusicImportQueue.enqueueUrl(applicationContext, url, preferences.getBoolean("custom_artwork_enabled", true))
-                                }.onSuccess {
-                                    libraryStatus = "Link import queued. SoundPrint will download the audio and add it to your library."
+                                val parsedUrl = Uri.parse(url)
+                                if (parsedUrl.scheme !in listOf("http", "https") || parsedUrl.host.isNullOrBlank()) {
+                                    libraryStatus = "Enter a valid http or https audio link."
+                                } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                                    checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    pendingUrlImport = url
                                     linkImportDialogOpen = false
                                     linkImportText = ""
-                                }.onFailure {
-                                    libraryStatus = it.message ?: "Could not queue this audio link."
+                                    legacyStoragePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                } else if (enqueueAudioLinkImport(url)) {
+                                    linkImportDialogOpen = false
+                                    linkImportText = ""
                                 }
                             }) { Text("Import", fontWeight = FontWeight.SemiBold) }
                         }
@@ -740,6 +803,7 @@ private val tabs = listOf(
 private fun SoundprintApp(
     libraryManager: MusicLibraryManager,
     accountReturnRequestCount: Int,
+    proEntitled: Boolean,
     themeMode: String,
     onThemeModeChange: (String) -> Unit,
     selectedPalette: String,
@@ -794,6 +858,7 @@ private fun SoundprintApp(
     }
     var statsOpen by remember { mutableStateOf(false) }
     var proOpen by remember { mutableStateOf(false) }
+    var twinSenseOpen by remember { mutableStateOf(false) }
     var nowPlayingOpen by remember { mutableStateOf(false) }
     var tagEditorOpen by remember { mutableStateOf(false) }
     var resumePrompt by remember { mutableStateOf<PlaybackResumePrompt?>(null) }
@@ -820,6 +885,7 @@ private fun SoundprintApp(
                 settingsOpen = true
             }
             proOpen -> proOpen = false
+            twinSenseOpen -> twinSenseOpen = false
             statsOpen -> statsOpen = false
             settingsOpen -> settingsOpen = false
             accountOpen -> accountOpen = false
@@ -845,6 +911,13 @@ private fun SoundprintApp(
         try { awaitCancellation() } finally { activePlayer.removeListener(listener) }
     }
 
+    CompositionLocalProvider(
+        LocalSoundprintProAccess provides SoundprintProAccess(proEntitled) {
+            nowPlayingOpen = false
+            tagEditorOpen = false
+            proOpen = true
+        }
+    ) {
     Surface(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars), color = MaterialTheme.colorScheme.background) {
         if (!enteredLibrary) {
             PublicHomeScreen(onContinue = onEnterLibrary)
@@ -854,6 +927,7 @@ private fun SoundprintApp(
                     nowPlayingOpen -> "now-playing"
                     tagEditorOpen -> "tag-editor"
                     proOpen -> "pro"
+                    twinSenseOpen -> "twinsense"
                     statsOpen -> "stats"
                     settingsOpen -> "settings"
                     accountOpen -> "account"
@@ -884,7 +958,13 @@ private fun SoundprintApp(
                             onBack = { tagEditorOpen = false; settingsOpen = true },
                             onExportMp3 = onExportTaggedMp3
                         )
-                        "pro" -> ProScreen(onBack = { proOpen = false })
+                        "pro" -> ProScreen(onBack = { proOpen = false }, entitled = proEntitled)
+                        "twinsense" -> SongsLibraryScreen(
+                            library = libraryManager,
+                            playback = playbackConnection,
+                            onImportFiles = onImportFiles,
+                            onBack = { twinSenseOpen = false }
+                        )
                         "stats" -> ListeningStatsScreen(libraryManager = libraryManager, onBack = { statsOpen = false })
                         "account" -> SoundprintAccountScreen(
                             onBack = { accountOpen = false },
@@ -949,7 +1029,7 @@ private fun SoundprintApp(
                                 onOpenTab = { selectedTab = it },
                                 onOpenAlbum = { albumId -> homeAlbumToOpen = albumId; selectedTab = 2 }
                             )
-                            1 -> LibraryScreen("Songs", "Your music, all in one place.", SoundprintIcons.EighthNotes, libraryManager, playbackConnection, onImportFiles) { selectedTab = 0 }
+                            1 -> LibraryScreen("Songs", "Your music, all in one place.", SoundprintIcons.EighthNotes, libraryManager, playbackConnection, onImportFiles, onOpenTwinSense = { twinSenseOpen = true }) { selectedTab = 0 }
                             2 -> SoundprintAlbumsScreen(
                                 libraryManager, playbackConnection, onImportFiles, libraryTrackCount,
                                 initialAlbumId = homeAlbumToOpen,
@@ -994,10 +1074,12 @@ private fun SoundprintApp(
                             modifier = Modifier
                                 .weight(1f)
                                 .clickable {
-                                    settingsOpen = false
-                                    accountOpen = false
-                                    statsOpen = false
-                                    selectedTab = index
+                                    if (index == tabs.lastIndex && !proEntitled) proOpen = true else {
+                                        settingsOpen = false
+                                        accountOpen = false
+                                        statsOpen = false
+                                        selectedTab = index
+                                    }
                                 }
                                 .padding(vertical = 10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -1017,16 +1099,19 @@ private fun SoundprintApp(
                             ) {
                                 SoundprintIcon(item.icon, contentDescription = item.label, modifier = Modifier.size(20.dp), tint = if (!settingsOpen && !statsOpen && selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Text(
-                                item.label,
-                                fontSize = 11.sp,
-                                lineHeight = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                softWrap = false,
-                                color = if (!settingsOpen && selected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    item.label,
+                                    fontSize = 11.sp,
+                                    lineHeight = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    color = if (!settingsOpen && selected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (index == tabs.lastIndex) ProFeatureBadge()
+                            }
                         }
                     }
                 }
@@ -1067,6 +1152,7 @@ private fun SoundprintApp(
                 }
             )
         }
+    }
     }
 }
 
@@ -1282,20 +1368,26 @@ private fun HomeScreen(
         ) {
             if (loadedLibraryTracks != null && libraryTracks.isEmpty()) item {
                 Column(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
-                        .background(MaterialTheme.colorScheme.surface)
-                        .padding(20.dp)
+                    Modifier.fillMaxWidth().shadow(12.dp, RoundedCornerShape(28.dp), ambientColor = Color.Black.copy(alpha = .12f))
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(Brush.linearGradient(listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = .10f),
+                            MaterialTheme.colorScheme.surface,
+                            MaterialTheme.colorScheme.surface
+                        )))
+                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .62f), RoundedCornerShape(28.dp))
+                        .padding(22.dp)
                 ) {
-                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                        SoundprintIcon(SoundprintIcons.Music, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                    Box(Modifier.size(52.dp).clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)).border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .24f), RoundedCornerShape(18.dp)), contentAlignment = Alignment.Center) {
+                        SoundprintIcon(SoundprintIcons.FolderOpen, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                     }
-                    Spacer(Modifier.height(24.dp))
-                    Text("A FRESH START", fontSize = 12.sp, letterSpacing = 1.4.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(22.dp))
+                    Text("IMPORT YOUR MUSIC", fontSize = 10.sp, letterSpacing = 1.6.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
-                    Text("Your music goes here.", fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.8).sp, color = MaterialTheme.colorScheme.onSurface)
-                    Spacer(Modifier.height(10.dp))
-                    Text("Add the songs already on your device. Your library stays yours, and you can organise it into albums, playlists and favourites as you go.", fontSize = 14.sp, lineHeight = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(24.dp))
+                    Text("Make it yours.", fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.8).sp, color = MaterialTheme.colorScheme.onSurface)
+                    Spacer(Modifier.height(9.dp))
+                    Text("Bring in the music you already love. Your files stay on this device, ready for albums, playlists and favourites.", fontSize = 14.sp, lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(18.dp))
                     AddMusicMenuButton(
                         modifier = Modifier.fillMaxWidth().height(44.dp),
                         onAudioPicker = onImportAudio,
@@ -1304,8 +1396,7 @@ private fun HomeScreen(
                         onFolderPicker = onImportFolder,
                         onRescan = onRescan
                     )
-                    Spacer(Modifier.height(28.dp))
-                    Spacer(Modifier.height(0.dp))
+                    Spacer(Modifier.height(20.dp))
                     Spacer(Modifier.height(16.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         FeatureLabel(SoundprintIcons.Music, "Your own music")
@@ -1866,23 +1957,28 @@ private fun AddMusicMenuButton(
         }
         SoundprintDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, width = 292.dp) {
             Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) {
-                Text(
-                    "Music stays on this device",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp
-                )
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = .09f))
+                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .15f), RoundedCornerShape(20.dp))
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = .13f)), contentAlignment = Alignment.Center) {
+                        SoundprintIcon(SoundprintIcons.FolderOpen, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    Column(Modifier.padding(start = 11.dp)) {
+                        Text("Import music", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        Text("Your files stay on this device", modifier = Modifier.padding(top = 2.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
                 SoundprintMenuItem("Choose files (device or Drive)", SoundprintIcons.FileMusic) { expanded = false; onAudioPicker() }
                 SoundprintMenuItem("Import from link", SoundprintIcons.Link) { expanded = false; onLinkImport() }
-                SoundprintMenuItem("Scan a folder", SoundprintIcons.Library) { expanded = false; onFolderPicker() }
+                SoundprintMenuItem("Choose a music folder", SoundprintIcons.FolderOpen) { expanded = false; onFolderPicker() }
                 SoundprintMenuItem("Rescan folders", SoundprintIcons.RefreshCw) { expanded = false; onRescan() }
-                Text(
-                    "Choose audio files or a folder to add music to your library.",
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp
-                )
+                Text("Add local tracks without uploading or moving your originals.", modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, lineHeight = 16.sp)
             }
         }
     }
@@ -1914,10 +2010,11 @@ private fun LibraryScreen(
     libraryManager: MusicLibraryManager,
     playback: SoundprintPlaybackConnection,
     onImportFiles: () -> Unit,
+    onOpenTwinSense: () -> Unit,
     onBack: () -> Unit
 ) {
     when (title) {
-        "Songs" -> SongsScreen(libraryManager, playback, onImportFiles, onBack)
+        "Songs" -> SongsScreen(libraryManager, playback, onImportFiles, onOpenTwinSense, onBack)
         "Albums" -> AlbumsScreen(onBack)
         else -> PlaylistsScreen(onBack)
     }
@@ -1928,9 +2025,10 @@ private fun SongsScreen(
     libraryManager: MusicLibraryManager,
     playback: SoundprintPlaybackConnection,
     onImportFiles: () -> Unit,
+    onOpenTwinSense: () -> Unit,
     onBack: () -> Unit
 ) {
-    SoundprintSongsLibraryScreen(libraryManager, playback, onImportFiles, onBack)
+    SoundprintSongsLibraryScreen(libraryManager, playback, onImportFiles, onOpenTwinSense, onBack)
 }
 
 @Composable
@@ -2234,14 +2332,15 @@ private fun SettingsScreen(
     onScanWatchedFolder: () -> Unit,
     onOpenTagEditor: () -> Unit
 ) {
+    val proAccess = LocalSoundprintProAccess.current
     var query by remember { mutableStateOf("") }
     val settingsContext = LocalContext.current
     val settingsScope = rememberCoroutineScope()
     val artworkPreferences = remember(settingsContext) { settingsContext.getSharedPreferences("soundprint_native_preferences", 0) }
     val playbackPrefs = remember(settingsContext) { settingsContext.getSharedPreferences("soundprint_playback_options", 0) }
-    var gapless by remember { mutableStateOf(playbackPrefs.getBoolean("gapless_enabled", true)) }
+    var gapless by remember { mutableStateOf(playbackPrefs.getBoolean("gapless_enabled", false)) }
     var fadeOnPause by remember { mutableStateOf(playbackPrefs.getBoolean("fade_on_pause", false)) }
-    var loudness by remember { mutableStateOf(playbackPrefs.getBoolean("loudness_leveling", true)) }
+    var loudness by remember { mutableStateOf(playbackPrefs.getBoolean("loudness_leveling", false)) }
     var crossfade by remember { mutableIntStateOf(playbackPrefs.getInt("crossfade_seconds", 0).coerceIn(0, 8)) }
     var resume by remember { mutableStateOf(playbackPrefs.getBoolean("resume_playback", true)) }
     var rememberPosition by remember { mutableStateOf(playbackPrefs.getBoolean("remember_position", true)) }
@@ -2330,6 +2429,7 @@ private fun SettingsScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(MaterialTheme.colorScheme.surface)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f), RoundedCornerShape(14.dp))
                         
                 ) {
                     if (settingSearchResults.isEmpty()) {
@@ -2382,10 +2482,14 @@ private fun SettingsScreen(
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 PaletteChoice("Blue & white", selectedPalette == "Blue", Modifier.weight(1f)) { onPaletteChange("Blue") }
-                                PaletteChoice("Emerald", selectedPalette == "Emerald", Modifier.weight(1f)) { onPaletteChange("Emerald") }
+                                PaletteChoice("Emerald", selectedPalette == "Emerald", Modifier.weight(1f)) {
+                                    if (!proAccess.entitled) proAccess.onOpenPro() else onPaletteChange("Emerald")
+                                }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PaletteChoice("Mono", selectedPalette == "Mono", Modifier.weight(1f)) { onPaletteChange("Mono") }
+                                PaletteChoice("Mono", selectedPalette == "Mono", Modifier.weight(1f)) {
+                                    if (!proAccess.entitled) proAccess.onOpenPro() else onPaletteChange("Mono")
+                                }
                                 PaletteChoice("Aurora", selectedPalette == "Aurora", Modifier.weight(1f)) { onPaletteChange("Aurora") }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2398,33 +2502,45 @@ private fun SettingsScreen(
             }
             if (matches("audio gapless playback fade pause loudness leveling equalizer crossfade")) {
                 SettingsSection("AUDIO") {
-                    SettingsToggleRow("Gapless playback", "Seamless transitions between queued tracks", gapless, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("gapless"))) {
-                        gapless = it
-                        playbackPrefs.edit().putBoolean("gapless_enabled", it).apply()
+                    SettingsToggleRow("Gapless playback", "Seamless transitions between queued tracks", proAccess.entitled && gapless, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("gapless")), proFeature = true) {
+                        if (!proAccess.entitled) proAccess.onOpenPro() else {
+                            gapless = it
+                            playbackPrefs.edit().putBoolean("gapless_enabled", it).apply()
+                        }
                     }
                     SettingsToggleRow("Fade on pause", "Short fade instead of an abrupt stop", fadeOnPause, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("fade"))) {
                         fadeOnPause = it
                         playbackPrefs.edit().putBoolean("fade_on_pause", it).apply()
                     }
-                    SettingsToggleRow("Loudness leveling", "Keep playback volume more consistent", loudness, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("loudness"))) {
-                        loudness = it
-                        playbackPrefs.edit().putBoolean("loudness_leveling", it).apply()
+                    SettingsToggleRow("Loudness leveling", "Keep playback volume more consistent", proAccess.entitled && loudness, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("loudness")), proFeature = true) {
+                        if (!proAccess.entitled) proAccess.onOpenPro() else {
+                            loudness = it
+                            playbackPrefs.edit().putBoolean("loudness_leveling", it).apply()
+                        }
                     }
                     SettingsActionRow("Equalizer", "Adjust your sound with the free 10-band EQ; Pro adds advanced audio controls", "Open Equalizer", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("equalizer")))
-                    SettingsValueRow("Crossfade", if (crossfade == 0) "Off" else "$crossfade seconds", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade"))) {
+                    SettingsValueRow("Crossfade", if (!proAccess.entitled || crossfade == 0) "Off" else "$crossfade seconds", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade")), proFeature = true) {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             listOf(0, 2, 4, 6, 8).forEach { seconds ->
                                 Box(
                                     Modifier.width(31.dp).height(30.dp).clip(RoundedCornerShape(9.dp))
-                                        .background(if (crossfade == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                                        .background(if (proAccess.entitled && crossfade == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                                        .border(
+                                            1.dp,
+                                            if (proAccess.entitled && crossfade == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.34f)
+                                            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
+                                            RoundedCornerShape(9.dp)
+                                        )
                                         
                                         .clickable {
-                                            crossfade = seconds
-                                            playbackPrefs.edit().putInt("crossfade_seconds", seconds).apply()
+                                            if (seconds > 0 && !proAccess.entitled) proAccess.onOpenPro() else {
+                                                crossfade = seconds
+                                                playbackPrefs.edit().putInt("crossfade_seconds", seconds).apply()
+                                            }
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(if (seconds == 0) "Off" else "$seconds s", fontSize = 9.sp, fontWeight = if (crossfade == seconds) FontWeight.SemiBold else FontWeight.Normal, color = if (crossfade == seconds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(if (seconds == 0) "Off" else "$seconds s", fontSize = 9.sp, fontWeight = if (proAccess.entitled && crossfade == seconds) FontWeight.SemiBold else FontWeight.Normal, color = if (proAccess.entitled && crossfade == seconds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
@@ -2453,6 +2569,12 @@ private fun SettingsScreen(
                                         Box(
                                             Modifier.weight(1f).height(36.dp).clip(RoundedCornerShape(12.dp))
                                                 .background(if (seekSeconds == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
+                                                .border(
+                                                    1.dp,
+                                                    if (seekSeconds == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.34f)
+                                                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
+                                                    RoundedCornerShape(12.dp)
+                                                )
                                                 
                                                 .clickable { seekSeconds = seconds; playbackPrefs.edit().putInt("double_tap_seek_seconds", seconds).apply() },
                                             contentAlignment = Alignment.Center
@@ -2474,16 +2596,20 @@ private fun SettingsScreen(
                         replaceQueue = it
                         playbackPrefs.edit().putBoolean("replace_queue_on_play", it).apply()
                     }
-                    SettingsToggleRow("Auto-add newly discovered songs", "Automatically add new audio found by your watched folder", autoAddNewSongs, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("auto-add")), onCheckedChange = onAutoAddNewSongsChange)
+                    SettingsToggleRow("Auto-add newly discovered songs", "Automatically add new audio found by your watched folder", proAccess.entitled && autoAddNewSongs, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("auto-add")), proFeature = true) {
+                        if (!proAccess.entitled) proAccess.onOpenPro() else onAutoAddNewSongsChange(it)
+                    }
                     FolderAutoWatchSettingsRow(
                         folderName = watchedFolderName,
                         modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("folder-watch")),
-                        enabled = folderWatchEnabled,
+                        enabled = proAccess.entitled && folderWatchEnabled,
                         lastScan = folderWatchLastScan,
-                        onChoose = onChooseWatchedFolder,
-                        onToggle = onToggleFolderWatch,
+                        onChoose = { if (!proAccess.entitled) proAccess.onOpenPro() else onChooseWatchedFolder() },
+                        onToggle = { enabled ->
+                            if (enabled && !proAccess.entitled) proAccess.onOpenPro() else onToggleFolderWatch(enabled)
+                        },
                         onForget = onForgetWatchedFolder,
-                        onScan = onScanWatchedFolder
+                        onScan = { if (!proAccess.entitled) proAccess.onOpenPro() else onScanWatchedFolder() }
                     )
                 }
             }
@@ -2725,6 +2851,7 @@ private fun SettingsSearchBox(value: String, onValueChange: (String) -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 2.dp)
             .heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.48f), RoundedCornerShape(16.dp))
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -2742,14 +2869,17 @@ private fun SettingsSearchBox(value: String, onValueChange: (String) -> Unit) {
 }
 
 @Composable
-private fun SettingsToggleRow(label: String, description: String, checked: Boolean, modifier: Modifier = Modifier, onCheckedChange: (Boolean) -> Unit) {
+private fun SettingsToggleRow(label: String, description: String, checked: Boolean, modifier: Modifier = Modifier, proFeature: Boolean = false, onCheckedChange: (Boolean) -> Unit) {
     Column(modifier) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).padding(end = 10.dp)) {
-                Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, lineHeight = 18.sp)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, lineHeight = 18.sp)
+                    if (proFeature) ProFeatureBadge()
+                }
                 Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
+            Switch(checked = checked, onCheckedChange = { onCheckedChange(it) })
         }
         SettingsDivider()
     }
@@ -2772,7 +2902,10 @@ private fun FolderAutoWatchSettingsRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                Text("Folder auto-watch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Folder auto-watch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                    ProFeatureBadge()
+                }
                 val detail = if (folderName.isNullOrBlank()) {
                     "Choose a folder to check every 30 seconds while Soundprint is open."
                 } else {
@@ -2822,11 +2955,14 @@ private fun SettingsActionRow(
 }
 
 @Composable
-private fun SettingsValueRow(label: String, description: String, modifier: Modifier = Modifier, control: @Composable () -> Unit) {
+private fun SettingsValueRow(label: String, description: String, modifier: Modifier = Modifier, proFeature: Boolean = false, control: @Composable () -> Unit) {
     Column(modifier) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).padding(end = 6.dp)) {
-                Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                    if (proFeature) ProFeatureBadge()
+                }
                 Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             control()
@@ -2847,13 +2983,20 @@ private fun HelpInfoTopic(title: String, body: String) {
 private fun SettingsSection(title: String, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
         Text(title, fontSize = 11.sp, letterSpacing = 1.6.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surface)) { content() }
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.46f), RoundedCornerShape(18.dp))
+        ) { content() }
     }
 }
 
 @Composable
 private fun SettingsDivider() {
-    Spacer(Modifier.height(0.dp))
+    Spacer(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.34f))
+    )
 }
 
 @Composable
@@ -2869,6 +3012,12 @@ private fun ThemeChoice(modifier: Modifier, label: String, icon: Int?, selected:
     Column(
         modifier = modifier.height(76.dp).clip(RoundedCornerShape(16.dp))
             .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
+            .border(
+                1.dp,
+                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
+                RoundedCornerShape(16.dp)
+            )
             .clickable(onClick = onClick).padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -2880,6 +3029,7 @@ private fun ThemeChoice(modifier: Modifier, label: String, icon: Int?, selected:
 
 @Composable
 private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val locked = name == "Emerald" || name == "Mono"
     val colors = when (name) {
         "Blue & white" -> listOf(Color(0xFFFFFFFF), Color(0xFF527FE2))
         "Emerald" -> listOf(Color(0xFF10271F), Color(0xFF5ACA94))
@@ -2892,6 +3042,12 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
     Row(
         modifier = modifier.height(76.dp).clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
+            .border(
+                1.dp,
+                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
+                RoundedCornerShape(16.dp)
+            )
             .clickable(onClick = onClick).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -2900,7 +3056,10 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
         }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
-            Text(name, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(name, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                if (locked) ProFeatureBadge()
+            }
             Text(
                 when (name) {
                     "Emerald", "Mono" -> "Unlock with Pro"

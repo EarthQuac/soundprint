@@ -32,8 +32,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -111,29 +113,33 @@ fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, trialEndsAt: String
 
 @Composable
 private fun ProPageHeader(onBack: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(36.dp).clip(CircleShape).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
-            Text("‹", fontSize = 30.sp, color = MaterialTheme.colorScheme.onSurface)
+    Row(Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+            shape = RoundedCornerShape(0.dp)).padding(start = 10.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
+            SoundprintIcon(SoundprintIcons.ChevronLeft, null, tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(21.dp))
         }
-        Column(Modifier.weight(1f).padding(start = 8.dp)) {
+        Column(Modifier.weight(1f).padding(start = 6.dp)) {
             Text("Soundprint Pro", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
         }
     }
-    Spacer(Modifier.height(0.dp))
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProHero() {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(MaterialTheme.colorScheme.surface)
-        .padding(20.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp))
+        .background(MaterialTheme.colorScheme.surface)
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f), RoundedCornerShape(26.dp))
+        .padding(22.dp)) {
         Row(Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
             .padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
             SoundprintIcon(SoundprintIcons.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
             Spacer(Modifier.width(7.dp))
             Text("Your music. Your way.", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
         }
-        Text("Meet Soundprint Pro.", modifier = Modifier.padding(top = 18.dp), fontSize = 31.sp, lineHeight = 36.sp,
+        Text("Meet Soundprint Pro.", modifier = Modifier.padding(top = 18.dp), fontSize = 34.sp, lineHeight = 39.sp,
             letterSpacing = (-0.8).sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
         Text("More control, smarter music tools, and a deeper listening experience. Keep enjoying Soundprint for free, or unlock the Pro power suite with the plan that works for you.",
             modifier = Modifier.padding(top = 10.dp), fontSize = 13.sp, lineHeight = 21.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -152,7 +158,9 @@ private fun ProFounderOffer(onClaim: (() -> Unit)?) {
         Text("Get Pro free for life", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
         Text("Founder Access is staying. The first 100 eligible accounts can claim lifetime Pro at no cost while spots remain.",
             fontSize = 12.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.07f))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.075f))
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f), RoundedCornerShape(24.dp))
             .padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SoundprintIcon(SoundprintIcons.Headphones, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
@@ -192,7 +200,12 @@ private fun ProPlanCard(title: String, price: String, cadence: String, descripti
                         featured: Boolean, modifier: Modifier = Modifier, icon: Int) {
     Column(modifier.clip(RoundedCornerShape(20.dp))
         .background(if (featured) MaterialTheme.colorScheme.primary.copy(alpha = 0.055f) else MaterialTheme.colorScheme.surface)
-        
+        .border(
+            1.dp,
+            if (featured) MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f),
+            RoundedCornerShape(20.dp)
+        )
         .padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             SoundprintIcon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
@@ -288,6 +301,7 @@ private fun ProGuideRow(number: Int, guide: ProGuide) {
 @Composable
 private fun ProFreeFeatures() {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surface)
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f), RoundedCornerShape(20.dp))
         .padding(16.dp)) {
         Text("What stays free", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
         Text("Soundprint stays useful without Pro. These features are free for everyone.",
@@ -311,6 +325,7 @@ private fun ProFeaturesGrid() {
         }
         proFeatures.forEach { feature ->
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surface)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.52f), RoundedCornerShape(18.dp))
                 .padding(14.dp),
                 verticalAlignment = Alignment.Top) {
                 Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
@@ -329,6 +344,7 @@ private fun ProFeaturesGrid() {
 @Composable
 private fun ProActiveCard(trialEndsAt: String?) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surface)
+        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.24f), RoundedCornerShape(24.dp))
         .padding(18.dp)) {
         Row(Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)).padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically) {
@@ -341,5 +357,45 @@ private fun ProActiveCard(trialEndsAt: String?) {
         Text(if (trialEndsAt != null) "Your no-payment trial ends " + trialEndsAt + ". No charge will be made, and access ends when the trial expires."
             else "Your Pro entitlement is active on this account. Sign in on your other devices to access your account benefits.",
             modifier = Modifier.padding(top = 8.dp), fontSize = 12.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF090A0D, name = "Soundprint Pro - Promotional")
+@Composable
+private fun ProScreenPromotionalPreview() {
+    MaterialTheme(
+        colorScheme = androidx.compose.material3.darkColorScheme(
+            primary = Color(0xFFC4B5FD),
+            onPrimary = Color(0xFF171321),
+            background = Color(0xFF090A0D),
+            surface = Color(0xFF14141B),
+            onSurface = Color(0xFFF5F5F6),
+            surfaceVariant = Color(0xFF211E2B),
+            onSurfaceVariant = Color(0xFFA5A5B2),
+            outline = Color(0xFF2A2933),
+            outlineVariant = Color(0xFF34333D)
+        )
+    ) {
+        ProScreen(onBack = {})
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF090A0D, name = "Soundprint Pro - Active")
+@Composable
+private fun ProScreenActivePreview() {
+    MaterialTheme(
+        colorScheme = androidx.compose.material3.darkColorScheme(
+            primary = Color(0xFFC4B5FD),
+            onPrimary = Color(0xFF171321),
+            background = Color(0xFF090A0D),
+            surface = Color(0xFF14141B),
+            onSurface = Color(0xFFF5F5F6),
+            surfaceVariant = Color(0xFF211E2B),
+            onSurfaceVariant = Color(0xFFA5A5B2),
+            outline = Color(0xFF2A2933),
+            outlineVariant = Color(0xFF34333D)
+        )
+    ) {
+        ProScreen(onBack = {}, entitled = true, trialEndsAt = "2 December")
     }
 }

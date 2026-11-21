@@ -1,0 +1,47 @@
+package digital.anchorstudio.soundprint
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+internal data class SoundprintProAccess(
+    val entitled: Boolean = false,
+    val onOpenPro: () -> Unit = {}
+)
+
+internal val LocalSoundprintProAccess = staticCompositionLocalOf { SoundprintProAccess() }
+
+@Composable
+internal fun ProFeatureBadge(modifier: Modifier = Modifier) {
+    val access = LocalSoundprintProAccess.current
+    if (!access.entitled) {
+        Surface(
+            modifier = modifier.clip(CircleShape).clickable(onClick = access.onOpenPro),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = .12f)
+        ) {
+            Row(
+                Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
+                Text("PRO", fontSize = 9.sp, letterSpacing = .7.sp, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
+}
+

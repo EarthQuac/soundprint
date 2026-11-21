@@ -145,6 +145,7 @@ fun SoundprintLyricsPanel(
     onLyricsChanged: (String) -> Unit = {},
     onMetadataMatch: (String, String, String, Int) -> Unit = { _, _, _, _ -> }
 ) {
+    val proAccess = LocalSoundprintProAccess.current
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("soundprint_now_playing", 0) }
     val scope = rememberCoroutineScope()
@@ -231,7 +232,7 @@ fun SoundprintLyricsPanel(
         draft = value
         onLyricsChanged(value)
         if (foundTitle.isNotBlank() || foundArtist.isNotBlank() || foundAlbum.isNotBlank() || foundYear > 0) {
-            onMetadataMatch(foundTitle, foundArtist, foundAlbum, foundYear)
+            if (proAccess.entitled) onMetadataMatch(foundTitle, foundArtist, foundAlbum, foundYear)
         }
         prefs.edit()
             .putString("lyrics:$trackId", value)
@@ -499,7 +500,7 @@ fun SoundprintLyricsPanel(
                     }
                 }
 
-                if (lines.isNotEmpty()) {
+                if (lines.isNotEmpty() && proAccess.entitled) {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxWidth().heightIn(max = lyricsViewportHeight),
@@ -558,12 +559,25 @@ fun SoundprintLyricsPanel(
                         }
                     }
                 } else {
+                    if (lines.isNotEmpty()) {
+                        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Synced lyrics", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            ProFeatureBadge()
+                        }
+                    }
                     Text(
                         lyrics,
                         Modifier.fillMaxWidth().heightIn(max = if (expanded) 448.dp else 256.dp).verticalScroll(rememberScrollState()),
                         fontSize = 14.sp, lineHeight = 28.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = .85f),
                         textAlign = TextAlign.Center
                     )
+                    if (lines.isNotEmpty()) {
+                        Button(onClick = proAccess.onOpenPro, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                            SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(7.dp))
+                            Text("Unlock synced lyrics with Pro")
+                        }
+                    }
                 }
 
                 TextButton(
@@ -703,7 +717,11 @@ fun SoundprintLyricsPanel(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(match.title, Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    if (index == 0) Text("Strongest match", fontSize = 10.sp, color = Color(0xFF16865B), fontWeight = FontWeight.SemiBold)
+                                    if (index == 0) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                        Text("Strongest match", fontSize = 10.sp, color = Color(0xFF16865B), fontWeight = FontWeight.SemiBold)
+                                        Text("Auto-fill", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        ProFeatureBadge()
+                                    }
                                 }
                                 Text(
                                     match.artist + (if (match.album.isNotBlank()) " · ${match.album}" else "") +

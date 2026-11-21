@@ -25,7 +25,7 @@ internal class ContextScopedSingleton<T : Any>(private val create: (Context) -> 
 }
 
 /** Like [runCatching], but never swallows coroutine cancellation. */
-inline fun <T> runCatchingSuspend(block: () -> T): Result<T> =
+suspend inline fun <T> runCatchingSuspend(block: suspend () -> T): Result<T> =
     try {
         Result.success(block())
     } catch (cancelled: CancellationException) {

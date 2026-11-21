@@ -50,8 +50,10 @@ internal fun SoundprintSongsLibraryScreen(
     library: MusicLibraryManager,
     playback: SoundprintPlaybackConnection,
     onImport: () -> Unit,
+    onOpenTwinSense: () -> Unit,
     onBack: () -> Unit
 ) {
+    val proAccess = LocalSoundprintProAccess.current
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
     var tracks by remember { mutableStateOf(emptyList<MusicTrack>()) }
@@ -108,6 +110,16 @@ internal fun SoundprintSongsLibraryScreen(
                 placeholder = { Text("Search songs, artists, albums…", fontSize = 12.sp) },
                 leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null, modifier = Modifier.size(18.dp)) }
             )
+            OutlinedButton(
+                onClick = { if (proAccess.entitled) onOpenTwinSense() else proAccess.onOpenPro() },
+                modifier = Modifier.fillMaxWidth().padding(top = 9.dp),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(7.dp))
+                Text("TwinSense duplicate finder", modifier = Modifier.weight(1f))
+                Text("PRO", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
             if (selectedIds.isNotEmpty()) {
                 Surface(
                     Modifier.fillMaxWidth().padding(top = 10.dp),

@@ -458,7 +458,7 @@ class MusicLibraryDatabase(context: Context) :
 
     private val backupTables=listOf("tracks","library_sources","library_file_sources","track_sources","playlists","playlist_tracks","soundprint_trash","soundprint_fingerprints","audio_analysis_cache","library_scan_errors")
 
-    fun writeBackup(output:OutputStream) {
+    fun writeBackup(output:OutputStream, managementTables:JSONObject? = null) {
         val root=JSONObject().put("format","soundprint-native-library").put("formatVersion",1).put("exportedAt",System.currentTimeMillis())
         val tables=JSONObject()
         backupTables.forEach { table ->
@@ -482,6 +482,7 @@ class MusicLibraryDatabase(context: Context) :
             tables.put(table,rows)
         }
         root.put("tables",tables)
+        if (managementTables != null) root.put("managementTables", managementTables)
         output.write(root.toString().toByteArray(Charsets.UTF_8));output.flush()
     }
 
@@ -523,7 +524,9 @@ class MusicLibraryDatabase(context: Context) :
                         if(replaceExisting || !exists) values.put("is_available",0)
                     }
                     if(table=="track_sources") values.put("is_available",0)
-                    db.insertWithOnConflict(table,null,values,SQLiteDatabase.CONFLICT_REPLACE)
+                    check(db.insertWithOnConflict(table,null,values,SQLiteDatabase.CONFLICT_REPLACE) != -1L) {
+                        "Could not restore row ${index + 1} from $table."
+                    }
                     restored++
                 }
             }
@@ -1035,7 +1038,7 @@ class MusicLibraryRepository(context:Context) {
         }
         db.clearLibrary()
     }
-    fun writeBackup(output:OutputStream)=db.writeBackup(output)
+    fun writeBackup(output:OutputStream, managementTables:JSONObject? = null)=db.writeBackup(output, managementTables)
     fun restoreBackup(input:InputStream,replaceExisting:Boolean=false)=db.restoreBackup(input,replaceExisting)
 
     fun removeTrackRecord(id:String)=db.removeTrackRecord(id)

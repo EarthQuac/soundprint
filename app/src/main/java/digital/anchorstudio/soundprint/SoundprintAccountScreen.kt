@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -304,6 +305,25 @@ internal fun SoundprintAccountScreen(
             message = "Opening Google sign-in…"
             messageError = false
             var handedOffToFallback = false
+            fun launchGoogleFallback() {
+                try {
+                    val activity = context.findActivity()
+                        ?: error("Google sign-in needs an active Android screen.")
+                    val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                        .requestEmail()
+                        .requestIdToken(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
+                        .build()
+                    googleFallbackLauncher.launch(GoogleSignIn.getClient(activity, options).signInIntent)
+                    handedOffToFallback = true
+                    message = "Opening Google account picker…"
+                    messageError = false
+                } catch (fallbackError: Exception) {
+                    handedOffToFallback = false
+                    message = fallbackError.message?.take(220)
+                        ?: "Google sign-in couldn't start. Check Google Play services and OAuth configuration."
+                    messageError = true
+                }
+            }
             try {
                 val rawNonce = UUID.randomUUID().toString()
                 val digest = MessageDigest.getInstance("SHA-256")
@@ -324,6 +344,9 @@ internal fun SoundprintAccountScreen(
                     ?: error("Google sign-in needs an active Android screen. Close and reopen SoundPrint, then try again.")
                 val credentialManager = CredentialManager.create(activity)
                 val result = credentialManager.getCredential(context = activity, request = request)
+                if (result.credential.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                    error("Google returned an unsupported sign-in credential. Try the Google account picker again.")
+                }
                 val googleCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
 
                 supabase.auth.signInWith(IDToken) {
@@ -339,37 +362,19 @@ internal fun SoundprintAccountScreen(
             } catch (error: NoCredentialException) {
                 // Credential Manager found no eligible credential. Open the account
                 // picker fallback so users can choose from Google accounts on-device.
-                val activity = context.findActivity()
-                    ?: error("Google sign-in needs an active Android screen.")
-                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                    .requestEmail()
-                    .requestIdToken(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
-                    .build()
-                val client = GoogleSignIn.getClient(activity, options)
-                handedOffToFallback = true
-                message = "Opening Google sign-in…"
-                messageError = false
-                googleFallbackLauncher.launch(client.signInIntent)
+                launchGoogleFallback()
             } catch (error: GetCredentialProviderConfigurationException) {
-                val activity = context.findActivity()
-                    ?: error("Google sign-in needs an active Android screen.")
-                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                    .requestEmail()
-                    .requestIdToken(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
-                    .build()
-                val client = GoogleSignIn.getClient(activity, options)
-                handedOffToFallback = true
-                message = "Opening Google sign-in…"
-                messageError = false
-                googleFallbackLauncher.launch(client.signInIntent)
+                launchGoogleFallback()
             } catch (error: GetCredentialException) {
-                message = when (error) {
-                    is androidx.credentials.exceptions.GetCredentialCancellationException ->
-                        "Google sign-in was cancelled."
-                    else -> error.message?.take(220)
-                        ?: "Google sign-in couldn't start (${error::class.simpleName}). Check Google Play services and try again."
+                if (error is androidx.credentials.exceptions.GetCredentialCancellationException) {
+                    message = "Google sign-in was cancelled."
+                    messageError = true
+                } else {
+                    // Credential Manager can fail on devices with an outdated or
+                    // unavailable provider. Give the installed Google Play services
+                    // picker a chance before showing a terminal error.
+                    launchGoogleFallback()
                 }
-                messageError = true
             } catch (error: Exception) {
                 message = error.message?.take(220)
                     ?: "Google sign-in failed (${error::class.simpleName}). Check your connection and OAuth configuration."
@@ -380,24 +385,42 @@ internal fun SoundprintAccountScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(
+        Modifier.fillMaxSize().background(
+            Brush.verticalGradient(
+                0f to MaterialTheme.colorScheme.primary.copy(alpha = .075f),
+                .34f to MaterialTheme.colorScheme.background,
+                1f to MaterialTheme.colorScheme.background
+            )
+        )
+    ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
+            Modifier.fillMaxWidth().padding(start = 8.dp, end = 18.dp, top = 12.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) { SoundprintIcon(SoundprintIcons.ArrowLeft, contentDescription = "Back") }
+            IconButton(onClick = onBack) {
+                SoundprintIcon(SoundprintIcons.ArrowLeft, contentDescription = "Back")
+            }
             Column(Modifier.weight(1f)) {
-                Text("Account", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text("Account", fontSize = 23.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Text("Your SoundPrint identity", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (signedIn) Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary.copy(alpha = .12f)) {
-                SoundprintIcon(SoundprintIcons.UserRound, null, Modifier.padding(10.dp).size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            if (signedIn) Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = .12f),
+                modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .22f), CircleShape)
+            ) {
+                SoundprintIcon(
+                    SoundprintIcons.UserRound,
+                    null,
+                    Modifier.padding(10.dp).size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
-        Spacer(Modifier.height(0.dp))
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 22.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             if (loading) {
                 Column(Modifier.fillMaxWidth().padding(vertical = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -447,10 +470,31 @@ internal fun SoundprintAccountScreen(
                 ) { Text("Sign out") }
             } else if (signedIn) {
                 AccountPanel {
-                    Text("YOU'RE SIGNED IN", fontSize = 10.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text("@$username", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text(accountEmail, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Your account is connected. Your music files and playback library remain on this device unless you choose to sync supported data.", fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Box(
+                            Modifier.size(58.dp).clip(CircleShape)
+                                .background(Brush.linearGradient(listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = .30f),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = .10f)
+                                )))
+                                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .28f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(username.firstOrNull()?.uppercase() ?: "S", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = .11f),
+                                shape = CircleShape
+                            ) {
+                                Text("ACCOUNT CONNECTED", Modifier.padding(horizontal = 9.dp, vertical = 5.dp), fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            }
+                            Text("@$username", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                            Text(accountEmail, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = .42f))
+                    Text("Your music files and playback library stay on this device unless you choose to sync supported data.", fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 AccountPanel {
                     Text("PROFILE", fontSize = 10.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -688,9 +732,9 @@ internal fun SoundprintAccountScreen(
                         Text("Continue with Google", fontWeight = FontWeight.SemiBold)
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(Modifier.height(0.dp))
-                        Text("OR", Modifier.padding(horizontal = 12.dp), fontSize = 10.sp, letterSpacing = 1.2.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(0.dp))
+                        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
+                        Text("OR", Modifier.padding(horizontal = 14.dp), fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
                     }
                 }
                 OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
@@ -840,15 +884,15 @@ internal fun SoundprintAccountScreen(
 
 @Composable
 private fun AccountPanel(content: @Composable ColumnScope.() -> Unit) {
-    val shape = RoundedCornerShape(22.dp)
+    val shape = RoundedCornerShape(24.dp)
     Column(
         Modifier.fillMaxWidth()
-            .shadow(10.dp, shape, ambientColor = Color.Black.copy(alpha = .16f), spotColor = Color.Black.copy(alpha = .12f))
+            .shadow(5.dp, shape, ambientColor = Color.Black.copy(alpha = .12f), spotColor = Color.Black.copy(alpha = .08f))
             .clip(shape)
             .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .58f), shape)
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .72f), shape)
+            .padding(22.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) { content(this) }
 }
 
@@ -857,17 +901,17 @@ private fun AccountIntroPanel(title: String, description: String, icon: Int) {
     AccountPanel {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(18.dp),
                 color = MaterialTheme.colorScheme.primary.copy(alpha = .13f),
-                modifier = Modifier.size(48.dp).border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .28f), RoundedCornerShape(16.dp))
+                modifier = Modifier.size(54.dp).border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .28f), RoundedCornerShape(18.dp))
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    SoundprintIcon(icon, null, Modifier.size(23.dp), tint = MaterialTheme.colorScheme.primary)
+                    SoundprintIcon(icon, null, Modifier.size(25.dp), tint = MaterialTheme.colorScheme.primary)
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text("SOUNDPRINT ACCOUNT", fontSize = 10.sp, letterSpacing = 1.45.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                Text(title, fontSize = 24.sp, lineHeight = 29.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text("SOUNDPRINT ACCOUNT", fontSize = 10.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(title, fontSize = 25.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             }
         }
         Text(description, fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -119,6 +119,7 @@ fun SoundprintPlaylistsScreen(
     playback: SoundprintPlaybackConnection,
     clapScanner: ClapLibraryScanner
 ) {
+    val proAccess = LocalSoundprintProAccess.current
     val scan by clapScanner.state.collectAsState()
     var refreshVersion by remember { mutableIntStateOf(0) }
     var data by remember { mutableStateOf<PlaylistPageData?>(null) }
@@ -219,10 +220,19 @@ fun SoundprintPlaylistsScreen(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Smart playlists", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Text("Smart playlists", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                            ProFeatureBadge()
+                        }
                         Text("Automatically updated from your listening and library", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Button(onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true }, shape = CircleShape, contentPadding = ButtonDefaults.ContentPadding) {
+                    Button(onClick = {
+                        if (!proAccess.entitled) proAccess.onOpenPro() else {
+                            editingId = null
+                            draft = freshSmartPlaylist()
+                            editorOpen = true
+                        }
+                    }, shape = CircleShape, contentPadding = ButtonDefaults.ContentPadding) {
                         SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("New smart playlist", fontSize = 11.sp, maxLines = 1)
@@ -236,7 +246,9 @@ fun SoundprintPlaylistsScreen(
                             .background(MaterialTheme.colorScheme.surface).padding(11.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(Modifier.weight(1f).clickable { selectedSmartId = rule.id }, verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.weight(1f).clickable {
+                            if (!proAccess.entitled) proAccess.onOpenPro() else selectedSmartId = rule.id
+                        }, verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
                                 SoundprintIcon(SoundprintIcons.ListMusic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             }

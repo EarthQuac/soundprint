@@ -48,11 +48,11 @@ internal fun SoundprintDropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
         modifier = Modifier.width(width),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 4.dp,
-        shadowElevation = 12.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.46f)),
+        tonalElevation = 5.dp,
+        shadowElevation = 16.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.54f)),
         content = content
     )
 }
@@ -118,19 +118,19 @@ internal fun SoundprintDialog(
     ) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 20.dp).widthIn(max = 480.dp)
-                .clip(RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(30.dp))
                 .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(24.dp))
-                .padding(22.dp)
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.58f), RoundedCornerShape(30.dp))
+                .padding(24.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 androidx.compose.foundation.layout.Box(
-                    Modifier.size(42.dp).clip(RoundedCornerShape(14.dp))
+                    Modifier.size(46.dp).clip(RoundedCornerShape(17.dp))
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.32f), RoundedCornerShape(14.dp)),
+                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.38f), RoundedCornerShape(17.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    SoundprintIcon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                    SoundprintIcon(icon, null, Modifier.size(21.dp), tint = MaterialTheme.colorScheme.primary)
                 }
                 Text(title, color = MaterialTheme.colorScheme.onSurface, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
             }
