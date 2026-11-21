@@ -938,6 +938,7 @@ private fun SoundprintApp(
                                 onSettings = { settingsOpen = true },
                                 onImportAudio = onImportFiles,
                                 onImportSingle = onImportSingle,
+                                onImportLink = { linkImportDialogOpen = true },
                                 onImportFolder = onImportMusic,
                                 onRescan = onRescan,
                                 onListeningStats = { statsOpen = true },
