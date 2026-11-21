@@ -500,6 +500,7 @@ fun SoundprintLyricsPanel(
                 }
 
                 if (lines.isNotEmpty()) {
+                    if (SoundprintProGate.hasPro) {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxWidth().heightIn(max = lyricsViewportHeight),
@@ -544,8 +545,17 @@ fun SoundprintLyricsPanel(
                             }
                         }
                     }
+                    } else {
+                        Text(
+                            lines.joinToString("\n") { it.text },
+                            modifier = Modifier.fillMaxWidth().heightIn(max = lyricsViewportHeight).verticalScroll(rememberScrollState()),
+                            fontSize = 14.sp,
+                            lineHeight = 23.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Synced lyrics · ${lines.size} lines", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(if (SoundprintProGate.hasPro) "Synced lyrics · ${lines.size} lines" else "Lyrics · Pro sync available", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         TextButton(
                             onClick = { if (SoundprintProGate.require("Synced lyrics & karaoke")) openKaraoke() },
                             enabled = !karaokeLoading,
