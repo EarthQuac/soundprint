@@ -798,23 +798,28 @@ private fun SoundprintApp(
     var proStatus by remember { mutableStateOf(SoundprintProStatus()) }
     var proMessage by remember { mutableStateOf<String?>(null) }
     val authSessionState by SoundprintSupabase.client.auth.sessionStatus.collectAsState()
+    fun enforceFreeTierRestrictions() {
+        disableProPlaybackOptions(appContext)
+        if (selectedPalette == "Emerald" || selectedPalette == "Mono") onPaletteChange("Amber")
+        if (folderWatchEnabled) onToggleFolderWatch(false)
+    }
     LaunchedEffect(authSessionState) {
         if (SoundprintProAccess.hasSession()) {
             runCatching { SoundprintProAccess.refresh() }
                 .onSuccess {
                     proStatus = it
                     SoundprintProGate.updateEntitlement(it.hasPro)
-                    if (!it.hasPro) disableProPlaybackOptions(appContext)
+                    if (!it.hasPro) enforceFreeTierRestrictions()
                 }
                 .onFailure {
                     proStatus = SoundprintProStatus()
                     SoundprintProGate.updateEntitlement(false)
-                    disableProPlaybackOptions(appContext)
+                    enforceFreeTierRestrictions()
                 }
         } else {
             proStatus = SoundprintProStatus()
             SoundprintProGate.updateEntitlement(false)
-            disableProPlaybackOptions(appContext)
+            enforceFreeTierRestrictions()
         }
     }
     LaunchedEffect(proOpen) {
