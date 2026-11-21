@@ -131,6 +131,13 @@ fun SoundprintPlaylistsScreen(
     var selectedPlaylistId by remember { mutableStateOf<String?>(null) }
     var selectedSmartId by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
+        if (SoundprintProGate.isResolved && !SoundprintProGate.hasPro) {
+            editorOpen = false
+            selectedSmartId = null
+        }
+    }
+
     LaunchedEffect(Unit) { clapScanner.refreshSummary() }
     LaunchedEffect(scan.completed, scan.failed, scan.running, scan.lastCompletedTrackId, refreshVersion) {
         data = withContext(Dispatchers.IO) {
