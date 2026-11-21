@@ -29,6 +29,7 @@ import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
@@ -37,18 +38,10 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.GetCredentialProviderConfigurationException
 import androidx.credentials.exceptions.NoCredentialException
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.IDToken
-import java.security.MessageDigest
-import java.util.UUID
-import kotlinx.coroutines.CancellationException
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.providers.builtin.OTP
@@ -84,6 +77,9 @@ internal fun SoundprintAccountScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var newEmail by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var newPasswordVisible by remember { mutableStateOf(false) }
     var mode by remember { mutableStateOf("sign-in") }
     var message by remember { mutableStateOf<String?>(null) }
     var messageError by remember { mutableStateOf(false) }
@@ -150,38 +146,6 @@ internal fun SoundprintAccountScreen(
             displayName = user.userMetadata?.get("display_name")?.toString()?.trim('"')
                 ?.ifBlank { null } ?: username.ifBlank { accountEmail.substringBefore("@").ifBlank { "Listener" } }
             nameDraft = username
-        }
-    }
-
-    // Fallback for Android builds that expose no usable Credential Manager provider.
-    val googleFallbackLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        scope.launch {
-            try {
-                if (result.resultCode != Activity.RESULT_OK) {
-                    message = "Google sign-in was cancelled."
-                    messageError = true
-                } else {
-                    val account = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                        .getResult(ApiException::class.java)
-                    val token = account.idToken
-                        ?: error("Google didn't return an ID token. Check the Web OAuth client configuration.")
-                    supabase.auth.signInWith(IDToken) {
-                        idToken = token
-                        provider = Google
-                    }
-                    refreshAccount()
-                    message = "You're signed in with Google."
-                    messageError = false
-                }
-            } catch (error: Exception) {
-                message = error.message?.take(220)
-                    ?: "Google sign-in failed (${error::class.simpleName}). Check Google Play services and OAuth configuration."
-                messageError = true
-            } finally {
-                busy = false
-            }
         }
     }
 
@@ -322,25 +286,20 @@ internal fun SoundprintAccountScreen(
             busy = true
             message = "Opening Google sign-in…"
             messageError = false
-            var handedOffToFallback = false
             try {
-                val rawNonce = UUID.randomUUID().toString()
-                val digest = MessageDigest.getInstance("SHA-256")
-                    .digest(rawNonce.toByteArray(Charsets.UTF_8))
-                val hashedNonce = digest.joinToString("") { byte ->
-                    "%02x".format(byte.toInt() and 0xff)
-                }
+                val activity = context.findActivity()
+                    ?: error("Google sign-in needs an active Android screen. Close and reopen SoundPrint, then try again.")
 
                 val googleOption = GetGoogleIdOption.Builder()
                     .setFilterByAuthorizedAccounts(false)
                     .setServerClientId(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
-                    .setNonce(hashedNonce)
                     .build()
                 val request = GetCredentialRequest.Builder()
                     .addCredentialOption(googleOption)
                     .build()
-                val activity = context.findActivity()
-                    ?: error("Google sign-in needs an active Android screen. Close and reopen SoundPrint, then try again.")
+
+                // Keep one identity flow. The old Activity-result fallback classified every
+                // RESULT_CANCELED response as a user cancellation, masking provider/config errors.
                 val credentialManager = CredentialManager.create(activity)
                 val result = credentialManager.getCredential(context = activity, request = request)
                 val googleCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
@@ -348,53 +307,26 @@ internal fun SoundprintAccountScreen(
                 supabase.auth.signInWith(IDToken) {
                     idToken = googleCredential.idToken
                     provider = Google
-                    nonce = rawNonce
                 }
                 refreshAccount()
                 message = "You're signed in with Google."
                 messageError = false
-            } catch (cancelled: CancellationException) {
-                throw cancelled
             } catch (error: NoCredentialException) {
-                // Credential Manager found no eligible credential. Open the account
-                // picker fallback so users can choose from Google accounts on-device.
-                val activity = context.findActivity()
-                    ?: error("Google sign-in needs an active Android screen.")
-                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                    .requestEmail()
-                    .requestIdToken(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
-                    .build()
-                val client = GoogleSignIn.getClient(activity, options)
-                handedOffToFallback = true
-                message = "Opening Google sign-in…"
-                messageError = false
-                googleFallbackLauncher.launch(client.signInIntent)
+                message = "No Google account is available on this device. Add a Google account in Android Settings, then try again."
+                messageError = true
             } catch (error: GetCredentialProviderConfigurationException) {
-                val activity = context.findActivity()
-                    ?: error("Google sign-in needs an active Android screen.")
-                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                    .requestEmail()
-                    .requestIdToken(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
-                    .build()
-                val client = GoogleSignIn.getClient(activity, options)
-                handedOffToFallback = true
-                message = "Opening Google sign-in…"
-                messageError = false
-                googleFallbackLauncher.launch(client.signInIntent)
+                message = "Google sign-in provider configuration failed on this device. Update Google Play services and check the OAuth Android app configuration. (${error.javaClass.simpleName})"
+                messageError = true
             } catch (error: GetCredentialException) {
-                message = when (error) {
-                    is androidx.credentials.exceptions.GetCredentialCancellationException ->
-                        "Google sign-in was cancelled."
-                    else -> error.message?.take(220)
-                        ?: "Google sign-in couldn't start (${error::class.simpleName}). Check Google Play services and try again."
-                }
+                message = error.message?.takeIf { it.isNotBlank() }
+                    ?: "Google's credential provider ended the request before returning an account (${error.javaClass.simpleName}). Check the Google OAuth configuration and Play services."
                 messageError = true
             } catch (error: Exception) {
                 message = error.message?.take(220)
-                    ?: "Google sign-in failed (${error::class.simpleName}). Check your connection and OAuth configuration."
+                    ?: "Google sign-in failed (${error.javaClass.simpleName}). Check the Google OAuth configuration and your connection."
                 messageError = true
             } finally {
-                if (!handedOffToFallback) busy = false
+                busy = false
             }
         }
     }
@@ -519,7 +451,7 @@ internal fun SoundprintAccountScreen(
                         }
                     }, enabled = !busy && newEmail.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Change email") }
                     Spacer(Modifier.height(0.dp))
-                    OutlinedTextField(newPassword, { newPassword = it }, Modifier.fillMaxWidth(), label = { Text("New password") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
+                    OutlinedTextField(newPassword, { newPassword = it }, Modifier.fillMaxWidth(), label = { Text("New password") }, visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { newPasswordVisible = !newPasswordVisible }) { Text(if (newPasswordVisible) "Hide" else "Show") } }, singleLine = true)
                     Button(onClick = {
                         if (newPassword.length < 8) {
                             message = "Use at least 8 characters for your new password."
@@ -640,13 +572,15 @@ internal fun SoundprintAccountScreen(
                         password, { password = it }, Modifier.fillMaxWidth(),
                         label = { Text("New password") },
                         leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) },
-                        visualTransformation = PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } },
                         singleLine = true
                     )
                     OutlinedTextField(
                         confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(),
                         label = { Text("Confirm new password") },
-                        visualTransformation = PasswordVisualTransformation(),
+                        visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } },
                         singleLine = true
                     )
                     Button(
@@ -713,8 +647,8 @@ internal fun SoundprintAccountScreen(
                     }
                 }
                 OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
-                if (mode == "sign-up" || (mode == "sign-in" && !otpRequested)) OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
-                if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
+                if (mode == "sign-up" || (mode == "sign-in" && !otpRequested)) OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } }, singleLine = true)
+                if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } }, singleLine = true)
                 if (otpRequested) {
                     Text(
                         if (otpIsRecovery) "Enter the 6-digit password reset code sent to ${email.trim()}"
