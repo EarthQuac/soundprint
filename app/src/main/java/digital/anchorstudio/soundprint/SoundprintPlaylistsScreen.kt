@@ -222,7 +222,11 @@ fun SoundprintPlaylistsScreen(
                         Text("Smart playlists", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                         Text("Automatically updated from your listening and library", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Button(onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true }, shape = CircleShape, contentPadding = ButtonDefaults.ContentPadding) {
+                    Button(onClick = {
+                        if (SoundprintProGate.require("Smart playlists")) {
+                            editingId = null; draft = freshSmartPlaylist(); editorOpen = true
+                        }
+                    }, shape = CircleShape, contentPadding = ButtonDefaults.ContentPadding) {
                         SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("New smart playlist", fontSize = 11.sp, maxLines = 1)
