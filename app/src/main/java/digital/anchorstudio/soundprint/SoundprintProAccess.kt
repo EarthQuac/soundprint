@@ -81,7 +81,7 @@ internal object SoundprintProAccess {
             setRequestProperty("Accept", "application/json")
             setRequestProperty("Cache-Control", "no-store")
         }
-        try {
+        return try {
             connection.outputStream.use {
                 it.write(JSONObject().put("action", action).toString().toByteArray(Charsets.UTF_8))
             }
