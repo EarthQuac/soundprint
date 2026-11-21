@@ -582,7 +582,7 @@ fun SoundprintNowPlayingScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PlayerQuickAction("Audio Lab", SoundprintIcons.Gauge, Modifier.weight(1f)) { if (SoundprintProGate.require("Pro Audio Lab")) audioLabOpen = true }
-                        PlayerQuickAction("Aura Mode", SoundprintIcons.Waves, Modifier.weight(1f)) { if (SoundprintProGate.require("Aura Mode")) auraNotice = true }
+                        PlayerQuickAction("Aura Mode", SoundprintIcons.Waves, Modifier.weight(1f), selected = aura) { if (SoundprintProGate.require("Aura Mode")) aura = true }
                         PlayerQuickAction("Playlist", SoundprintIcons.Plus, Modifier.weight(1f)) { playlists = library.playlists(); playlistOpen = !playlistOpen }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -928,6 +928,12 @@ fun SoundprintNowPlayingScreen(
             }
         }
     }
+    if (aura) AuraListeningStage(
+        mood = genre,
+        preset = auraPreset,
+        onPreset = { auraPreset = it },
+        onExit = { aura = false }
+    )
     if (customizerOpen) {
         ArtworkCustomizerDialog(
             discStyle = discStyle,
@@ -993,9 +999,17 @@ fun SoundprintNowPlayingScreen(
         }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(15, 30, 45, 60).forEach { minutes ->
-                    OutlinedButton(onClick = { sleepMinutes = minutes.toString() }, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)) { Text("${minutes}m") }
+                    Box(
+                        Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(14.dp))
+                            .background(if (sleepMinutes == minutes.toString()) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
+                            .clickable { sleepMinutes = minutes.toString() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("${minutes}m", fontSize = 12.sp, fontWeight = if (sleepMinutes == minutes.toString()) FontWeight.SemiBold else FontWeight.Medium,
+                            color = if (sleepMinutes == minutes.toString()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                    }
                 }
             }
             OutlinedTextField(sleepMinutes, { sleepMinutes = it }, label = { Text("Custom minutes") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -1031,17 +1045,6 @@ fun SoundprintNowPlayingScreen(
                 TextButton(onClick = { SoundprintProGate.require("Enhanced sleep controls") }) { Text("Stop after this song · Pro") }
             }
         }
-    }
-    if (auraNotice) SoundprintFloatingDialog(
-        onDismissRequest = { auraNotice = false },
-        title = "Aura Mode",
-        maxWidth = 340.dp,
-        actions = {
-            Spacer(Modifier.weight(1f))
-            Button(onClick = { auraNotice = false }) { Text("Got it") }
-        }
-    ) {
-        Text("Aura Mode is temporarily paused. The audio effects and Audio Lab remain in Soundprint; the immersive mode will return later.", fontSize = 13.sp, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     if (audioLabOpen) SoundprintFloatingDialog(
         onDismissRequest = { audioLabOpen = false },
@@ -1284,21 +1287,21 @@ private fun PlayerQuickAction(
 ) {
     Column(
         modifier.height(84.dp).clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface)
+            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f))
             .clickable(onClick = onClick).padding(horizontal = 6.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         SoundprintIcon(icon, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(8.dp))
-        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 @Composable
 private fun PlayerAction(label: String, icon: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Column(
         modifier.height(68.dp).clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = .48f))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .78f))
             .clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -1317,7 +1320,20 @@ private fun PlayerPanel(title:String,onClose:()->Unit,content:@Composable Column
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PlayerChoiceRow(options:List<String>,selected:String,onSelect:(String)->Unit){
-    FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){options.forEach{item->FilterChip(selected=selected.equals(item,true)||selected.equals(item.replace(" ","_"),true),onClick={onSelect(item)},label={Text(item,fontSize=11.sp)})}}
+    FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+        options.forEach { item ->
+            val active = selected.equals(item, true) || selected.equals(item.replace(" ", "_"), true)
+            Box(
+                Modifier.clip(RoundedCornerShape(50.dp))
+                    .background(if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
+                    .clickable { onSelect(item) }
+                    .padding(horizontal = 16.dp, vertical = 11.dp)
+            ) {
+                Text(item, fontSize = 11.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+            }
+        }
+    }
 }
 @Composable
 private fun PlayerToggle(title:String,detail:String,checked:Boolean,onChange:(Boolean)->Unit){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(title,fontSize=12.sp,fontWeight=FontWeight.Medium);Text(detail,fontSize=10.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)};Switch(checked,onChange)}}
@@ -1352,7 +1368,19 @@ private fun AuraListeningStage(mood:String,preset:String,onPreset:(String)->Unit
             AnimatedContent(prompts[prompt],label="aura-copy"){Text(it,fontSize=22.sp,fontWeight=FontWeight.Light,color=Color.White,textAlign=TextAlign.Center,lineHeight=32.sp)}
             Text("Follow the sound",fontSize=9.sp,letterSpacing=3.sp,color=Color.White.copy(alpha=.4f))
             Text("SOUND ATMOSPHERE",fontSize=9.sp,letterSpacing=2.sp,color=Color.White.copy(alpha=.4f))
-            FlowRow(horizontalArrangement=Arrangement.Center){listOf("Auto","Slowed + Reverb","Pulse","Dreamscape","Midnight").forEach{FilterChip(selected=preset==it,onClick={onPreset(it)},label={Text(it,fontSize=10.sp)})}}
+            FlowRow(horizontalArrangement=Arrangement.Center, verticalArrangement=Arrangement.spacedBy(8.dp)){
+                listOf("Auto","Slowed + Reverb","Pulse","Dreamscape","Midnight").forEach { option ->
+                    val selected = preset == option
+                    Box(
+                        Modifier.clip(RoundedCornerShape(50.dp))
+                            .background(if (selected) Color(0xFFB7D9C5).copy(alpha = .22f) else Color.White.copy(alpha = .10f))
+                            .clickable { onPreset(option) }
+                            .padding(horizontal = 13.dp, vertical = 9.dp)
+                    ) {
+                        Text(option, fontSize = 10.sp, color = if (selected) Color(0xFFB7D9C5) else Color.White.copy(alpha = .84f))
+                    }
+                }
+            }
             Spacer(Modifier.height(20.dp))
             Text("BEST WITH HEADPHONES · KEEP VOLUME COMFORTABLE",fontSize=9.sp,color=Color.White.copy(alpha=.45f))
             TextButton(onClick=onExit){Text("Tap to return",color=Color.White.copy(alpha=.7f))}
