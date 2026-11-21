@@ -504,7 +504,7 @@ fun SoundprintLyricsPanel(
                     }
                 }
 
-                if (lines.isNotEmpty()) {
+                if (lines.isNotEmpty() && SoundprintProGate.hasPro) {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxWidth().heightIn(max = lyricsViewportHeight),
@@ -549,17 +549,8 @@ fun SoundprintLyricsPanel(
                             }
                         }
                     }
-                    } else {
-                        Text(
-                            lines.joinToString("\n") { it.text },
-                            modifier = Modifier.fillMaxWidth().heightIn(max = lyricsViewportHeight).verticalScroll(rememberScrollState()),
-                            fontSize = 14.sp,
-                            lineHeight = 23.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                     Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(if (SoundprintProGate.hasPro) "Synced lyrics · ${lines.size} lines" else "Lyrics · Pro sync available", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Synced lyrics · ${lines.size} lines", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         TextButton(
                             onClick = { if (SoundprintProGate.require("Synced lyrics & karaoke")) openKaraoke() },
                             enabled = !karaokeLoading,
@@ -572,12 +563,6 @@ fun SoundprintLyricsPanel(
                         }
                     }
                 } else {
-                    if (lines.isNotEmpty()) {
-                        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Synced lyrics", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            ProFeatureBadge()
-                        }
-                    }
                     Text(
                         lyrics,
                         Modifier.fillMaxWidth().heightIn(max = if (expanded) 448.dp else 256.dp).verticalScroll(rememberScrollState()),
@@ -585,10 +570,9 @@ fun SoundprintLyricsPanel(
                         textAlign = TextAlign.Center
                     )
                     if (lines.isNotEmpty()) {
-                        Button(onClick = proAccess.onOpenPro, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                            SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(7.dp))
-                            Text("Unlock synced lyrics with Pro")
+                        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Synced lyrics · Pro", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            ProFeatureBadge()
                         }
                     }
                 }
