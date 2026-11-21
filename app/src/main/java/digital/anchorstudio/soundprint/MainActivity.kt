@@ -277,10 +277,17 @@ class MainActivity : ComponentActivity() {
             var proEntitlementLoaded by remember { mutableStateOf(false) }
             val authSessionState by SoundprintSupabase.client.auth.sessionStatus.collectAsState()
             LaunchedEffect(authSessionState) {
-                proEntitled = runCatching {
-                    SoundprintSupabase.client.auth.currentUserOrNull()?.appMetadata
-                        ?.get("pro_entitled")?.toString()?.trim('"').equals("true", ignoreCase = true)
-                }.getOrDefault(false)
+                proEntitlementLoaded = false
+                proEntitled = false
+                if (SoundprintProAccess.hasSession()) {
+                    try {
+                        proEntitled = SoundprintProAccess.refresh().hasPro
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        proEntitled = false
+                    }
+                }
                 proEntitlementLoaded = true
                 getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit()
                     .putBoolean("pro_entitled", proEntitled)
