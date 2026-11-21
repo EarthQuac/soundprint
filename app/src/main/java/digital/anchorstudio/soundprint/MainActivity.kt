@@ -1006,7 +1006,7 @@ private fun SoundprintApp(
     }
 
     CompositionLocalProvider(
-        LocalSoundprintProAccess provides SoundprintProAccess(proStatus.hasPro) {
+        LocalSoundprintProAccess provides SoundprintProUiAccess(proStatus.hasPro) {
             nowPlayingOpen = false
             tagEditorOpen = false
             proOpen = true
