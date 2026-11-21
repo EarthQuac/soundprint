@@ -2519,33 +2519,38 @@ private fun SettingsScreen(
             }
             if (matches("audio gapless playback fade pause loudness leveling equalizer crossfade")) {
                 SettingsSection("AUDIO") {
-                    SettingsToggleRow("Gapless playback", "Seamless transitions between queued tracks", gapless, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("gapless"))) {
-                        gapless = it
-                        playbackPrefs.edit().putBoolean("gapless_enabled", it).apply()
+                    SettingsToggleRow("Gapless playback · Pro", "Seamless transitions between queued tracks", gapless, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("gapless"))) {
+                        if (SoundprintProGate.require("Gapless playback")) {
+                            gapless = it
+                            playbackPrefs.edit().putBoolean("gapless_enabled", it).apply()
+                        }
                     }
                     SettingsToggleRow("Fade on pause", "Short fade instead of an abrupt stop", fadeOnPause, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("fade"))) {
                         fadeOnPause = it
                         playbackPrefs.edit().putBoolean("fade_on_pause", it).apply()
                     }
-                    SettingsToggleRow("Loudness leveling", "Keep playback volume more consistent", loudness, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("loudness"))) {
-                        loudness = it
-                        playbackPrefs.edit().putBoolean("loudness_leveling", it).apply()
+                    SettingsToggleRow("Loudness leveling · Pro", "Keep playback volume more consistent", loudness, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("loudness"))) {
+                        if (SoundprintProGate.require("Pro Audio Lab")) {
+                            loudness = it
+                            playbackPrefs.edit().putBoolean("loudness_leveling", it).apply()
+                        }
                     }
-                    SettingsActionRow("Equalizer", "Adjust your sound with the free 10-band EQ; Pro adds advanced audio controls", "Open Equalizer", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("equalizer")))
+                    SettingsActionRow("Pro Audio Lab", "Unlock the 10-band EQ, bass, treble and loudness controls", "Unlock", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("equalizer")), onClick = { SoundprintProGate.require("Pro Audio Lab") })
                     SettingsValueRow("Crossfade", if (crossfade == 0) "Off" else "$crossfade seconds", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade"))) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             listOf(0, 2, 4, 6, 8).forEach { seconds ->
                                 Box(
-                                    Modifier.width(31.dp).height(30.dp).clip(RoundedCornerShape(9.dp))
-                                        .background(if (crossfade == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-                                        
+                                    Modifier.width(46.dp).height(40.dp).clip(RoundedCornerShape(12.dp))
+                                        .background(if (crossfade == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
                                         .clickable {
-                                            crossfade = seconds
-                                            playbackPrefs.edit().putInt("crossfade_seconds", seconds).apply()
+                                            if (SoundprintProGate.require("Gapless playback & crossfade")) {
+                                                crossfade = seconds
+                                                playbackPrefs.edit().putInt("crossfade_seconds", seconds).apply()
+                                            }
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(if (seconds == 0) "Off" else "$seconds s", fontSize = 9.sp, fontWeight = if (crossfade == seconds) FontWeight.SemiBold else FontWeight.Normal, color = if (crossfade == seconds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(if (seconds == 0) "Off" else "$seconds s", fontSize = 11.sp, fontWeight = if (crossfade == seconds) FontWeight.SemiBold else FontWeight.Medium, color = if (crossfade == seconds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                                 }
                             }
                         }
@@ -2572,9 +2577,8 @@ private fun SettingsScreen(
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     rowOptions.forEach { seconds ->
                                         Box(
-                                            Modifier.weight(1f).height(36.dp).clip(RoundedCornerShape(12.dp))
-                                                .background(if (seekSeconds == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
-                                                
+                                            Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(14.dp))
+                                                .background(if (seekSeconds == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
                                                 .clickable { seekSeconds = seconds; playbackPrefs.edit().putInt("double_tap_seek_seconds", seconds).apply() },
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -2610,22 +2614,32 @@ private fun SettingsScreen(
             }
             if (matches("music intelligence background mood scan offline clap analysis")) {
                 SettingsSection("MUSIC INTELLIGENCE") {
-                    SettingsToggleRow(
-                        "Scan entire library in background",
-                        "Automatically build and save mood profiles for your songs while Soundprint is open",
-                        backgroundMoodScan,
-                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("mood-scan"))
-                    ) { enabled ->
-                        backgroundMoodScan = enabled
-                        scanner.setAutoScanEnabled(enabled)
+                    if (SoundprintProGate.hasPro) {
+                        SettingsToggleRow(
+                            "Scan entire library in background · Pro",
+                            "Build offline mood profiles for personalized Discover recommendations",
+                            backgroundMoodScan,
+                            modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("mood-scan"))
+                        ) { enabled ->
+                            backgroundMoodScan = enabled
+                            scanner.setAutoScanEnabled(enabled)
+                        }
+                        ClapScanSettingsStatus(
+                            state = scanState,
+                            enabled = backgroundMoodScan,
+                            onStart = { if (SoundprintProGate.require("Discover music for your mood")) scanner.startScan(allowModelDownload = true) },
+                            onPause = { if (SoundprintProGate.require("Discover music for your mood")) scanner.pause() },
+                            onRetry = { if (SoundprintProGate.require("Discover music for your mood")) scanner.startScan(retryFailedOnly = true, allowModelDownload = true) }
+                        )
+                    } else {
+                        SettingsActionRow(
+                            "Mood discovery · Pro",
+                            "Analyze your library and discover songs by mood and activity",
+                            "Unlock",
+                            modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("mood-scan")),
+                            onClick = { SoundprintProGate.require("Discover music for your mood") }
+                        )
                     }
-                    ClapScanSettingsStatus(
-                        state = scanState,
-                        enabled = backgroundMoodScan,
-                        onStart = { scanner.startScan(allowModelDownload = true) },
-                        onPause = { scanner.pause() },
-                        onRetry = { scanner.startScan(retryFailedOnly = true, allowModelDownload = true) }
-                    )
                 }
             }
             if (matches("library custom artwork add music your music rescan folders audio tag editor playback history backup restore ignore clips clear library recycle bin")) {
@@ -2893,7 +2907,7 @@ private fun FolderAutoWatchSettingsRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                Text("Folder auto-watch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                Text("Folder auto-watch · Pro", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                 val detail = if (folderName.isNullOrBlank()) {
                     "Choose a folder to check every 30 seconds while Soundprint is open."
                 } else {
