@@ -222,6 +222,7 @@ fun SoundprintNowPlayingScreen(
     var aura by remember { mutableStateOf(false) }
     var auraPreset by remember { mutableStateOf("Auto") }
     var audioLabOpen by remember { mutableStateOf(false) }
+    var auraNotice by remember { mutableStateOf(false) }
     var bass by remember { mutableFloatStateOf(0f) }
     var treble by remember { mutableFloatStateOf(0f) }
     var eqLevels by remember { mutableStateOf(List(10) { 0f }) }
