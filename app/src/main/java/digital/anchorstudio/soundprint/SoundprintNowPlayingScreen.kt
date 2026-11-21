@@ -808,13 +808,14 @@ fun SoundprintNowPlayingScreen(
                         seek = { target -> controller?.seekTo(target) },
                         onLyricsChanged = { lyricsForGenre = it },
                         onMetadataMatch = { matchedTitle, matchedArtist, matchedAlbum, matchedYear ->
-                            if (!SoundprintProGate.require("Automatic song-info autofill")) return@SoundprintLyricsPanel
-                            val nextTitle = matchedTitle.ifBlank { title }
-                            val nextArtist = matchedArtist.ifBlank { artist }
-                            val nextAlbum = matchedAlbum.ifBlank { album }
-                            val nextYear = matchedYear.takeIf { it in 1000..2100 } ?: year
-                            library.updateSongMetadata(trackId, nextTitle, nextArtist, nextAlbum, genre, nextYear)
-                            title = nextTitle; artist = nextArtist; album = nextAlbum; year = nextYear
+                            if (SoundprintProGate.require("Automatic song-info autofill")) {
+                                val nextTitle = matchedTitle.ifBlank { title }
+                                val nextArtist = matchedArtist.ifBlank { artist }
+                                val nextAlbum = matchedAlbum.ifBlank { album }
+                                val nextYear = matchedYear.takeIf { it in 1000..2100 } ?: year
+                                library.updateSongMetadata(trackId, nextTitle, nextArtist, nextAlbum, genre, nextYear)
+                                title = nextTitle; artist = nextArtist; album = nextAlbum; year = nextYear
+                            }
                         }
                     )
                 }
