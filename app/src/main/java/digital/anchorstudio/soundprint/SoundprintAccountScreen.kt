@@ -48,6 +48,7 @@ import io.github.jan.supabase.auth.providers.builtin.OTP
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.put
@@ -311,6 +312,8 @@ internal fun SoundprintAccountScreen(
                 refreshAccount()
                 message = "You're signed in with Google."
                 messageError = false
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: NoCredentialException) {
                 message = "No Google account is available on this device. Add a Google account in Android Settings, then try again."
                 messageError = true
