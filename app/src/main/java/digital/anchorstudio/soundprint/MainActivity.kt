@@ -1284,7 +1284,6 @@ private fun HomeScreen(
                 Column(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
                         .background(MaterialTheme.colorScheme.surface)
-                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.40f), RoundedCornerShape(22.dp))
                         .padding(20.dp)
                 ) {
                     Box(Modifier.size(44.dp).clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
@@ -1324,10 +1323,9 @@ private fun HomeScreen(
                                     if (tileIndex < shortcutTiles.size) {
                                         val tile = shortcutTiles[tileIndex]
                                         Row(
-                                            Modifier.weight(1f).height(53.dp)
-                                                .clip(RoundedCornerShape(18.dp))
+                                            Modifier.weight(1f).height(56.dp)
+                                                .clip(RoundedCornerShape(22.dp))
                                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.52f))
-                                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.34f), RoundedCornerShape(18.dp))
                                                 .clickable {
                                                     if (tile.third >= 0) onOpenTab(tile.third) else selectedShortcut = tile.first
                                                 }
@@ -1858,7 +1856,7 @@ private fun AddMusicMenuButton(
             modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(50))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
                 .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.42f), RoundedCornerShape(50))
-                .clickable { expanded = true }.padding(horizontal = 17.dp),
+                .clickable { expanded = true }.padding(horizontal = 18.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -2727,7 +2725,6 @@ private fun SettingsSearchBox(value: String, onValueChange: (String) -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 2.dp)
             .heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.42f), RoundedCornerShape(16.dp))
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -2747,9 +2744,7 @@ private fun SettingsSearchBox(value: String, onValueChange: (String) -> Unit) {
 @Composable
 private fun SettingsToggleRow(label: String, description: String, checked: Boolean, modifier: Modifier = Modifier, onCheckedChange: (Boolean) -> Unit) {
     Column(modifier) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-            SettingsRowIcon(label)
-            Spacer(Modifier.width(12.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).padding(end = 10.dp)) {
                 Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, lineHeight = 18.sp)
                 Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2776,8 +2771,6 @@ private fun FolderAutoWatchSettingsRow(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SettingsRowIcon("Folder auto-watch")
-            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f).padding(end = 8.dp)) {
                 Text("Folder auto-watch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                 val detail = if (folderName.isNullOrBlank()) {
@@ -2818,8 +2811,6 @@ private fun SettingsActionRow(
             Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SettingsRowIcon(label, destructive)
-            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f).padding(end = 8.dp)) {
                 Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, lineHeight = 18.sp)
                 Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2834,8 +2825,6 @@ private fun SettingsActionRow(
 private fun SettingsValueRow(label: String, description: String, modifier: Modifier = Modifier, control: @Composable () -> Unit) {
     Column(modifier) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            SettingsRowIcon(label)
-            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f).padding(end = 6.dp)) {
                 Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                 Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2856,69 +2845,15 @@ private fun HelpInfoTopic(title: String, body: String) {
 
 @Composable
 private fun SettingsSection(title: String, content: @Composable () -> Unit) {
-    val icon = when (title.uppercase()) {
-        "APPEARANCE" -> SoundprintIcons.Palette
-        "AUDIO" -> SoundprintIcons.AudioWaveform
-        "PLAYBACK" -> SoundprintIcons.Play
-        "QUEUE" -> SoundprintIcons.ListMusic
-        "MUSIC INTELLIGENCE" -> SoundprintIcons.Brain
-        "LIBRARY" -> SoundprintIcons.Library
-        "TUTORIAL" -> SoundprintIcons.BookOpenText
-        "ABOUT" -> SoundprintIcons.Info
-        else -> SoundprintIcons.Settings2
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Text(title, fontSize = 11.sp, letterSpacing = 1.6.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surface)) { content() }
     }
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 9.dp)) {
-        Row(Modifier.padding(start = 2.dp, bottom = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.size(28.dp).clip(RoundedCornerShape(9.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
-                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.32f), RoundedCornerShape(9.dp)),
-                contentAlignment = Alignment.Center
-            ) { SoundprintIcon(icon, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary) }
-            Text(title, fontSize = 11.sp, letterSpacing = 1.35.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(19.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.42f), RoundedCornerShape(19.dp))
-        ) { content() }
-    }
-}
-
-@Composable
-private fun SettingsRowIcon(label: String, destructive: Boolean = false) {
-    val icon = when {
-        label.contains("gapless", true) -> SoundprintIcons.AudioWaveform
-        label.contains("fade", true) -> SoundprintIcons.AudioLines
-        label.contains("loudness", true) -> SoundprintIcons.Waves
-        label.contains("equalizer", true) -> SoundprintIcons.SlidersHorizontal
-        label.contains("crossfade", true) -> SoundprintIcons.ArrowLeftRight
-        label.contains("resume", true) -> SoundprintIcons.Play
-        label.contains("position", true) || label.contains("history", true) -> SoundprintIcons.History
-        label.contains("seek", true) -> SoundprintIcons.Timer
-        label.contains("queue", true) -> SoundprintIcons.ListMusic
-        label.contains("folder", true) || label.contains("music", true) -> SoundprintIcons.FolderPlus
-        label.contains("scan", true) -> SoundprintIcons.RefreshCw
-        label.contains("mood", true) || label.contains("intelligence", true) -> SoundprintIcons.Brain
-        label.contains("artwork", true) -> SoundprintIcons.Palette
-        label.contains("tag", true) -> SoundprintIcons.Tags
-        label.contains("backup", true) -> SoundprintIcons.Save
-        label.contains("restore", true) || label.contains("recycle", true) -> SoundprintIcons.ArchiveRestore
-        label.contains("clear", true) || label.contains("ignore", true) -> SoundprintIcons.Trash2
-        label.contains("tutorial", true) || label.contains("help", true) -> SoundprintIcons.BookOpenText
-        label.contains("pro", true) -> SoundprintIcons.Crown
-        label.contains("about", true) || label.contains("version", true) -> SoundprintIcons.Info
-        else -> SoundprintIcons.Settings2
-    }
-    val tint = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-    Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp))
-        .background(tint.copy(alpha = 0.09f))
-        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.28f), RoundedCornerShape(11.dp)),
-        contentAlignment = Alignment.Center
-    ) { SoundprintIcon(icon, null, Modifier.size(17.dp), tint = tint) }
 }
 
 @Composable
 private fun SettingsDivider() {
-    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f), thickness = 0.7.dp)
+    Spacer(Modifier.height(0.dp))
 }
 
 @Composable
@@ -2934,7 +2869,6 @@ private fun ThemeChoice(modifier: Modifier, label: String, icon: Int?, selected:
     Column(
         modifier = modifier.height(76.dp).clip(RoundedCornerShape(16.dp))
             .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
-            .border(1.dp, if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.62f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.38f), RoundedCornerShape(16.dp))
             .clickable(onClick = onClick).padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -2958,7 +2892,6 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
     Row(
         modifier = modifier.height(76.dp).clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.62f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.38f), RoundedCornerShape(16.dp))
             .clickable(onClick = onClick).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
