@@ -998,16 +998,21 @@ fun SoundprintNowPlayingScreen(
         }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)).padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 listOf(15, 30, 45, 60).forEach { minutes ->
+                    val selected = sleepMinutes == minutes.toString()
                     Box(
-                        Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(14.dp))
-                            .background(if (sleepMinutes == minutes.toString()) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                        Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(12.dp))
+                            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
                             .clickable { sleepMinutes = minutes.toString() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("${minutes}m", fontSize = 12.sp, fontWeight = if (sleepMinutes == minutes.toString()) FontWeight.SemiBold else FontWeight.Medium,
-                            color = if (sleepMinutes == minutes.toString()) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${minutes}m", fontSize = 12.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
