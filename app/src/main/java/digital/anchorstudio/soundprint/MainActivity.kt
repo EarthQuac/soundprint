@@ -974,6 +974,12 @@ private fun SoundprintApp(
                         "pro" -> ProScreen(
                             onBack = { proOpen = false },
                             entitled = proStatus.hasPro,
+                            signedIn = SoundprintProAccess.hasSession(),
+                            onSignIn = {
+                                proOpen = false
+                                accountOpen = true
+                                accountReturnToSignInKey += 1
+                            },
                             onClaimFounder = {
                                 screenScope.launch {
                                     proMessage = "Checking eligibility and claiming your founder spot…"
@@ -1997,8 +2003,6 @@ private fun AddMusicMenuButton(
             SoundprintIcon(SoundprintIcons.FolderOpen, null, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(10.dp))
             Text("Add music", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.width(7.dp))
-            SoundprintIcon(SoundprintIcons.ChevronDown, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         SoundprintDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, width = 304.dp) {
             Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
