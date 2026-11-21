@@ -2692,54 +2692,75 @@ private fun SettingsScreen(
             }
             if (matches("audio gapless playback fade pause loudness leveling equalizer crossfade")) {
                 SettingsSection("AUDIO") {
+                    SettingsToggleRow("Gapless playback", "Seamless transitions between queued tracks",
+                        SoundprintProGate.isResolved && SoundprintProGate.hasPro && gapless,
+                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("gapless")),
+                        proFeature = true
+                    ) {
+                        if (SoundprintProGate.require("Gapless playback")) {
+                            gapless = it
+                            playbackPrefs.edit().putBoolean("gapless_enabled", it).apply()
+                        }
+                    }
                     SettingsToggleRow("Fade on pause", "Short fade instead of an abrupt stop", fadeOnPause, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("fade"))) {
                         fadeOnPause = it
                         playbackPrefs.edit().putBoolean("fade_on_pause", it).apply()
                     }
-                    if (SoundprintProGate.isResolved && SoundprintProGate.hasPro) {
-                        SettingsToggleRow("Gapless playback · Pro", "Seamless transitions between queued tracks", gapless, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("gapless"))) {
-                            if (SoundprintProGate.require("Gapless playback")) {
-                                gapless = it
-                                playbackPrefs.edit().putBoolean("gapless_enabled", it).apply()
-                            }
+                    SettingsToggleRow("Loudness leveling", "Keep playback volume more consistent",
+                        SoundprintProGate.isResolved && SoundprintProGate.hasPro && loudness,
+                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("loudness")),
+                        proFeature = true
+                    ) {
+                        if (SoundprintProGate.require("Pro Audio Lab")) {
+                            loudness = it
+                            playbackPrefs.edit().putBoolean("loudness_leveling", it).apply()
                         }
-                        SettingsToggleRow("Loudness leveling · Pro", "Keep playback volume more consistent", loudness, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("loudness"))) {
-                            if (SoundprintProGate.require("Pro Audio Lab")) {
-                                loudness = it
-                                playbackPrefs.edit().putBoolean("loudness_leveling", it).apply()
-                            }
-                        }
-                        SettingsActionRow("Pro Audio Lab", "Unlock the 10-band EQ, bass, treble and loudness controls", "Unlock", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("equalizer")), onClick = { SoundprintProGate.require("Pro Audio Lab") })
-                        SettingsValueRow("Crossfade · Pro", if (crossfade == 0) "Off" else "$crossfade seconds", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade")), controlBelow = true) {
-                            Row(
-                                Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)).padding(4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                listOf(0, 2, 4, 6, 8).forEach { seconds ->
-                                    val selected = crossfade == seconds
-                                    Box(
-                                        Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(11.dp))
-                                            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
-                                            .clickable {
-                                                if (SoundprintProGate.require("Gapless playback & crossfade")) {
-                                                    crossfade = seconds
-                                                    playbackPrefs.edit().putInt("crossfade_seconds", seconds).apply()
-                                                }
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(if (seconds == 0) "Off" else "$seconds s", fontSize = 11.sp,
-                                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                                            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
+                    }
+                    SettingsActionRow(
+                        "Pro Audio Lab",
+                        "Unlock advanced EQ, bass, treble and loudness controls",
+                        "Unlock",
+                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("equalizer")),
+                        onClick = { SoundprintProGate.require("Pro Audio Lab") }
+                    )
+                    SettingsValueRow(
+                        "Crossfade",
+                        if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro || crossfade == 0) "Off" else "$crossfade seconds",
+                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade")),
+                        proFeature = true
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf(0, 2, 4, 6, 8).forEach { seconds ->
+                                val selected = SoundprintProGate.isResolved && SoundprintProGate.hasPro && crossfade == seconds
+                                Box(
+                                    Modifier.width(31.dp).height(30.dp).clip(RoundedCornerShape(9.dp))
+                                        .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                                        .border(
+                                            1.dp,
+                                            if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.34f)
+                                            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
+                                            RoundedCornerShape(9.dp)
+                                        )
+                                        .clickable {
+                                            if (seconds == 0) {
+                                                crossfade = 0
+                                                playbackPrefs.edit().putInt("crossfade_seconds", 0).apply()
+                                            } else if (SoundprintProGate.require("Gapless playback & crossfade")) {
+                                                crossfade = seconds
+                                                playbackPrefs.edit().putInt("crossfade_seconds", seconds).apply()
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        if (seconds == 0) "Off" else "$seconds s",
+                                        fontSize = 9.sp,
+                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
                         }
-                    } else {
-                        SettingsActionRow("Gapless playback · Pro", "Seamless transitions between queued tracks", "Unlock", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("gapless")), onClick = { SoundprintProGate.require("Gapless playback") })
-                        SettingsActionRow("Loudness leveling · Pro", "Keep playback volume more consistent", "Unlock", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("loudness")), onClick = { SoundprintProGate.require("Pro Audio Lab") })
-                        SettingsActionRow("Pro Audio Lab", "Unlock the 10-band EQ, bass, treble and loudness controls", "Unlock", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("equalizer")), onClick = { SoundprintProGate.require("Pro Audio Lab") })
-                        SettingsActionRow("Crossfade · Pro", "Blend the end of one track into the next", "Unlock", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade")), onClick = { SoundprintProGate.require("Gapless playback & crossfade") })
                     }
                 }
             }
