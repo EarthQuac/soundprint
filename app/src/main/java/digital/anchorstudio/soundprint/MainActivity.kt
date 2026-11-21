@@ -802,6 +802,7 @@ private fun SoundprintApp(
         disableProPlaybackOptions(appContext)
         if (selectedPalette == "Emerald" || selectedPalette == "Mono") onPaletteChange("Amber")
         if (folderWatchEnabled) onToggleFolderWatch(false)
+        clapScanner.setAutoScanEnabled(false)
     }
     LaunchedEffect(authSessionState) {
         if (SoundprintProAccess.hasSession()) {
