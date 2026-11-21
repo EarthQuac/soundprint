@@ -20,6 +20,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -76,6 +78,7 @@ internal fun SoundprintAccountScreen(
     var userId by remember { mutableStateOf<String?>(null) }
     var accountEmail by remember { mutableStateOf("") }
     var displayName by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
     var nameDraft by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -119,13 +122,15 @@ internal fun SoundprintAccountScreen(
             userId = null
             accountEmail = ""
             displayName = ""
+            username = ""
         } else {
             signedIn = true
             userId = user.id
             accountEmail = user.email.orEmpty()
+            username = user.userMetadata?.get("username")?.toString()?.trim('"').orEmpty()
             displayName = user.userMetadata?.get("display_name")?.toString()?.trim('"')
-                ?.ifBlank { null } ?: accountEmail.substringBefore("@").ifBlank { "Listener" }
-            nameDraft = displayName
+                ?.ifBlank { null } ?: username.ifBlank { accountEmail.substringBefore("@").ifBlank { "Listener" } }
+            nameDraft = username
         }
     }
 
@@ -399,30 +404,80 @@ internal fun SoundprintAccountScreen(
                     CircularProgressIndicator()
                     Text("Checking your account…", Modifier.padding(top = 14.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            } else if (signedIn && username.isBlank()) {
+                AccountIntroPanel(
+                    title = "Choose your username",
+                    description = "You're signed in. Set the username SoundPrint will use to address you. You can change it later.",
+                    icon = SoundprintIcons.UserRound
+                )
+                AccountPanel {
+                    Text("YOUR USERNAME", fontSize = 10.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    OutlinedTextField(
+                        value = nameDraft,
+                        onValueChange = { nameDraft = it.lowercase().filter { ch -> ch.isLetterOrDigit() || ch == '_' }.take(20) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Username") },
+                        leadingIcon = { SoundprintIcon(SoundprintIcons.UserRound, null) },
+                        supportingText = { Text("3–20 characters · letters, numbers and underscores") },
+                        singleLine = true
+                    )
+                    Button(
+                        onClick = {
+                            val clean = nameDraft.trim()
+                            if (!clean.matches(Regex("[a-z0-9_]{3,20}"))) {
+                                message = "Choose 3–20 characters using letters, numbers or underscores."
+                                messageError = true
+                            } else perform {
+                                supabase.auth.updateUser { data { put("username", clean) } }
+                                username = clean
+                                displayName = clean
+                                nameDraft = clean
+                                message = "Username saved. Welcome to SoundPrint, @$clean."
+                                messageError = false
+                            }
+                        },
+                        enabled = !busy && nameDraft.matches(Regex("[a-z0-9_]{3,20}")),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (busy) "Saving…" else "Continue") }
+                }
+                TextButton(
+                    onClick = { perform { supabase.auth.signOut(); refreshAccount(); message = "Signed out."; messageError = false } },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Sign out") }
             } else if (signedIn) {
                 AccountPanel {
                     Text("YOU'RE SIGNED IN", fontSize = 10.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text(displayName, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text("@$username", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     Text(accountEmail, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("Your account is connected. Your music files and playback library remain on this device unless you choose to sync supported data.", fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 AccountPanel {
                     Text("PROFILE", fontSize = 10.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedTextField(nameDraft, { nameDraft = it.take(60) }, Modifier.fillMaxWidth(), label = { Text("Display name") }, singleLine = true)
+                    OutlinedTextField(
+                        value = nameDraft,
+                        onValueChange = { nameDraft = it.lowercase().filter { ch -> ch.isLetterOrDigit() || ch == '_' }.take(20) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Username") },
+                        leadingIcon = { SoundprintIcon(SoundprintIcons.UserRound, null) },
+                        supportingText = { Text("3–20 characters · letters, numbers and underscores") },
+                        singleLine = true
+                    )
                     Button(
                         onClick = {
                             val clean = nameDraft.trim()
                             val id = userId
-                            if (clean.isBlank() || id == null) {
-                                message = "Enter a display name first."
+                            if (!clean.matches(Regex("[a-z0-9_]{3,20}")) || id == null) {
+                                message = "Choose a username with 3–20 letters, numbers or underscores."
                                 messageError = true
                             } else perform {
-                                supabase.auth.updateUser { data { put("display_name", clean) } }
+                                supabase.auth.updateUser { data { put("username", clean); put("display_name", clean) } }
                                 supabase.from("account_profiles").update(SoundprintProfileUpdate(clean)) {
                                     filter { eq("id", id) }
                                 }
+                                username = clean
                                 displayName = clean
-                                message = "Profile updated."
+                                message = "Username updated."
                                 messageError = false
                             }
                         },
@@ -608,24 +663,19 @@ internal fun SoundprintAccountScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("Back to sign in") }
                 } else {
-                AccountPanel {
-                    Text(
-                        when (mode) {
-                            "sign-up" -> "Create your account"
-                            "forgot" -> "Reset your password"
-                            else -> "Sign in to SoundPrint"
-                        },
-                        fontSize = 25.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        when (mode) {
-                            "sign-up" -> "Create an account to keep your SoundPrint identity available across devices."
-                            "forgot" -> "We'll send you a secure link to reset your password."
-                            else -> "Sign in to manage your account. Your music library stays on this device by default."
-                        },
-                        fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                AccountIntroPanel(
+                    title = when (mode) {
+                        "sign-up" -> "Create your account"
+                        "forgot" -> "Reset your password"
+                        else -> "Sign in to SoundPrint"
+                    },
+                    description = when (mode) {
+                        "sign-up" -> "Create an account to keep your SoundPrint identity available across devices."
+                        "forgot" -> "We'll send you a secure link to reset your password."
+                        else -> "Sign in to manage your account. Your music library stays on this device by default."
+                    },
+                    icon = if (mode == "forgot") SoundprintIcons.Lock else SoundprintIcons.AudioWaveform
+                )
                 if (mode != "forgot") {
                     OutlinedButton(
                         onClick = { signInWithGoogle() },
@@ -643,7 +693,6 @@ internal fun SoundprintAccountScreen(
                         Spacer(Modifier.height(0.dp))
                     }
                 }
-                if (mode == "sign-up") OutlinedTextField(displayName, { displayName = it.take(60) }, Modifier.fillMaxWidth(), label = { Text("Display name") }, leadingIcon = { SoundprintIcon(SoundprintIcons.UserRound, null) }, singleLine = true)
                 OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
                 if (mode == "sign-up" || (mode == "sign-in" && !otpRequested)) OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                 if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
@@ -714,14 +763,13 @@ internal fun SoundprintAccountScreen(
                                 message = "If an account exists for that address, a secure password reset link has been sent to your inbox."
                                 messageError = false
                             }
-                            "sign-up" -> if (displayName.isBlank() || !email.contains("@") || password.length < 8 || password != confirmPassword) {
-                                message = "Enter a display name, valid email, matching passwords and at least 8 password characters."
+                            "sign-up" -> if (!email.contains("@") || password.length < 8 || password != confirmPassword) {
+                                message = "Enter a valid email, matching passwords and at least 8 password characters."
                                 messageError = true
                             } else perform {
                                 supabase.auth.signUpWith(Email, redirectUrl = SoundprintSupabase.AUTH_REDIRECT) {
                                     this.email = email.trim()
                                     this.password = password
-                                    data = kotlinx.serialization.json.buildJsonObject { put("display_name", displayName.trim()) }
                                 }
                                 otpIsSignup = true
                                 otpRequested = true
@@ -792,11 +840,101 @@ internal fun SoundprintAccountScreen(
 
 @Composable
 private fun AccountPanel(content: @Composable ColumnScope.() -> Unit) {
+    val shape = RoundedCornerShape(22.dp)
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surface)
-            .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        Modifier.fillMaxWidth()
+            .shadow(10.dp, shape, ambientColor = Color.Black.copy(alpha = .16f), spotColor = Color.Black.copy(alpha = .12f))
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .58f), shape)
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) { content(this) }
+}
+
+@Composable
+private fun AccountIntroPanel(title: String, description: String, icon: Int) {
+    AccountPanel {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = .13f),
+                modifier = Modifier.size(48.dp).border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .28f), RoundedCornerShape(16.dp))
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    SoundprintIcon(icon, null, Modifier.size(23.dp), tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text("SOUNDPRINT ACCOUNT", fontSize = 10.sp, letterSpacing = 1.45.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(title, fontSize = 24.sp, lineHeight = 29.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            }
+        }
+        Text(description, fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF090A0D, name = "SoundPrint account · Lavender")
+@Composable
+private fun SoundprintAccountDesignPreview() {
+    MaterialTheme(
+        colorScheme = darkColorScheme(
+            primary = Color(0xFFC4B5FD),
+            onPrimary = Color(0xFF171321),
+            background = Color(0xFF090A0D),
+            surface = Color(0xFF14141B),
+            onSurface = Color(0xFFF5F5F6),
+            surfaceVariant = Color(0xFF211E2B),
+            onSurfaceVariant = Color(0xFFA5A5B2),
+            outline = Color(0xFF2A2933)
+        )
+    ) {
+        Column(
+            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            AccountIntroPanel(
+                title = "Sign in to SoundPrint",
+                description = "Your music library stays on this device. Sign in to manage your SoundPrint identity.",
+                icon = SoundprintIcons.AudioWaveform
+            )
+            AccountPanel {
+                OutlinedButton(
+                    onClick = {},
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("G", color = Color(0xFF4285F4), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Continue with Google", fontWeight = FontWeight.SemiBold)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .55f))
+                    Text("OR CONTINUE WITH EMAIL", Modifier.padding(horizontal = 12.dp), fontSize = 9.sp, letterSpacing = 1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .55f))
+                }
+                OutlinedTextField(
+                    value = "listener@example.com",
+                    onValueChange = {},
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Email address") },
+                    leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = "password123",
+                    onValueChange = {},
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Password") },
+                    leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true
+                )
+                Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("Sign in") }
+                Text("Forgot password?", Modifier.align(Alignment.CenterHorizontally), color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+            }
+        }
+    }
 }
 
 
