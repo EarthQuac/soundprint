@@ -820,8 +820,15 @@ private fun SoundprintApp(
             playbackConnection.close()
         }
     }
-    LaunchedEffect(enteredLibrary, libraryTrackCount) {
-        if (enteredLibrary && libraryTrackCount > 0 && clapScanner.autoScanEnabled()) clapScanner.startScan()
+    LaunchedEffect(enteredLibrary, libraryTrackCount, SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
+        if (enteredLibrary && libraryTrackCount > 0 &&
+            SoundprintProGate.isResolved && SoundprintProGate.hasPro &&
+            clapScanner.autoScanEnabled()
+        ) {
+            clapScanner.startScan()
+        } else if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) {
+            clapScanner.pause()
+        }
     }
     var selectedTab by remember { mutableIntStateOf(0) }
     var settingsOpen by remember { mutableStateOf(false) }
