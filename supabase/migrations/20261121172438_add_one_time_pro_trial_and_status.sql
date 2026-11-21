@@ -1,0 +1,3 @@
+-- Retired historical migration placeholder.
+-- The one-time Pro trial was removed before this source tree was synchronized.
+-- It is intentionally a no-op on fresh installs; see the forward cleanup migrations.
