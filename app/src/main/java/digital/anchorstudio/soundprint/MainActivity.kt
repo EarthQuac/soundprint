@@ -873,7 +873,6 @@ private fun SoundprintApp(
     }
     LaunchedEffect(proOpen) {
         if (proOpen) {
-            SoundprintProGate.beginVerification()
             proMessage = "Checking Founder Access availability…"
             runCatching { SoundprintProAccess.refresh() }
                 .onSuccess {
