@@ -947,6 +947,15 @@ private fun SoundprintApp(
                                     proMessage = "Starting your 14-day trial…"
                                     runCatching { SoundprintProAccess.startTrial() }
                                         .onSuccess { result ->
+                                            if (result.optBoolean("started")) {
+                                                proStatus = proStatus.copy(
+                                                    hasPro = true,
+                                                    source = "trial",
+                                                    expiresAt = result.optString("ends_at").takeUnless { value -> value == "null" || value.isBlank() },
+                                                    trialClaimed = true
+                                                )
+                                                SoundprintProGate.updateEntitlement(true)
+                                            }
                                             runCatching { SoundprintProAccess.refresh() }
                                                 .onSuccess {
                                                     proStatus = it
