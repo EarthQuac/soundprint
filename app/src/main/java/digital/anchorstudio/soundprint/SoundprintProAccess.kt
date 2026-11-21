@@ -111,6 +111,13 @@ internal object SoundprintProGate {
         private set
     var lockedFeature by mutableStateOf<String?>(null)
 
+    fun beginVerification() {
+        // Revoke the previous in-memory grant before checking a possibly changed account.
+        hasPro = false
+        isResolved = false
+        lockedFeature = null
+    }
+
     fun updateEntitlement(entitled: Boolean) {
         hasPro = entitled
         isResolved = true
