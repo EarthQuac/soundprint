@@ -21,6 +21,8 @@ internal object SoundprintIcons {
     val Disc3 = LucideR.drawable.lucide_ic_disc_3
     val FileMusic = LucideR.drawable.lucide_ic_file_music
     val Link = LucideR.drawable.lucide_ic_link
+    val FolderOpen = LucideR.drawable.lucide_ic_folder_open
+    val Image = LucideR.drawable.lucide_ic_image
     val ChevronRight = LucideR.drawable.lucide_ic_chevron_right
     val ChevronLeft = LucideR.drawable.lucide_ic_chevron_left
     val Pencil = LucideR.drawable.lucide_ic_pencil
