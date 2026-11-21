@@ -171,7 +171,12 @@ internal fun SongsLibraryScreen(
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
-                            onClick = { soundprintOpen = !soundprintOpen; if (soundprintOpen) recycleOpen = false },
+                            onClick = {
+                                if (SoundprintProGate.require("TwinSense")) {
+                                    soundprintOpen = !soundprintOpen
+                                    if (soundprintOpen) recycleOpen = false
+                                }
+                            },
                             modifier = Modifier.weight(1f)
                         ) {
                             SoundprintIcon(SoundprintIcons.AudioWaveform, null, modifier = Modifier.size(16.dp))
