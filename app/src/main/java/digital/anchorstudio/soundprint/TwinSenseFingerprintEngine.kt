@@ -586,7 +586,9 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
         }
         matches.sortWith(compareByDescending<TwinSenseMatch> { it.kind == TwinSenseMatchKind.EXACT_AUDIO }
             .thenByDescending { it.confidence })
-        val result = TwinSenseScanResult(buildGroups(matches), tracks.size - failed, reused, failed)
+        val failedCount = failed.get()
+        val reusedCount = reused.get()
+        val result = TwinSenseScanResult(buildGroups(matches), tracks.size - failedCount, reusedCount, failedCount)
         saveResult(result)
         return result
     }
