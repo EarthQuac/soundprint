@@ -252,6 +252,19 @@ fun SoundprintNowPlayingScreen(
     LaunchedEffect(crossfade) {
         playbackOptionsPrefs.edit().putInt("crossfade_seconds", crossfade).apply()
     }
+    LaunchedEffect(SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
+        if (SoundprintProGate.isResolved && !SoundprintProGate.hasPro) {
+            audioLabOpen = false
+            sleepOpen = false
+            auraNotice = false
+            gapless = false
+            loudness = false
+            stopAfterCurrent = false
+            crossfade = 0
+            sleepRemaining = 0L
+            playbackOptionsPrefs.edit().remove("sleep_ends_at").apply()
+        }
+    }
 
     val progress = if (duration > 0L) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
     val animatedProgress by animateFloatAsState(progress, tween(180, easing = FastOutSlowInEasing), label = "player-progress")
@@ -1012,7 +1025,11 @@ fun SoundprintNowPlayingScreen(
                 Text("Gapless playback, crossfade and loudness leveling are Pro features.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedButton(onClick = { SoundprintProGate.require("Gapless playback & crossfade") }) { Text("Unlock playback controls with Pro") }
             }
-            PlayerToggle("Stop after this song", "Pause at the end of the current track", stopAfterCurrent) { stopAfterCurrent = it }
+            if (SoundprintProGate.hasPro) {
+                PlayerToggle("Stop after this song", "Pause at the end of the current track", stopAfterCurrent) { stopAfterCurrent = it }
+            } else {
+                TextButton(onClick = { SoundprintProGate.require("Enhanced sleep controls") }) { Text("Stop after this song · Pro") }
+            }
         }
     }
     if (auraNotice) SoundprintFloatingDialog(
