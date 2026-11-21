@@ -99,6 +99,26 @@ internal fun SoundprintAccountScreen(
     var deletionOriginalUserId by remember { mutableStateOf<String?>(null) }
     val authSessionState by supabase.auth.sessionStatus.collectAsState()
 
+    // Account feedback belongs in the app-wide notification host, never in the form layout.
+    LaunchedEffect(message, messageError) {
+        val feedback = message?.trim()?.takeIf { it.isNotBlank() }
+        if (feedback != null) {
+            when {
+                messageError -> SoundprintToast.error(feedback)
+                feedback.contains("signed in", ignoreCase = true) ||
+                    feedback.contains("saved", ignoreCase = true) ||
+                    feedback.contains("updated", ignoreCase = true) ||
+                    feedback.contains("verified", ignoreCase = true) ||
+                    feedback.contains("deleted", ignoreCase = true) ||
+                    feedback.contains("sent", ignoreCase = true) ||
+                    feedback.contains("success", ignoreCase = true) ->
+                    SoundprintToast.success(feedback)
+                else -> SoundprintToast.info(feedback)
+            }
+            message = null
+        }
+    }
+
     LaunchedEffect(resetToSignInKey) {
         if (resetToSignInKey > 0) {
             mode = "sign-in"
@@ -870,7 +890,6 @@ internal fun SoundprintAccountScreen(
                 Spacer(Modifier.width(10.dp))
                 Text("Working securely…", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            message?.let { Text(it, Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background((if (messageError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary).copy(alpha = .10f)).padding(14.dp), fontSize = 12.sp, lineHeight = 18.sp, color = if (messageError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface) }
         }
     }
 }
