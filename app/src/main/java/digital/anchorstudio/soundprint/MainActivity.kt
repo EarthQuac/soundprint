@@ -803,20 +803,17 @@ private fun SoundprintApp(
             runCatching { SoundprintProAccess.refresh() }
                 .onSuccess {
                     proStatus = it
-                    SoundprintProGate.hasPro = it.hasPro
-                    SoundprintProGate.isResolved = true
+                    SoundprintProGate.updateEntitlement(it.hasPro)
                     if (!it.hasPro) disableProPlaybackOptions(appContext)
                 }
                 .onFailure {
                     proStatus = SoundprintProStatus()
-                    SoundprintProGate.hasPro = false
-                    SoundprintProGate.isResolved = true
+                    SoundprintProGate.updateEntitlement(false)
                     disableProPlaybackOptions(appContext)
                 }
         } else {
             proStatus = SoundprintProStatus()
-            SoundprintProGate.hasPro = false
-            SoundprintProGate.isResolved = true
+            SoundprintProGate.updateEntitlement(false)
             disableProPlaybackOptions(appContext)
         }
     }
@@ -826,15 +823,13 @@ private fun SoundprintApp(
             runCatching { SoundprintProAccess.refresh() }
                 .onSuccess {
                     proStatus = it
-                    SoundprintProGate.hasPro = it.hasPro
-                    SoundprintProGate.isResolved = true
+                    SoundprintProGate.updateEntitlement(it.hasPro)
                     if (!it.hasPro) disableProPlaybackOptions(appContext)
                     proMessage = null
                 }
                 .onFailure {
                     proStatus = SoundprintProStatus()
-                    SoundprintProGate.hasPro = false
-                    SoundprintProGate.isResolved = true
+                    SoundprintProGate.updateEntitlement(false)
                     disableProPlaybackOptions(appContext)
                     proMessage = it.message ?: "Could not verify Pro access. Try again."
                 }
@@ -946,11 +941,10 @@ private fun SoundprintApp(
                                             if (result.optBoolean("claimed") || result.optBoolean("already_entitled")) {
                                                 val source = result.optString("source").takeUnless { it == "null" }
                                                 proStatus = proStatus.copy(hasPro = true, source = source, isFounder = source == "founder")
-                                                SoundprintProGate.hasPro = true
-                                                SoundprintProGate.isResolved = true
+                                                SoundprintProGate.updateEntitlement(true)
                                             }
                                             runCatching { SoundprintProAccess.refresh() }
-                                                .onSuccess { proStatus = it; SoundprintProGate.hasPro = it.hasPro }
+                                                .onSuccess { proStatus = it; SoundprintProGate.updateEntitlement(it.hasPro) }
                                             proMessage = when {
                                                 result.optBoolean("already_entitled") -> "This account already has active Pro access."
                                                 result.optBoolean("claimed") -> "Founder Access claimed. Lifetime Pro is now active on this account."
