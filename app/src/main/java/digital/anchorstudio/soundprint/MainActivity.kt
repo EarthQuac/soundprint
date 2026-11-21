@@ -1300,6 +1300,7 @@ private fun HomeScreen(
                         modifier = Modifier.fillMaxWidth().height(44.dp),
                         onAudioPicker = onImportAudio,
                         onSinglePicker = onImportSingle,
+                         onLinkImport = onImportLink,
                         onFolderPicker = onImportFolder,
                         onRescan = onRescan
                     )
@@ -1350,6 +1351,7 @@ private fun HomeScreen(
                         secondary = true,
                         onAudioPicker = onImportAudio,
                         onSinglePicker = onImportSingle,
+                         onLinkImport = onImportLink,
                         onFolderPicker = onImportFolder,
                         onRescan = onRescan
                     )
