@@ -93,6 +93,7 @@ internal object SoundprintProAccess {
 
 internal object SoundprintProGate {
     var hasPro by mutableStateOf(false)
+    var isResolved by mutableStateOf(false)
     var lockedFeature by mutableStateOf<String?>(null)
 
     fun require(feature: String): Boolean {
