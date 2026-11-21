@@ -33,7 +33,6 @@ internal data class SoundprintProStatus(
     val source: String? = null,
     val expiresAt: String? = null,
     val isFounder: Boolean = false,
-    val trialClaimed: Boolean = false,
     val founderOfferEnabled: Boolean = false,
     val founderCapacity: Int = 100,
     val founderRemaining: Int = 0
@@ -50,7 +49,6 @@ internal object SoundprintProAccess {
             source = status.optString("source").takeUnless { it == "null" || it.isBlank() },
             expiresAt = status.optString("expires_at").takeUnless { it == "null" || it.isBlank() },
             isFounder = status.optBoolean("is_founder", false),
-            trialClaimed = status.optBoolean("trial_claimed", false),
             founderOfferEnabled = status.optBoolean("founder_offer_enabled", false),
             founderCapacity = status.optInt("founder_capacity", 100).coerceAtLeast(0),
             founderRemaining = status.optInt("founder_remaining", 0).coerceAtLeast(0)
@@ -60,11 +58,6 @@ internal object SoundprintProAccess {
     suspend fun claimFounder(): JSONObject = withContext(Dispatchers.IO) {
         invoke("claim-founder").optJSONObject("result")
             ?: error("The founder claim response was incomplete.")
-    }
-
-    suspend fun startTrial(): JSONObject = withContext(Dispatchers.IO) {
-        invoke("start-trial").optJSONObject("result")
-            ?: error("The Pro trial response was incomplete.")
     }
 
     private fun invoke(action: String): JSONObject {
@@ -98,7 +91,6 @@ internal object SoundprintProAccess {
                         "verified_email_required" -> "Verify your email address before claiming Pro access."
                         "invalid_session", "authentication_required" -> "Your session expired. Sign in again."
                         "founder_claim_unavailable" -> "Founder Access is temporarily unavailable. Please try again."
-                        "trial_unavailable" -> "The free trial is temporarily unavailable. Please try again."
                         "status_unavailable", "service_unavailable" -> "Pro status is temporarily unavailable. Please try again."
                         else -> "The Pro request could not be completed ($code)."
                     }
