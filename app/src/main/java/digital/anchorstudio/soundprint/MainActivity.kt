@@ -797,8 +797,14 @@ private fun SoundprintApp(
     var proStatus by remember { mutableStateOf(SoundprintProStatus()) }
     var proMessage by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
-        runCatching { SoundprintProAccess.refresh() }
-            .onSuccess { proStatus = it; SoundprintProGate.hasPro = it.hasPro }
+        repeat(12) {
+            if (SoundprintProAccess.hasSession()) {
+                runCatching { SoundprintProAccess.refresh() }
+                    .onSuccess { proStatus = it; SoundprintProGate.hasPro = it.hasPro }
+                return@LaunchedEffect
+            }
+            delay(500L)
+        }
     }
     LaunchedEffect(proOpen) {
         if (proOpen) {
