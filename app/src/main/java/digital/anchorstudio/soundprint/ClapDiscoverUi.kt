@@ -632,7 +632,7 @@ fun ClapDiscoverScreen(
                 Row(
                     modifier = Modifier.clip(CircleShape)
                         .background(
-                            if (active) MaterialTheme.colorScheme.primary
+                            if (active) MaterialTheme.colorScheme.primaryContainer
                             else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f)
                         )
                         .clickable { selectedMood = mood }
@@ -643,12 +643,12 @@ fun ClapDiscoverScreen(
                     SoundprintIcon(
                         moodIcon(mood), contentDescription = null,
                         modifier = Modifier.size(15.dp),
-                        tint = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         mood.title, fontSize = 12.sp,
                         fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-                        color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
