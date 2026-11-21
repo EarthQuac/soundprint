@@ -34,12 +34,14 @@ internal data class SoundprintProStatus(
     val expiresAt: String? = null,
     val isFounder: Boolean = false,
     val trialClaimed: Boolean = false,
-    val founderOfferEnabled: Boolean = true,
+    val founderOfferEnabled: Boolean = false,
     val founderCapacity: Int = 100,
-    val founderRemaining: Int = 100
+    val founderRemaining: Int = 0
 )
 
 internal object SoundprintProAccess {
+    fun hasSession(): Boolean = SoundprintSupabase.client.auth.currentAccessTokenOrNull() != null
+
     suspend fun refresh(): SoundprintProStatus = withContext(Dispatchers.IO) {
         val payload = invoke("status")
         val status = payload.optJSONObject("status") ?: error("The Pro status response was incomplete.")
