@@ -38,7 +38,7 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.GetCredentialProviderConfigurationException
 import androidx.credentials.exceptions.NoCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.IDToken
@@ -49,6 +49,8 @@ import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
+import java.security.MessageDigest
+import java.util.UUID
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.put
@@ -291,9 +293,12 @@ internal fun SoundprintAccountScreen(
                 val activity = context.findActivity()
                     ?: error("Google sign-in needs an active Android screen. Close and reopen SoundPrint, then try again.")
 
-                val googleOption = GetGoogleIdOption.Builder()
-                    .setFilterByAuthorizedAccounts(false)
-                    .setServerClientId(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
+                val rawNonce = UUID.randomUUID().toString()
+                val hashedNonce = MessageDigest.getInstance("SHA-256")
+                    .digest(rawNonce.toByteArray(Charsets.UTF_8))
+                    .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+                val googleOption = GetSignInWithGoogleOption.Builder(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
+                    .setNonce(hashedNonce)
                     .build()
                 val request = GetCredentialRequest.Builder()
                     .addCredentialOption(googleOption)
@@ -308,6 +313,7 @@ internal fun SoundprintAccountScreen(
                 supabase.auth.signInWith(IDToken) {
                     idToken = googleCredential.idToken
                     provider = Google
+                    nonce = rawNonce
                 }
                 refreshAccount()
                 message = "You're signed in with Google."
