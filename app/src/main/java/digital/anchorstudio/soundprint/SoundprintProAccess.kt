@@ -1,6 +1,9 @@
 package digital.anchorstudio.soundprint
 
 import io.github.jan.supabase.auth.auth
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -76,5 +79,16 @@ internal object SoundprintProAccess {
         } finally {
             connection.disconnect()
         }
+    }
+}
+
+internal object SoundprintProGate {
+    var hasPro by mutableStateOf(false)
+    var lockedFeature by mutableStateOf<String?>(null)
+
+    fun require(feature: String): Boolean {
+        if (hasPro) return true
+        lockedFeature = feature
+        return false
     }
 }
