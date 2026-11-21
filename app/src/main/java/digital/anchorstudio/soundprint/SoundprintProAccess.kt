@@ -5,6 +5,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -90,5 +96,22 @@ internal object SoundprintProGate {
         if (hasPro) return true
         lockedFeature = feature
         return false
+    }
+}
+
+@androidx.compose.runtime.Composable
+internal fun ProFeatureLockedScreen(feature: String, description: String) {
+    if (SoundprintProGate.hasPro) return
+    androidx.compose.foundation.layout.Column(
+        modifier = androidx.compose.ui.Modifier.fillMaxSize().padding(28.dp),
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+    ) {
+        SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(34.dp))
+        Text(feature, modifier = Modifier.padding(top = 14.dp), fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+        Text(description, modifier = Modifier.padding(top = 8.dp), fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Button(onClick = { SoundprintProGate.require(feature) }, modifier = Modifier.padding(top = 18.dp), shape = RoundedCornerShape(50.dp)) {
+            Text("Unlock with Pro")
+        }
     }
 }
