@@ -656,29 +656,31 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 if (linkImportDialogOpen) {
-                    AlertDialog(
+                    SoundprintDialog(
+                        title = "Import from link",
+                        icon = SoundprintIcons.Link,
                         onDismissRequest = { linkImportDialogOpen = false; linkImportText = "" },
-                        title = { Text("Import from link") },
-                        text = {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Text("Paste a direct link to an audio file. Public MP3, M4A, FLAC, WAV and other supported audio URLs work.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-                                BasicTextField(
-                                    value = linkImportText,
-                                    onValueChange = { linkImportText = it },
-                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant).padding(14.dp),
-                                    singleLine = true,
-                                    textStyle = androidx.compose.ui.text.TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp),
-                                    decorationBox = { inner ->
-                                        Box {
-                                            if (linkImportText.isBlank()) Text("https://example.com/song.mp3", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
-                                            inner()
-                                        }
+                        subtitle = "Paste a direct link to an audio file. Public MP3, M4A, FLAC, WAV and other supported audio URLs work.",
+                        content = {
+                            BasicTextField(
+                                value = linkImportText,
+                                onValueChange = { linkImportText = it },
+                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.46f), RoundedCornerShape(13.dp))
+                                    .padding(14.dp),
+                                singleLine = true,
+                                textStyle = androidx.compose.ui.text.TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp),
+                                decorationBox = { inner ->
+                                    Box {
+                                        if (linkImportText.isBlank()) Text("https://example.com/song.mp3", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                                        inner()
                                     }
-                                )
-                            }
+                                }
+                            )
                         },
-                        confirmButton = {
+                        actions = {
+                            TextButton(onClick = { linkImportDialogOpen = false; linkImportText = "" }) { Text("Cancel") }
                             TextButton(onClick = {
                                 val url = linkImportText.trim()
                                 runCatching {
@@ -690,10 +692,7 @@ class MainActivity : ComponentActivity() {
                                 }.onFailure {
                                     libraryStatus = it.message ?: "Could not queue this audio link."
                                 }
-                            }) { Text("Import") }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { linkImportDialogOpen = false; linkImportText = "" }) { Text("Cancel") }
+                            }) { Text("Import", fontWeight = FontWeight.SemiBold) }
                         }
                     )
                 }
@@ -1855,6 +1854,7 @@ private fun AddMusicMenuButton(
         Row(
             modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(50))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.42f), RoundedCornerShape(50))
                 .clickable { expanded = true }.padding(horizontal = 17.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
