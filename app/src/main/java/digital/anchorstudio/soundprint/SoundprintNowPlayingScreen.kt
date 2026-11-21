@@ -1004,12 +1004,12 @@ fun SoundprintNowPlayingScreen(
                 listOf(15, 30, 45, 60).forEach { minutes ->
                     Box(
                         Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(14.dp))
-                            .background(if (sleepMinutes == minutes.toString()) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
+                            .background(if (sleepMinutes == minutes.toString()) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
                             .clickable { sleepMinutes = minutes.toString() },
                         contentAlignment = Alignment.Center
                     ) {
                         Text("${minutes}m", fontSize = 12.sp, fontWeight = if (sleepMinutes == minutes.toString()) FontWeight.SemiBold else FontWeight.Medium,
-                            color = if (sleepMinutes == minutes.toString()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                            color = if (sleepMinutes == minutes.toString()) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -1288,14 +1288,14 @@ private fun PlayerQuickAction(
 ) {
     Column(
         modifier.height(84.dp).clip(RoundedCornerShape(16.dp))
-            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f))
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick).padding(horizontal = 6.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        SoundprintIcon(icon, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+        SoundprintIcon(icon, null, modifier = Modifier.size(20.dp), tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(8.dp))
-        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
     }
 }
 @Composable
@@ -1326,12 +1326,12 @@ private fun PlayerChoiceRow(options:List<String>,selected:String,onSelect:(Strin
             val active = selected.equals(item, true) || selected.equals(item.replace(" ", "_"), true)
             Box(
                 Modifier.clip(RoundedCornerShape(50.dp))
-                    .background(if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
+                    .background(if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { onSelect(item) }
                     .padding(horizontal = 16.dp, vertical = 11.dp)
             ) {
                 Text(item, fontSize = 11.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                    color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
