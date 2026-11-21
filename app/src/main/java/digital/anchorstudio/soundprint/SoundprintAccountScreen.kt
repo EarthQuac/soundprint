@@ -172,6 +172,35 @@ internal fun SoundprintAccountScreen(
         }
     }
 
+    suspend fun requestPasswordResetForKnownAccount(requestedEmail: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            val payload = org.json.JSONObject().put("email", requestedEmail).toString()
+            val connection = (URL("${SoundprintSupabase.SUPABASE_URL}/functions/v1/request-password-reset").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 15_000
+                readTimeout = 30_000
+                doOutput = true
+                setRequestProperty("apikey", SoundprintSupabase.PUBLISHABLE_KEY)
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+            }
+            try {
+                connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+                val status = connection.responseCode
+                val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                val result = runCatching { org.json.JSONObject(body) }.getOrNull()
+                if (status !in 200..299) {
+                    error(result?.optString("message")?.takeIf { it.isNotBlank() }
+                        ?: "We couldn't process your password reset request. Please try again.")
+                }
+                result?.optBoolean("sent", false) == true
+            } finally {
+                connection.disconnect()
+            }
+        }
+    }
+
     suspend fun callDeleteAccountFunction(payload: String): String {
         val accessToken = supabase.auth.currentAccessTokenOrNull()
             ?: error("Your session has expired. Sign in again and restart account deletion.")
@@ -715,18 +744,18 @@ internal fun SoundprintAccountScreen(
                                 messageError = true
                             } else perform {
                                 val requestedEmail = email.trim().lowercase()
-                                // Supabase Auth performs the account lookup server-side. Keep the same
-                                // response for existing and unknown addresses to prevent account enumeration.
-                                supabase.auth.resetPasswordForEmail(
-                                    email = requestedEmail,
-                                    redirectUrl = SoundprintSupabase.PASSWORD_RESET_REDIRECT
-                                )
+                                val resetEmailSent = requestPasswordResetForKnownAccount(requestedEmail)
                                 otpIsRecovery = false
                                 otpIsSignup = false
                                 otpRequested = false
                                 otpCode = ""
-                                message = "If an account exists for that address, a secure password reset link has been sent to your inbox."
-                                messageError = false
+                                if (resetEmailSent) {
+                                    message = "Check your email. If you don't see the password reset code, check your spam folder."
+                                    messageError = false
+                                } else {
+                                    message = "Your account doesn't exist. Please try a different account."
+                                    messageError = true
+                                }
                             }
                             "sign-up" -> if (!email.contains("@") || password.length < 8 || password != confirmPassword) {
                                 message = "Enter a valid email, matching passwords and at least 8 password characters."
