@@ -81,7 +81,8 @@ private val freeFeatures = listOf(
 @Composable
 fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, trialEndsAt: String? = null,
               onStartTrial: (() -> Unit)? = null, onClaimFounder: (() -> Unit)? = null,
-              founderRemaining: Int = 0, founderOfferEnabled: Boolean = false, founderMessage: String? = null) {
+              founderRemaining: Int = 0, founderOfferEnabled: Boolean = false, founderMessage: String? = null,
+              signedIn: Boolean = false, onSignIn: (() -> Unit)? = null) {
     Column(Modifier.fillMaxSize()) {
         ProPageHeader(onBack)
         Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
@@ -93,7 +94,7 @@ fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, trialEndsAt: String
                 ProFeaturesGrid()
             } else {
                 ProHero()
-                ProFounderOffer(onClaimFounder, founderRemaining, founderOfferEnabled, founderMessage)
+                ProFounderOffer(onClaimFounder, founderRemaining, founderOfferEnabled, founderMessage, signedIn, onSignIn)
                 ProPlans()
                 ProTrialCard(onStartTrial)
                 ProTutorialSection()
@@ -148,7 +149,7 @@ private fun ProHero() {
 }
 
 @Composable
-private fun ProFounderOffer(onClaim: (() -> Unit)?, remaining: Int, offerEnabled: Boolean, message: String?) {
+private fun ProFounderOffer(onClaim: (() -> Unit)?, remaining: Int, offerEnabled: Boolean, message: String?, signedIn: Boolean, onSignIn: (() -> Unit)?) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Get Pro free for life", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
         Text("The first 100 eligible, email-verified accounts can claim lifetime Pro at no cost. Claims are confirmed securely by Soundprint.",
@@ -160,12 +161,13 @@ private fun ProFounderOffer(onClaim: (() -> Unit)?, remaining: Int, offerEnabled
                 Spacer(Modifier.width(8.dp))
                 Text("Founder Access · Lifetime Pro", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
             }
-            Text(if (!offerEnabled) "Founder Access is currently closed." else if (remaining <= 0) "All founder spots have been claimed." else "$remaining of 100 founder spots remain. Sign in with a verified email address to claim one. Each account can claim once.",
+            Text(if (!signedIn) "The first 100 eligible accounts can claim lifetime Pro. Sign in with a verified email address to check availability and claim your spot." else if (!offerEnabled) "Founder Access is currently closed." else if (remaining <= 0) "All founder spots have been claimed." else "$remaining of 100 founder spots remain. Each verified account can claim once.",
                 modifier = Modifier.padding(top = 7.dp), fontSize = 11.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             message?.let { Text(it, modifier = Modifier.padding(top = 10.dp), fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            Button(onClick = { onClaim?.invoke() }, enabled = onClaim != null && offerEnabled && remaining > 0,
+            Button(onClick = { if (!signedIn) onSignIn?.invoke() else onClaim?.invoke() },
+                enabled = if (!signedIn) onSignIn != null else onClaim != null && offerEnabled && remaining > 0,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp), shape = RoundedCornerShape(50.dp)) {
-                Text(if (!offerEnabled || remaining <= 0) "Founder offer unavailable" else if (onClaim == null) "Sign in to claim Founder Access" else "Claim founder offer")
+                Text(if (!signedIn) "Sign in to claim Founder Access" else if (!offerEnabled || remaining <= 0) "Founder offer unavailable" else "Claim founder offer")
             }
         }
     }
