@@ -211,20 +211,20 @@ internal fun SoundprintSongsLibraryScreen(
                                 androidx.compose.material3.IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(36.dp)) {
                                     SoundprintIcon(SoundprintIcons.EllipsisVertical, contentDescription = "Song options", modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                                    DropdownMenuItem(text = { Text("Play next") }, onClick = {
+                                SoundprintDropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }, width = 232.dp) {
+                                    SoundprintMenuItem("Play next", SoundprintIcons.ListPlus) {
                                         menuExpanded = false
                                         playback.enqueue(listOf(track), next = true)
-                                    })
-                                    DropdownMenuItem(text = { Text("Add to queue") }, onClick = {
+                                    }
+                                    SoundprintMenuItem("Add to queue", SoundprintIcons.ListMusic) {
                                         menuExpanded = false
                                         playback.enqueue(listOf(track))
-                                    })
-                                    DropdownMenuItem(text = { Text(if (track.isFavorite) "Remove from favorites" else "Add to favorites") }, onClick = {
+                                    }
+                                    SoundprintMenuItem(if (track.isFavorite) "Remove from favorites" else "Add to favorites", SoundprintIcons.Heart) {
                                         menuExpanded = false
                                         library.toggleFavorite(track.id)
                                         scope.launch { tracks = withContext(Dispatchers.IO) { library.allSongs(query = query.trim()) } }
-                                    })
+                                    }
                                 }
                             }
                         }
