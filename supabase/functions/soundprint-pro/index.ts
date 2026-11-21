@@ -22,7 +22,7 @@ Deno.serve(async (req: Request) => {
   if (!match) return reply(401, { error: "authentication_required" });
 
   const url = Deno.env.get("SUPABASE_URL");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !anonKey || !serviceKey) {
     console.error("Missing required Supabase function environment variables.");
