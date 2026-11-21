@@ -912,6 +912,8 @@ private fun SoundprintApp(
                             founderRemaining = proStatus.founderRemaining,
                             founderOfferEnabled = proStatus.founderOfferEnabled,
                             founderMessage = proMessage,
+                            signedIn = SoundprintProAccess.hasSession(),
+                            onSignIn = { proOpen = false; accountOpen = true },
                             onClaimFounder = {
                                 screenScope.launch {
                                     proMessage = "Checking eligibility and claiming your founder spot…"
