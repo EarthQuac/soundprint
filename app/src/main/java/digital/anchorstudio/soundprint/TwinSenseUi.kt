@@ -91,7 +91,7 @@ internal fun SongsLibraryScreen(
     }
 
     LaunchedEffect(SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
-        if (SoundprintProGate.isResolved && !SoundprintProGate.hasPro) {
+        if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) {
             soundprintOpen = false
             scanJob?.cancel()
             scanning = false
