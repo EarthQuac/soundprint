@@ -2536,12 +2536,16 @@ private fun SettingsScreen(
                         }
                     }
                     SettingsActionRow("Pro Audio Lab", "Unlock the 10-band EQ, bass, treble and loudness controls", "Unlock", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("equalizer")), onClick = { SoundprintProGate.require("Pro Audio Lab") })
-                    SettingsValueRow("Crossfade", if (crossfade == 0) "Off" else "$crossfade seconds", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade"))) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SettingsValueRow("Crossfade · Pro", if (crossfade == 0) "Off" else "$crossfade seconds", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade"))) {
+                        Row(
+                            Modifier.clip(RoundedCornerShape(15.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)).padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
                             listOf(0, 2, 4, 6, 8).forEach { seconds ->
+                                val selected = crossfade == seconds
                                 Box(
-                                    Modifier.width(46.dp).height(40.dp).clip(RoundedCornerShape(12.dp))
-                                        .background(if (crossfade == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
+                                    Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(11.dp))
+                                        .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
                                         .clickable {
                                             if (SoundprintProGate.require("Gapless playback & crossfade")) {
                                                 crossfade = seconds
@@ -2550,7 +2554,9 @@ private fun SettingsScreen(
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(if (seconds == 0) "Off" else "$seconds s", fontSize = 11.sp, fontWeight = if (crossfade == seconds) FontWeight.SemiBold else FontWeight.Medium, color = if (crossfade == seconds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                    Text(if (seconds == 0) "Off" else "$seconds s", fontSize = 11.sp,
+                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                        color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
@@ -2572,17 +2578,23 @@ private fun SettingsScreen(
                         Text("Choose how far to skip when you double-tap the Now Playing artwork.", modifier = Modifier.padding(top = 3.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(10.dp))
                         val seekOptions = listOf(5, 10, 15, 20, 30, 45, 60)
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)).padding(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
                             seekOptions.chunked(4).forEach { rowOptions ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                                     rowOptions.forEach { seconds ->
+                                        val selected = seekSeconds == seconds
                                         Box(
-                                            Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(14.dp))
-                                                .background(if (seekSeconds == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
+                                            Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(13.dp))
+                                                .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
                                                 .clickable { seekSeconds = seconds; playbackPrefs.edit().putInt("double_tap_seek_seconds", seconds).apply() },
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("$seconds s", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = if (seekSeconds == seconds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                            Text("$seconds s", fontSize = 12.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                     }
                                     repeat(4 - rowOptions.size) { Spacer(Modifier.weight(1f)) }
@@ -3003,13 +3015,13 @@ private fun MoodCountCard(label: String, value: String) {
 private fun ThemeChoice(modifier: Modifier, label: String, icon: Int?, selected: Boolean, onClick: () -> Unit) {
     Column(
         modifier = modifier.height(76.dp).clip(RoundedCornerShape(16.dp))
-            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f))
             .clickable(onClick = onClick).padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         if (icon != null) SoundprintIcon(icon, null, Modifier.size(20.dp), tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(label, modifier = Modifier.padding(top = if (icon == null) 0.dp else 6.dp), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+        Text(label, modifier = Modifier.padding(top = if (icon == null) 0.dp else 6.dp), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -3026,7 +3038,7 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
     }
     Row(
         modifier = modifier.height(76.dp).clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface)
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f))
             .clickable(onClick = onClick).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
