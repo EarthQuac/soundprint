@@ -22,8 +22,8 @@ internal data class SoundprintProStatus(
     val source: String? = null,
     val expiresAt: String? = null,
     val isFounder: Boolean = false,
-    val founderOfferEnabled: Boolean = true,
-    val founderRemaining: Int = 100
+    val founderOfferEnabled: Boolean = false,
+    val founderRemaining: Int = 0
 )
 
 internal object SoundprintProAccess {
