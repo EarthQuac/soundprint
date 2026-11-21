@@ -257,6 +257,7 @@ fun SoundprintNowPlayingScreen(
             audioLabOpen = false
             sleepOpen = false
             auraNotice = false
+            aura = false
             gapless = false
             loudness = false
             stopAfterCurrent = false
