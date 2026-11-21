@@ -390,6 +390,10 @@ fun ClapDiscoverScreen(
     playback: SoundprintPlaybackConnection,
     onBack: () -> Unit
 ) {
+    if (!SoundprintProGate.hasPro) {
+        ProFeatureLockedScreen("Discover music for your mood", "Explore your library through personalized mood and activity matching.")
+        return
+    }
     val scan by scanner.state.collectAsState()
     androidx.compose.runtime.LaunchedEffect(Unit) { scanner.refreshSummary() }
     var tracks by remember { mutableStateOf(emptyList<MusicTrack>()) }
