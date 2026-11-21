@@ -35,6 +35,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.GetCredentialProviderConfigurationException
+import androidx.credentials.exceptions.NoCredentialException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -330,6 +331,20 @@ internal fun SoundprintAccountScreen(
                 messageError = false
             } catch (cancelled: CancellationException) {
                 throw cancelled
+            } catch (error: NoCredentialException) {
+                // Credential Manager found no eligible credential. Open the account
+                // picker fallback so users can choose from Google accounts on-device.
+                val activity = context.findActivity()
+                    ?: error("Google sign-in needs an active Android screen.")
+                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestEmail()
+                    .requestIdToken(SoundprintSupabase.GOOGLE_WEB_CLIENT_ID)
+                    .build()
+                val client = GoogleSignIn.getClient(activity, options)
+                handedOffToFallback = true
+                message = "Opening Google sign-in…"
+                messageError = false
+                googleFallbackLauncher.launch(client.signInIntent)
             } catch (error: GetCredentialProviderConfigurationException) {
                 val activity = context.findActivity()
                     ?: error("Google sign-in needs an active Android screen.")
