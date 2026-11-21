@@ -1863,51 +1863,24 @@ private fun AddMusicMenuButton(
             Spacer(Modifier.width(10.dp))
             Text("Add music", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.width(292.dp)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
-                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.30f), RoundedCornerShape(18.dp))
-        ) {
-            Column(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp)) {
+        SoundprintDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, width = 292.dp) {
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) {
                 Text(
                     "Music stays on this device",
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp
+                    fontSize = 12.sp
                 )
-                DropdownMenuItem(
-                    text = { Text("Choose files (device or Drive)", fontSize = 16.sp) },
-                    leadingIcon = { SoundprintIcon(SoundprintIcons.FileMusic, null, Modifier.size(22.dp)) },
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
-                    onClick = { expanded = false; onAudioPicker() }
-                )
-                DropdownMenuItem(
-                    text = { Text("Import from link", fontSize = 16.sp) },
-                    leadingIcon = { SoundprintIcon(SoundprintIcons.Link, null, Modifier.size(22.dp)) },
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
-                    onClick = { expanded = false; onLinkImport() }
-                )
-                DropdownMenuItem(
-                    text = { Text("Scan a folder", fontSize = 16.sp) },
-                    leadingIcon = { SoundprintIcon(SoundprintIcons.Library, null, Modifier.size(22.dp)) },
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
-                    onClick = { expanded = false; onFolderPicker() }
-                )
-                DropdownMenuItem(
-                    text = { Text("Rescan folders", fontSize = 16.sp) },
-                    leadingIcon = { SoundprintIcon(SoundprintIcons.RefreshCw, null, Modifier.size(22.dp)) },
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
-                    onClick = { expanded = false; onRescan() }
-                )
-                Spacer(Modifier.height(8.dp))
+                SoundprintMenuItem("Choose files (device or Drive)", SoundprintIcons.FileMusic) { expanded = false; onAudioPicker() }
+                SoundprintMenuItem("Import from link", SoundprintIcons.Link) { expanded = false; onLinkImport() }
+                SoundprintMenuItem("Scan a folder", SoundprintIcons.Library) { expanded = false; onFolderPicker() }
+                SoundprintMenuItem("Rescan folders", SoundprintIcons.RefreshCw) { expanded = false; onRescan() }
                 Text(
                     "Choose audio files or a folder to add music to your library.",
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
                 )
             }
         }
