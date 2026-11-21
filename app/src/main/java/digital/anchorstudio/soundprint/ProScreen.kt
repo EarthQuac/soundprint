@@ -159,7 +159,7 @@ private fun ProSignInButton(onSignIn: () -> Unit) {
     ) {
         SoundprintIcon(SoundprintIcons.UserRound, null, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(8.dp))
-        Text("Sign in to Soundprint", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text("Sign in to claim", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
