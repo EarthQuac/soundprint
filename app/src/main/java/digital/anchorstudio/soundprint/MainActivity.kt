@@ -807,6 +807,12 @@ private fun SoundprintApp(
                     SoundprintProGate.isResolved = true
                     if (!it.hasPro) disableProPlaybackOptions(appContext)
                 }
+                .onFailure {
+                    proStatus = SoundprintProStatus()
+                    SoundprintProGate.hasPro = false
+                    SoundprintProGate.isResolved = true
+                    disableProPlaybackOptions(appContext)
+                }
         } else {
             proStatus = SoundprintProStatus()
             SoundprintProGate.hasPro = false
@@ -825,7 +831,13 @@ private fun SoundprintApp(
                     if (!it.hasPro) disableProPlaybackOptions(appContext)
                     proMessage = null
                 }
-                .onFailure { proMessage = it.message ?: "Could not verify Pro access. Try again." }
+                .onFailure {
+                    proStatus = SoundprintProStatus()
+                    SoundprintProGate.hasPro = false
+                    SoundprintProGate.isResolved = true
+                    disableProPlaybackOptions(appContext)
+                    proMessage = it.message ?: "Could not verify Pro access. Try again."
+                }
         }
     }
     var nowPlayingOpen by remember { mutableStateOf(false) }
