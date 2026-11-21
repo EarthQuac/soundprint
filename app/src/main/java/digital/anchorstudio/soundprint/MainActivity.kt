@@ -2753,6 +2753,7 @@ private fun SettingsToggleRow(label: String, description: String, checked: Boole
             }
             Switch(checked = checked, onCheckedChange = onCheckedChange)
         }
+        SettingsDivider()
     }
 }
 
@@ -2796,6 +2797,7 @@ private fun FolderAutoWatchSettingsRow(
                 }
             }
         }
+        SettingsDivider()
     }
 }
 
@@ -2821,6 +2823,7 @@ private fun SettingsActionRow(
             }
             Text(action, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, maxLines = 1)
         }
+        SettingsDivider()
     }
 }
 
@@ -2836,6 +2839,7 @@ private fun SettingsValueRow(label: String, description: String, modifier: Modif
             }
             control()
         }
+        SettingsDivider()
     }
 }
 
