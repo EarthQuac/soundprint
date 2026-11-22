@@ -1238,7 +1238,6 @@ private fun SoundprintApp(
                                     color = if (!settingsOpen && selected) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                if (index == tabs.lastIndex) ProFeatureBadge()
                             }
                         }
                     }
