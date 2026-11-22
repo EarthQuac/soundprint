@@ -23,6 +23,7 @@ internal class SoundprintProCelebrationViewModel(application: Application) : And
     var showProCelebration by mutableStateOf(false)
         private set
 
+    @Synchronized
     fun onPurchaseAcknowledged(purchaseToken: String) {
         val token = purchaseToken.trim()
         if (token.isEmpty()) return
@@ -37,8 +38,10 @@ internal class SoundprintProCelebrationViewModel(application: Application) : And
         if (!consumed.add(tokenHash)) return
 
         // Persist before showing so process death or rotation cannot replay this purchase.
-        preferences.edit().putStringSet(KEY_CONSUMED_PURCHASES, consumed).apply()
-        showProCelebration = true
+        val persisted = preferences.edit()
+            .putStringSet(KEY_CONSUMED_PURCHASES, consumed)
+            .commit()
+        if (persisted) showProCelebration = true
     }
 
     /** Debug-only preview path. It deliberately does not consume or persist a purchase. */
