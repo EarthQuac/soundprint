@@ -733,7 +733,7 @@ class MainActivity : ComponentActivity() {
                                 onValueChange = { linkImportText = it },
                                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.46f), RoundedCornerShape(13.dp))
+                                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.72f), RoundedCornerShape(13.dp))
                                     .padding(14.dp),
                                 singleLine = true,
                                 textStyle = androidx.compose.ui.text.TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp),
@@ -3102,7 +3102,7 @@ private fun SettingsSearchBox(value: String, onValueChange: (String) -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 2.dp)
             .heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.48f), RoundedCornerShape(16.dp))
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.72f), RoundedCornerShape(16.dp))
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
