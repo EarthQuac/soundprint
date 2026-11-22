@@ -25,7 +25,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -86,18 +85,9 @@ private val freeFeatures = listOf(
 fun ProScreen(onBack: () -> Unit, entitled: Boolean = false, entitlementSource: String? = null,
               onClaimFounder: (() -> Unit)? = null,
               founderRemaining: Int = 0, founderCapacity: Int = 100, founderOfferEnabled: Boolean = false, founderMessage: String? = null,
-              signedIn: Boolean = false, onSignIn: (() -> Unit)? = null,
-              onDebugCelebration: (() -> Unit)? = null) {
+              signedIn: Boolean = false, onSignIn: (() -> Unit)? = null) {
     Column(Modifier.fillMaxSize()) {
         ProPageHeader(onBack)
-        if (BuildConfig.DEBUG && onDebugCelebration != null) {
-            TextButton(
-                onClick = onDebugCelebration,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-            ) {
-                Text("Preview Pro celebration")
-            }
-        }
         Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)) {
