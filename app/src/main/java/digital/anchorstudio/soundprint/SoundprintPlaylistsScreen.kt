@@ -321,7 +321,9 @@ fun SoundprintPlaylistsScreen(
         AlertDialog(
             onDismissRequest = { createPlaylistOpen = false },
             title = { Text("New playlist") },
-            text = { TextField(value = playlistName, onValueChange = { playlistName = it }, singleLine = true, placeholder = { Text("Playlist name") }) },
+            text = { TextField(value = playlistName, onValueChange = { playlistName = it }, singleLine = true, placeholder = { Text("Playlist name") },
+    colors = soundprintFilledFieldColors()
+) },
             confirmButton = {
                 TextButton(enabled = playlistName.isNotBlank(), onClick = {
                     libraryManager.createPlaylist(playlistName.trim())
@@ -422,7 +424,9 @@ private fun PlaylistDetailNative(
     }
     if (renameOpen) AlertDialog(
         onDismissRequest = { renameOpen = false }, title = { Text("Rename playlist") },
-        text = { TextField(value = name, onValueChange = { name = it }, singleLine = true) },
+        text = { TextField(value = name, onValueChange = { name = it }, singleLine = true,
+    colors = soundprintFilledFieldColors()
+) },
         confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { libraryManager.renamePlaylist(playlistId, name.trim()); renameOpen = false; refresh++; onChanged() }) { Text("Save") } },
         dismissButton = { TextButton(onClick = { renameOpen = false }) { Text("Cancel") } }
     )
@@ -509,7 +513,9 @@ private fun SmartPlaylistEditorDialog(
         title = { Text(if (editing) "Edit smart playlist" else "Create smart playlist") },
         text = {
             Column(Modifier.fillMaxWidth().heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextField(value = draft.name, onValueChange = { onDraftChange(draft.copy(name = it)) }, singleLine = true, placeholder = { Text("Playlist name") }, modifier = Modifier.fillMaxWidth())
+                TextField(value = draft.name, onValueChange = { onDraftChange(draft.copy(name = it)) }, singleLine = true, placeholder = { Text("Playlist name") }, modifier = Modifier.fillMaxWidth(),
+    colors = soundprintFilledFieldColors()
+)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Match groups", Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     NativeChoice(draft.groupsJoin.name, listOf("AND" to "All groups", "OR" to "Any group")) { value -> onDraftChange(draft.copy(groupsJoin = SmartJoin.valueOf(value))) }
@@ -542,7 +548,9 @@ private fun SmartPlaylistEditorDialog(
                                         modifier = Modifier.fillMaxWidth(),
                                         singleLine = true,
                                         placeholder = { Text(if (smartFieldType(condition.field) == "number") "Number" else "Value") }
-                                    )
+                                    ,
+    colors = soundprintFilledFieldColors()
+)
                                 }
                                 TextButton(enabled = group.conditions.size > 1, onClick = {
                                     onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(conditions = it.conditions.filterNot { c -> c.id == condition.id }) else it }))
@@ -568,7 +576,9 @@ private fun SmartPlaylistEditorDialog(
                 TextField(value = limitText, onValueChange = {
                     limitText = it.filter(Char::isDigit).take(4)
                     onDraftChange(draft.copy(limit = limitText.toIntOrNull()?.coerceIn(1, 1000)))
-                }, singleLine = true, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Limit (optional)") })
+                }, singleLine = true, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Limit (optional)") },
+    colors = soundprintFilledFieldColors()
+)
                 Text("Mood and energy rules use saved music matches. Tempo and lyrics filters need those details to be available in your library.", fontSize = 10.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
@@ -691,7 +701,9 @@ private fun PlaylistSearchBox(value: String, onValueChange: (String) -> Unit, pl
         Spacer(Modifier.width(9.dp))
         Box(Modifier.weight(1f)) {
             if (value.isEmpty()) Text(placeholder, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            BasicTextField(value, onValueChange, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth())
+            BasicTextField(value, onValueChange, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth(),
+    colors = soundprintFilledFieldColors()
+)
         }
         if (value.isNotEmpty()) SoundprintIcon(SoundprintIcons.X, "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp).clickable { onValueChange("") })
     }
