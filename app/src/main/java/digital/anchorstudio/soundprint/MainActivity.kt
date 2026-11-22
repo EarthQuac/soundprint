@@ -252,6 +252,8 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         val activityWindow = window
         setContent {
+            var showSplash by remember { mutableStateOf(true) }
+            Box(Modifier.fillMaxSize()) {
             val preferences = remember { getSharedPreferences("soundprint_native_preferences", MODE_PRIVATE) }
             var themeMode by remember { mutableStateOf(preferences.getString("theme", "dark") ?: "dark") }
             var selectedPalette by remember { mutableStateOf(preferences.getString("palette", "Lavender") ?: "Lavender") }
@@ -824,6 +826,8 @@ class MainActivity : ComponentActivity() {
                 }
                 }
                 }
+            }
+            if (showSplash) SoundprintSplash(onFinished = { showSplash = false })
             }
         }
     }
