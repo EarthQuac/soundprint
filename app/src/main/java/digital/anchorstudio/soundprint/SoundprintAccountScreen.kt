@@ -872,7 +872,10 @@ internal fun SoundprintAccountScreen(
                                     if (!sent) error("Your account could not be found. Check the email address and try again.")
                                 }
                                 otpIsSignup -> supabase.auth.resendEmail(OtpType.Email.SIGNUP, email.trim())
-                                else -> supabase.auth.signInWith(OTP) { this.email = email.trim() }
+                                else -> supabase.auth.signInWith(OTP) {
+                                    this.email = email.trim()
+                                    createUser = false
+                                }
                             }
                             otpCode = ""
                             message = "A new verification code has been sent."
@@ -951,7 +954,10 @@ internal fun SoundprintAccountScreen(
                             message = "Enter your email address."
                             messageError = true
                         } else perform {
-                            supabase.auth.signInWith(OTP) { this.email = email.trim() }
+                            supabase.auth.signInWith(OTP) {
+                                this.email = email.trim()
+                                createUser = false
+                            }
                             otpIsSignup = false
                             otpIsRecovery = false
                             otpRequested = true
