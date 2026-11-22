@@ -695,7 +695,6 @@ private fun PlaylistPageHeader(title: String, subtitle: String, action: (() -> U
 @Composable
 private fun PlaylistSearchBox(value: String, onValueChange: (String) -> Unit, placeholder: String) {
     Row(Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)
-        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.72f), RoundedCornerShape(16.dp))
         .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
         SoundprintIcon(SoundprintIcons.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp))
