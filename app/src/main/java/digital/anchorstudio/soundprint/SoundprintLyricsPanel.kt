@@ -458,7 +458,11 @@ fun SoundprintLyricsPanel(
                     placeholder = { Text("Paste lyrics here…\n\nFor karaoke sync, use LRC timestamps like [00:12.50]First line", fontSize = 12.sp) },
                     shape = RoundedCornerShape(16.dp),
                     textStyle = MaterialTheme.typography.bodySmall
-                )
+                ,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                 Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
@@ -697,7 +701,11 @@ fun SoundprintLyricsPanel(
                         textStyle = MaterialTheme.typography.bodySmall,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { discoverCandidates() })
-                    )
+                    ,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                     OutlinedButton(
                         onClick = { discoverCandidates() },
                         enabled = !loading && searchQuery.isNotBlank(),
