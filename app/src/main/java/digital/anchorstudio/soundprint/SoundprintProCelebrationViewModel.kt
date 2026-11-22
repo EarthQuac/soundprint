@@ -9,10 +9,8 @@ import androidx.compose.runtime.setValue
 import java.security.MessageDigest
 
 /**
- * Owns the one-shot Pro celebration state across Activity recreation.
- *
- * Call onPurchaseAcknowledged only after Play Billing has returned a successful
- * acknowledgePurchase result. The purchase token is hashed before persistence.
+ * Owns the one-shot Founder Access celebration state across Activity recreation.
+ * Successful claim IDs are hashed and persisted before the celebration is shown.
  */
 internal class SoundprintProCelebrationViewModel(application: Application) : AndroidViewModel(application) {
     private val preferences = application.getSharedPreferences(
