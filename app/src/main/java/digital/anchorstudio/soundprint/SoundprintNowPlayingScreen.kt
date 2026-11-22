@@ -970,11 +970,27 @@ fun SoundprintNowPlayingScreen(
         }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(editTitle, { editTitle = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            OutlinedTextField(editArtist, { editArtist = it }, label = { Text("Artist") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            OutlinedTextField(editAlbum, { editAlbum = it }, label = { Text("Album") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(editTitle, { editTitle = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
+            OutlinedTextField(editArtist, { editArtist = it }, label = { Text("Artist") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
+            OutlinedTextField(editAlbum, { editAlbum = it }, label = { Text("Album") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
             SoundprintGenrePicker(editGenre, { editGenre = it }, genreSuggestions, Modifier.fillMaxWidth())
-            OutlinedTextField(editYear, { editYear = it.filter(Char::isDigit).take(4) }, label = { Text("Release year") }, modifier = Modifier.fillMaxWidth(), singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            OutlinedTextField(editYear, { editYear = it.filter(Char::isDigit).take(4) }, label = { Text("Release year") }, modifier = Modifier.fillMaxWidth(), singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
         }
     }
     if (sleepOpen) SoundprintFloatingDialog(
@@ -1016,7 +1032,11 @@ fun SoundprintNowPlayingScreen(
                     }
                 }
             }
-            OutlinedTextField(sleepMinutes, { sleepMinutes = it }, label = { Text("Custom minutes") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(sleepMinutes, { sleepMinutes = it }, label = { Text("Custom minutes") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), singleLine = true,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
             if (sleepRemaining > 0) Text("Remaining: $displaySleep", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
         }
     }
@@ -1545,7 +1565,11 @@ private fun SoundprintGenrePicker(
             trailingIcon = { SoundprintIcon(SoundprintIcons.ChevronDown, null) },
             modifier = Modifier.fillMaxWidth().clickable { expanded = true },
             singleLine = true
-        )
+        ,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.heightIn(max = 360.dp)) {
             if (suggestions.isNotEmpty()) {
                 DropdownMenuItem(text = { Text("SUGGESTED FROM SOUND + LYRICS", fontSize = 10.sp, fontWeight = FontWeight.Bold) }, onClick = {}, enabled = false)
