@@ -72,7 +72,7 @@ internal class ListeningStatsSyncWorker(context:Context,params:androidx.work.Wor
             while(true) {
                 val rows=client.from("listening_history").select {
                     filter { eq("user_id",userId) }
-                    range(offset,offset+PAGE_SIZE-1)
+                    range(offset.toLong()..(offset+PAGE_SIZE-1).toLong())
                 }.decodeList<CloudListeningHistoryEvent>()
                 if(rows.isEmpty()) break
                 rows.forEach { row ->
