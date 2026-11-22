@@ -23,6 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import kotlinx.coroutines.Dispatchers
@@ -191,7 +194,27 @@ internal fun SoundprintAccountScreen(
     }
 
     LaunchedEffect(authSessionState) {
-        try { refreshAccount() }
+        try {
+            refreshAccount()
+            val activeUserId = userId
+            if (activeUserId != null) {
+                val preferences = context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
+                val verifiedAtMillis = preferences.getLong("delete_verified_at_$activeUserId", 0L)
+                val stillValid = verifiedAtMillis > 0L &&
+                    System.currentTimeMillis() >= verifiedAtMillis &&
+                    System.currentTimeMillis() - verifiedAtMillis <= 10 * 60 * 1000L
+                if (stillValid) {
+                    deletionOriginalUserId = activeUserId
+                    deletionEmail = accountEmail
+                    deletionCode = ""
+                    deletionConfirmation = ""
+                    deletionStep = "confirm"
+                } else {
+                    preferences.edit().remove("delete_verified_at_$activeUserId").apply()
+                    if (deletionStep == "confirm") deletionStep = "idle"
+                }
+            }
+        }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) {
             message = accountFriendlyError(error)
@@ -314,7 +337,14 @@ internal fun SoundprintAccountScreen(
                 put("token", deletionCode)
             }.toString()
             callDeleteAccountFunction(payload)
+            val verifiedUserId = userId ?: error("Sign in again to continue.")
+            context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
+                .edit()
+                .putLong("delete_verified_at_$verifiedUserId", System.currentTimeMillis())
+                .apply()
+            deletionOriginalUserId = verifiedUserId
             deletionCode = ""
+            deletionConfirmation = ""
             deletionStep = "confirm"
             message = "Email verified. Enter SOUNDPRINT/DELETE to permanently delete your account."
             messageError = false
@@ -345,6 +375,10 @@ internal fun SoundprintAccountScreen(
                 put("confirmation", "SOUNDPRINT/DELETE")
             }.toString()
             callDeleteAccountFunction(payload)
+            userId?.let { verifiedUserId ->
+                context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
+                    .edit().remove("delete_verified_at_$verifiedUserId").apply()
+            }
             supabase.auth.signOut()
             refreshAccount()
             deletionStep = "idle"
@@ -572,6 +606,10 @@ internal fun SoundprintAccountScreen(
                                 deletionOriginalUserId = userId
                                 deletionCode = ""
                                 deletionConfirmation = ""
+                                userId?.let { activeUserId ->
+                                    context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
+                                        .edit().remove("delete_verified_at_$activeUserId").apply()
+                                }
                                 deletionStep = "email"
                                 message = null
                                 messageError = false
@@ -592,14 +630,26 @@ internal fun SoundprintAccountScreen(
                             },
                             fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface
                         )
-                        Text(
-                            when (deletionStep) {
-                                "email" -> "Enter the email address linked to this SoundPrint account. We'll send a six-digit security code before continuing."
-                                "code" -> "Enter the six-digit code sent to $deletionEmail. You can paste the full code into the boxes."
-                                else -> "Your email is verified. To permanently delete this account, enter SOUNDPRINT/DELETE below. This action cannot be undone."
-                            },
-                            fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (deletionStep == "confirm") {
+                            Text(
+                                buildAnnotatedString {
+                                    append("Your email is verified. To permanently delete this account, enter ")
+                                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)) {
+                                        append("SOUNDPRINT/DELETE")
+                                    }
+                                    append(" below. This action cannot be undone.")
+                                },
+                                fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text(
+                                if (deletionStep == "email")
+                                    "Enter the email address linked to this SoundPrint account. We'll send a six-digit security code before continuing."
+                                else
+                                    "Enter the six-digit code sent to $deletionEmail. You can paste the full code into the boxes.",
+                                fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         if (deletionStep == "email") {
                             OutlinedTextField(
                                 value = deletionEmail,
@@ -631,10 +681,15 @@ internal fun SoundprintAccountScreen(
                                 value = deletionConfirmation,
                                 onValueChange = { deletionConfirmation = it.uppercase() },
                                 modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Type SOUNDPRINT/DELETE") },
-                                placeholder = { Text("SOUNDPRINT/DELETE") },
+                                label = { Text("Confirmation phrase") },
+                                placeholder = { Text("SOUNDPRINT/DELETE", color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f)) },
                                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
-                                singleLine = true
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.error,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.65f),
+                                    cursorColor = MaterialTheme.colorScheme.error
+                                )
                             )
                             Button(
                                 onClick = { permanentlyDeleteAccount() },
@@ -645,6 +700,10 @@ internal fun SoundprintAccountScreen(
                         }
                         TextButton(
                             onClick = {
+                                userId?.let { activeUserId ->
+                                    context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
+                                        .edit().remove("delete_verified_at_$activeUserId").apply()
+                                }
                                 deletionStep = "idle"
                                 deletionCode = ""
                                 deletionConfirmation = ""
@@ -953,13 +1012,23 @@ private fun EmailOtpCodeEntry(code: String, onCodeChange: (String) -> Unit) {
                 ) {
                     repeat(6) { index ->
                         Box(
-                            modifier = Modifier.weight(1f).height(56.dp)
+                            modifier = Modifier.weight(1f).height(58.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(colors.surface)
-                                ,
+                                .border(
+                                    width = 1.5.dp,
+                                    color = if (code.getOrNull(index) != null) colors.primary
+                                    else colors.outline.copy(alpha = 0.8f),
+                                    shape = RoundedCornerShape(12.dp)
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(code.getOrNull(index)?.toString().orEmpty(), fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
+                            Text(
+                                code.getOrNull(index)?.toString().orEmpty(),
+                                fontSize = 23.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.onSurface
+                            )
                         }
                     }
                 }
