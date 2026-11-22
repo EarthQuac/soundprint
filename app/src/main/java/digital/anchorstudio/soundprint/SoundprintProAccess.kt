@@ -55,20 +55,31 @@ internal object SoundprintProAccess {
         )
     }
 
+    suspend fun refreshFounderAvailability(): SoundprintProStatus = withContext(Dispatchers.IO) {
+        val payload = invoke("founder-availability", requireSession = false)
+        val status = payload.optJSONObject("availability")
+            ?: error("The Founder Access availability response was incomplete.")
+        SoundprintProStatus(
+            founderOfferEnabled = status.optBoolean("founder_offer_enabled", false),
+            founderCapacity = status.optInt("founder_capacity", 100).coerceAtLeast(0),
+            founderRemaining = status.optInt("founder_remaining", 0).coerceAtLeast(0)
+        )
+    }
+
     suspend fun claimFounder(): JSONObject = withContext(Dispatchers.IO) {
         invoke("claim-founder").optJSONObject("result")
             ?: error("The founder claim response was incomplete.")
     }
 
-    private fun invoke(action: String): JSONObject {
+    private fun invoke(action: String, requireSession: Boolean = true): JSONObject {
         val token = SoundprintSupabase.client.auth.currentAccessTokenOrNull()
-            ?: error("Sign in to your verified Soundprint account to continue.")
+        if (requireSession && token == null) error("Sign in to your verified Soundprint account to continue.")
         val connection = (URL("${SoundprintSupabase.SUPABASE_URL}/functions/v1/soundprint-pro").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000
             readTimeout = 30_000
             doOutput = true
-            setRequestProperty("Authorization", "Bearer $token")
+            if (token != null) setRequestProperty("Authorization", "Bearer $token")
             setRequestProperty("apikey", SoundprintSupabase.PUBLISHABLE_KEY)
             setRequestProperty("Content-Type", "application/json")
             setRequestProperty("Accept", "application/json")
