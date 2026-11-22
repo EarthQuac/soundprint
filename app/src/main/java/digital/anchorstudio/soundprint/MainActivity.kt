@@ -743,7 +743,9 @@ class MainActivity : ComponentActivity() {
                                         inner()
                                     }
                                 }
-                            )
+                            ,
+    colors = soundprintFilledFieldColors()
+)
                         },
                         actions = {
                             TextButton(onClick = { linkImportDialogOpen = false; linkImportText = "" }) { Text("Cancel") }
@@ -1703,7 +1705,11 @@ private fun HomeScreen(
                         label = { Text("New playlist name") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
-                    )
+                    ,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                 }
             },
             actions = {
@@ -1728,9 +1734,21 @@ private fun HomeScreen(
             onDismissRequest = { editTrack = null },
             content = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    androidx.compose.material3.OutlinedTextField(editTitle, { editTitle = it }, label = { Text("Title") }, singleLine = true)
-                    androidx.compose.material3.OutlinedTextField(editArtist, { editArtist = it }, label = { Text("Artist") }, singleLine = true)
-                    androidx.compose.material3.OutlinedTextField(editAlbum, { editAlbum = it }, label = { Text("Album") }, singleLine = true)
+                    androidx.compose.material3.OutlinedTextField(editTitle, { editTitle = it }, label = { Text("Title") }, singleLine = true,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
+                    androidx.compose.material3.OutlinedTextField(editArtist, { editArtist = it }, label = { Text("Artist") }, singleLine = true,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
+                    androidx.compose.material3.OutlinedTextField(editAlbum, { editAlbum = it }, label = { Text("Album") }, singleLine = true,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                     SoundprintGenreMenu(value = editGenre, suggestions = editGenreSuggestions, onSelect = { editGenre = it })
                 }
             },
@@ -2390,7 +2408,9 @@ private fun SearchBox(value: String, onValueChange: (String) -> Unit, placeholde
         Spacer(Modifier.width(9.dp))
         Box(Modifier.weight(1f)) {
             if (value.isEmpty()) Text(placeholder, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            BasicTextField(value, onValueChange, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth())
+            BasicTextField(value, onValueChange, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth(),
+    colors = soundprintFilledFieldColors()
+)
         }
         if (value.isNotEmpty()) {
             SoundprintIcon(SoundprintIcons.X, "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp).clickable { onValueChange("") })
@@ -3102,7 +3122,9 @@ private fun SettingsSearchBox(value: String, onValueChange: (String) -> Unit) {
         Spacer(Modifier.width(12.dp))
         Box(Modifier.weight(1f)) {
             if (value.isEmpty()) Text("Search settings…", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            BasicTextField(value, onValueChange, singleLine = true, textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth())
+            BasicTextField(value, onValueChange, singleLine = true, textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth(),
+    colors = soundprintFilledFieldColors()
+)
         }
         if (value.isNotEmpty()) {
             Spacer(Modifier.width(8.dp))
