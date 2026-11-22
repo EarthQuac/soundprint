@@ -1190,7 +1190,7 @@ private fun EmailOtpCodeEntry(code: String, onCodeChange: (String) -> Unit) {
                                 .border(
                                     width = 1.5.dp,
                                     color = if (code.getOrNull(index) != null) colors.primary
-                                    else colors.outline.copy(alpha = 0.8f),
+                                    else colors.primary.copy(alpha = 0.72f),
                                     shape = RoundedCornerShape(12.dp)
                                 ),
                             contentAlignment = Alignment.Center
