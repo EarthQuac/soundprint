@@ -711,6 +711,8 @@ internal fun SoundprintAccountScreen(
                                     unfocusedBorderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.65f),
                                     cursorColor = MaterialTheme.colorScheme.error
                                 )
+                            ,
+                                colors = soundprintOutlinedFieldColors()
                             )
                             Button(
                                 onClick = { permanentlyDeleteAccount() },
