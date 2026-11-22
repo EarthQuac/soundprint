@@ -217,6 +217,7 @@ internal fun SoundprintAccountScreen(
             accountEmail = ""
             displayName = ""
             username = ""
+            usernameSyncPending = false
         } else {
             signedIn = true
             userId = user.id
@@ -1008,7 +1009,7 @@ internal fun SoundprintAccountScreen(
                     displayName = clean
                     usernameSyncPending = true
                     usernameEditorOpen = false
-                    message = "Username saved on this device. It will sync to Supabase when you're back online."
+                    message = "Username change queued on this device. It will sync to Supabase when you're back online."
                     messageError = false
                 } else {
                     perform {
