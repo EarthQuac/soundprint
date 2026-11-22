@@ -212,7 +212,6 @@ internal fun SoundprintAccountScreen(
     suspend fun refreshAccount() {
         val user = supabase.auth.currentUserOrNull()
         if (user == null) {
-            context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE).edit().remove("listening_stats_sync_user_id").apply()
             signedIn = false
             userId = null
             accountEmail = ""
@@ -222,8 +221,6 @@ internal fun SoundprintAccountScreen(
         } else {
             signedIn = true
             userId = user.id
-            context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE).edit().putString("listening_stats_sync_user_id", user.id).apply()
-            ListeningStatsSync.enqueue(context, user.id)
             accountEmail = user.email.orEmpty()
             val preferences = context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
             val pendingUsername = preferences.getString("pending_username_$userId", null).orEmpty()
@@ -556,10 +553,8 @@ internal fun SoundprintAccountScreen(
                         supportingText = { Text("3–20 characters · letters, numbers and underscores") },
                         singleLine = true
                     ,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                        colors = soundprintOutlinedFieldColors()
+                    )
                     Button(
                         onClick = {
                             val clean = nameDraft.trim()
@@ -683,10 +678,8 @@ internal fun SoundprintAccountScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                                 singleLine = true
                             ,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                                colors = soundprintOutlinedFieldColors()
+                            )
                             Button(
                                 onClick = { requestAccountDeletionCode() },
                                 enabled = !busy && deletionEmail.isNotBlank(),
@@ -756,10 +749,8 @@ internal fun SoundprintAccountScreen(
                         trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } },
                         singleLine = true
                     ,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                        colors = soundprintOutlinedFieldColors()
+                    )
                     OutlinedTextField(
                         confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(),
                         label = { Text("Confirm new password") },
@@ -767,10 +758,8 @@ internal fun SoundprintAccountScreen(
                         trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } },
                         singleLine = true
                     ,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                        colors = soundprintOutlinedFieldColors()
+                    )
                     Button(
                         onClick = {
                             if (password.length < 8 || password != confirmPassword) {
@@ -795,22 +784,12 @@ internal fun SoundprintAccountScreen(
                     ) { Text("Save new password") }
                     TextButton(
                         onClick = {
-                            perform {
-                                // Recovery verification creates a temporary authenticated session.
-                                // End it before returning to the normal sign-in screen.
-                                supabase.auth.signOut()
-                                refreshAccount()
-                                resetOtpVerified = false
-                                otpIsRecovery = false
-                                otpIsSignup = false
-                                otpRequested = false
-                                otpCode = ""
-                                mode = "sign-in"
-                                password = ""
-                                confirmPassword = ""
-                                message = "You're back at sign in."
-                                messageError = false
-                            }
+                            resetOtpVerified = false
+                            otpIsRecovery = false
+                            mode = "sign-in"
+                            password = ""
+                            confirmPassword = ""
+                            message = null
                         },
                         enabled = !busy,
                         modifier = Modifier.fillMaxWidth()
@@ -847,20 +826,14 @@ internal fun SoundprintAccountScreen(
                     }
                 }
                 OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true, enabled = !busy && !otpRequested,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                    colors = soundprintOutlinedFieldColors()
+                )
                 if (mode == "sign-up" || (mode == "sign-in" && !otpRequested)) OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } }, singleLine = true,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                    colors = soundprintOutlinedFieldColors()
+                )
                 if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } }, singleLine = true,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                    colors = soundprintOutlinedFieldColors()
+                )
                 if (otpRequested) {
                     Text(
                         if (otpIsRecovery) "Enter the 6-digit password reset code sent to ${email.trim()}"
@@ -877,7 +850,7 @@ internal fun SoundprintAccountScreen(
                                     otpIsSignup -> OtpType.Email.SIGNUP
                                     else -> OtpType.Email.EMAIL
                                 },
-                                email = email.trim().lowercase(), token = otpCode
+                                email = email.trim(), token = otpCode
                             )
                             otpRequested = false
                             otpCode = ""
@@ -921,7 +894,6 @@ internal fun SoundprintAccountScreen(
                                 messageError = true
                             } else perform {
                                 val requestedEmail = email.trim().lowercase()
-                                email = requestedEmail
                                 val resetEmailSent = requestPasswordResetForKnownAccount(requestedEmail)
                                 otpIsRecovery = true
                                 otpIsSignup = false
@@ -1048,10 +1020,8 @@ internal fun SoundprintAccountScreen(
                     supportingText = { Text("3–20 characters · letters, numbers and underscores") },
                     singleLine = true
                 ,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                    colors = soundprintOutlinedFieldColors()
+                )
                 if (!hasValidatedNetwork) {
                     Text("You're offline. Your change will be saved on this device and synced to Supabase when you're back online.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -1230,11 +1200,7 @@ private fun EmailOtpCodeEntry(code: String, onCodeChange: (String) -> Unit) {
                         }
                     }
                 }
-                Box(Modifier.matchParentSize()) { innerTextField(,
-    colors = soundprintFilledF,
-    colors = soundprintFilledFieldColors()
-ieldColors()
-) }
+                Box(Modifier.matchParentSize()) { innerTextField() }
             }
         }
     )
