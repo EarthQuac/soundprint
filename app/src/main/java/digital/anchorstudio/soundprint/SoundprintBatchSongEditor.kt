@@ -109,7 +109,11 @@ internal fun SoundprintSongsLibraryScreen(
                 shape = RoundedCornerShape(15.dp),
                 placeholder = { Text("Search songs, artists, albums…", fontSize = 12.sp) },
                 leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null, modifier = Modifier.size(18.dp)) }
-            )
+            ,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
             OutlinedButton(
                 onClick = { if (proAccess.entitled) onOpenTwinSense() else proAccess.onOpenPro() },
                 modifier = Modifier.fillMaxWidth().padding(top = 9.dp),
@@ -259,13 +263,29 @@ internal fun SoundprintSongsLibraryScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     OutlinedTextField(title, { title = it }, modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Title") }, placeholder = { Text("Leave unchanged") }, singleLine = true)
+                        label = { Text("Title") }, placeholder = { Text("Leave unchanged") }, singleLine = true,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                     OutlinedTextField(artist, { artist = it }, modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Artist") }, placeholder = { Text("Leave unchanged") }, singleLine = true)
+                        label = { Text("Artist") }, placeholder = { Text("Leave unchanged") }, singleLine = true,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                     OutlinedTextField(album, { album = it }, modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Album") }, placeholder = { Text("Leave unchanged") }, singleLine = true)
+                        label = { Text("Album") }, placeholder = { Text("Leave unchanged") }, singleLine = true,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                     OutlinedTextField(genre, { genre = it }, modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Genre") }, placeholder = { Text("Leave unchanged") }, singleLine = true)
+                        label = { Text("Genre") }, placeholder = { Text("Leave unchanged") }, singleLine = true,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                     Text("This updates the selected tracks in SoundPrint's library. Your audio files are not modified.",
                         fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
