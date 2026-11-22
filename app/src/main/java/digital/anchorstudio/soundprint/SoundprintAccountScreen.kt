@@ -77,6 +77,8 @@ private fun accountFriendlyError(error: Throwable, googleSignIn: Boolean = false
         (details.contains("otp") && (details.contains("expired") || details.contains("invalid"))) ||
             details.contains("token has expired") || details.contains("invalid token") ->
             "That verification code is invalid or has expired. Request a new code and try again."
+        details.contains("session has expired") ->
+            "Your session has expired. Sign in again and restart account deletion."
         details.contains("rate limit") || details.contains("too many requests") ||
             details.contains("over_email_send_rate_limit") ->
             "Too many attempts. Please wait a little before trying again."
