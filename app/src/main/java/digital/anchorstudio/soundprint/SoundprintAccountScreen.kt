@@ -119,11 +119,8 @@ internal fun SoundprintAccountScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var newEmail by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
-    var newPasswordVisible by remember { mutableStateOf(false) }
     var mode by remember { mutableStateOf("sign-in") }
     var message by remember { mutableStateOf<String?>(null) }
     var messageError by remember { mutableStateOf(false) }
@@ -563,34 +560,6 @@ internal fun SoundprintAccountScreen(
                         enabled = !busy && nameDraft.trim().isNotEmpty(),
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("Save profile") }
-                }
-                AccountPanel {
-                    Text("SECURITY", fontSize = 10.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedTextField(newEmail, { newEmail = it.trim() }, Modifier.fillMaxWidth(), label = { Text("New email address") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true)
-                    Button(onClick = {
-                        if (!newEmail.contains("@")) {
-                            message = "Enter a valid email address."
-                            messageError = true
-                        } else perform {
-                            supabase.auth.updateUser { email = newEmail }
-                            newEmail = ""
-                            message = "Confirmation sent. Check your inboxes to finish changing your email."
-                            messageError = false
-                        }
-                    }, enabled = !busy && newEmail.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Change email") }
-                    Spacer(Modifier.height(0.dp))
-                    OutlinedTextField(newPassword, { newPassword = it }, Modifier.fillMaxWidth(), label = { Text("New password") }, visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { newPasswordVisible = !newPasswordVisible }) { Text(if (newPasswordVisible) "Hide" else "Show") } }, singleLine = true)
-                    Button(onClick = {
-                        if (newPassword.length < 8) {
-                            message = "Use at least 8 characters for your new password."
-                            messageError = true
-                        } else perform {
-                            supabase.auth.updateUser { password = newPassword }
-                            newPassword = ""
-                            message = "Password updated."
-                            messageError = false
-                        }
-                    }, enabled = !busy && newPassword.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Update password") }
                 }
                 if (deletionStep == "idle") {
                     AccountPanel {
