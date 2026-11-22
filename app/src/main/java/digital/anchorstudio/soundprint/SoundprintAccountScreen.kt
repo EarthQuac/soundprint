@@ -551,9 +551,8 @@ internal fun SoundprintAccountScreen(
                         label = { Text("Username") },
                         leadingIcon = { SoundprintIcon(SoundprintIcons.UserRound, null) },
                         supportingText = { Text("3–20 characters · letters, numbers and underscores") },
-                        singleLine = true
-                    ,
-                        colors = soundprintOutlinedFieldColors()
+                        singleLine = true,
+                                colors = soundprintOutlinedFieldColors()
                     )
                     Button(
                         onClick = {
@@ -676,8 +675,7 @@ internal fun SoundprintAccountScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 label = { Text("Account email") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                                singleLine = true
-                            ,
+                                singleLine = true,
                                 colors = soundprintOutlinedFieldColors()
                             )
                             Button(
@@ -706,12 +704,6 @@ internal fun SoundprintAccountScreen(
                                 placeholder = { Text("SOUNDPRINT/DELETE", color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f)) },
                                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
                                 singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.error,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.65f),
-                                    cursorColor = MaterialTheme.colorScheme.error
-                                )
-                            ,
                                 colors = soundprintOutlinedFieldColors()
                             )
                             Button(
@@ -753,18 +745,16 @@ internal fun SoundprintAccountScreen(
                         leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) },
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } },
-                        singleLine = true
-                    ,
-                        colors = soundprintOutlinedFieldColors()
+                        singleLine = true,
+                                colors = soundprintOutlinedFieldColors()
                     )
                     OutlinedTextField(
                         confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(),
                         label = { Text("Confirm new password") },
                         visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } },
-                        singleLine = true
-                    ,
-                        colors = soundprintOutlinedFieldColors()
+                        singleLine = true,
+                                colors = soundprintOutlinedFieldColors()
                     )
                     Button(
                         onClick = {
@@ -1024,9 +1014,8 @@ internal fun SoundprintAccountScreen(
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Username") },
                     supportingText = { Text("3–20 characters · letters, numbers and underscores") },
-                    singleLine = true
-                ,
-                    colors = soundprintOutlinedFieldColors()
+                    singleLine = true,
+                                colors = soundprintOutlinedFieldColors()
                 )
                 if (!hasValidatedNetwork) {
                     Text("You're offline. Your change will be saved on this device and synced to Supabase when you're back online.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
