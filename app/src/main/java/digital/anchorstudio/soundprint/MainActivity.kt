@@ -2390,7 +2390,7 @@ private fun SearchBox(value: String, onValueChange: (String) -> Unit, placeholde
     Row(
         modifier = Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
-            
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.72f), RoundedCornerShape(16.dp))
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
