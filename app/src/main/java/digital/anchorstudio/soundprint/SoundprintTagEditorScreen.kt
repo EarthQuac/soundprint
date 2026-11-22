@@ -93,10 +93,8 @@ fun SoundprintTagEditorScreen(
                 placeholder = { Text("Find a track…") },
                 shape = RoundedCornerShape(14.dp)
             ,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                colors = soundprintOutlinedFieldColors()
+            )
             Spacer(Modifier.height(10.dp))
             Card(
                 modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp),
@@ -131,25 +129,17 @@ fun SoundprintTagEditorScreen(
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("Edit track details", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                         OutlinedTextField(title, { title = it }, Modifier.fillMaxWidth(), label = { Text("Title") }, singleLine = true, shape = RoundedCornerShape(12.dp),
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                            colors = soundprintOutlinedFieldColors()
+                        )
                         OutlinedTextField(artist, { artist = it }, Modifier.fillMaxWidth(), label = { Text("Artist") }, singleLine = true, shape = RoundedCornerShape(12.dp),
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                            colors = soundprintOutlinedFieldColors()
+                        )
                         OutlinedTextField(album, { album = it }, Modifier.fillMaxWidth(), label = { Text("Album") }, singleLine = true, shape = RoundedCornerShape(12.dp),
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                            colors = soundprintOutlinedFieldColors()
+                        )
                         OutlinedTextField(genre, { genre = it }, Modifier.fillMaxWidth(), label = { Text("Genre") }, singleLine = true, shape = RoundedCornerShape(12.dp),
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                            colors = soundprintOutlinedFieldColors()
+                        )
                         Button(
                             onClick = {
                                 val trackId = selected.id
