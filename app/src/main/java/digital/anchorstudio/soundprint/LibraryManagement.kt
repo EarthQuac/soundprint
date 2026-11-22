@@ -9,7 +9,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 enum class HistoryEventType { PLAY, SKIP, LISTEN }
-data class LibraryHistoryEvent(val id:Long,val trackId:String,val type:HistoryEventType,val timestamp:Long,val positionMs:Long,val durationMs:Long)
+data class LibraryHistoryEvent(val id:Long,val trackId:String,val type:HistoryEventType,val timestamp:Long,val positionMs:Long,val durationMs:Long,val syncId:String?=null,val ownerUserId:String?=null,val synced:Boolean=true)
 data class LibraryListeningStats(val trackId:String,val plays:Int,val skips:Int,val lastPlayedAt:Long?,val totalListenedMs:Long)
 data class ManagedPlaylist(val id:String,val name:String,val trackIds:List<String>,val createdAt:Long,val updatedAt:Long)
 data class RecycleBinEntry(val track:MusicTrack,val removedAt:Long,val reason:String) {
@@ -39,7 +39,7 @@ data class SmartPlaylistContext(
 
 private const val RECYCLE_BIN_RETENTION_MS=30L*24L*60L*60L*1000L
 
-private class LibraryManagementDatabase(context:Context):SQLiteOpenHelper(context.applicationContext,"soundprint_library_management.db",null,1) {
+private class LibraryManagementDatabase(context:Context):SQLiteOpenHelper(context.applicationContext,"soundprint_library_management.db",null,2) {
     private val backupTables = listOf(
         "history_events", "managed_playlists", "managed_playlist_tracks", "smart_playlists", "recycle_bin"
     )
@@ -47,7 +47,9 @@ private class LibraryManagementDatabase(context:Context):SQLiteOpenHelper(contex
     init { setWriteAheadLoggingEnabled(true) }
 
     override fun onCreate(db:SQLiteDatabase) {
-        db.execSQL("CREATE TABLE history_events(id INTEGER PRIMARY KEY AUTOINCREMENT,track_id TEXT NOT NULL,event_type TEXT NOT NULL,timestamp INTEGER NOT NULL,position_ms INTEGER NOT NULL DEFAULT 0,duration_ms INTEGER NOT NULL DEFAULT 0)")
+        db.execSQL("CREATE TABLE history_events(id INTEGER PRIMARY KEY AUTOINCREMENT,track_id TEXT NOT NULL,event_type TEXT NOT NULL,timestamp INTEGER NOT NULL,position_ms INTEGER NOT NULL DEFAULT 0,duration_ms INTEGER NOT NULL DEFAULT 0,sync_id TEXT,owner_user_id TEXT,synced INTEGER NOT NULL DEFAULT 1)")
+        db.execSQL("CREATE UNIQUE INDEX history_sync_id_idx ON history_events(sync_id) WHERE sync_id IS NOT NULL")
+        db.execSQL("CREATE INDEX history_owner_sync_idx ON history_events(owner_user_id,synced)")
         db.execSQL("CREATE INDEX history_track_time_idx ON history_events(track_id,timestamp DESC)")
         db.execSQL("CREATE INDEX history_time_idx ON history_events(timestamp DESC)")
         db.execSQL("CREATE TABLE managed_playlists(id TEXT PRIMARY KEY,name TEXT NOT NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL)")
@@ -57,20 +59,52 @@ private class LibraryManagementDatabase(context:Context):SQLiteOpenHelper(contex
         db.execSQL("CREATE TABLE recycle_bin(track_id TEXT PRIMARY KEY,removed_at INTEGER NOT NULL,reason TEXT NOT NULL)")
         db.execSQL("CREATE INDEX recycle_bin_time_idx ON recycle_bin(removed_at DESC)")
     }
-    override fun onUpgrade(db:SQLiteDatabase,oldVersion:Int,newVersion:Int) {}
+    override fun onUpgrade(db:SQLiteDatabase,oldVersion:Int,newVersion:Int) {
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE history_events ADD COLUMN sync_id TEXT")
+            db.execSQL("ALTER TABLE history_events ADD COLUMN owner_user_id TEXT")
+            db.execSQL("ALTER TABLE history_events ADD COLUMN synced INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("CREATE UNIQUE INDEX history_sync_id_idx ON history_events(sync_id) WHERE sync_id IS NOT NULL")
+            db.execSQL("CREATE INDEX history_owner_sync_idx ON history_events(owner_user_id,synced)")
+        }
+    }
 
-    fun addHistory(trackId:String,type:HistoryEventType,positionMs:Long,durationMs:Long,timestamp:Long=System.currentTimeMillis()) {
+    fun addHistory(trackId:String,type:HistoryEventType,positionMs:Long,durationMs:Long,timestamp:Long=System.currentTimeMillis(),ownerUserId:String?=null):String {
+        val syncId=UUID.randomUUID().toString()
         writableDatabase.insertOrThrow("history_events",null,ContentValues().apply {
             put("track_id",trackId);put("event_type",type.name);put("timestamp",timestamp)
             put("position_ms",positionMs.coerceAtLeast(0));put("duration_ms",durationMs.coerceAtLeast(0))
+            put("sync_id",syncId);put("owner_user_id",ownerUserId);put("synced",if(ownerUserId==null) 1 else 0)
         })
+        return syncId
+    }
+    private fun readHistoryRow(c:android.database.Cursor)=LibraryHistoryEvent(
+        c.getLong(c.getColumnIndexOrThrow("id")),c.getString(c.getColumnIndexOrThrow("track_id")),
+        HistoryEventType.valueOf(c.getString(c.getColumnIndexOrThrow("event_type"))),
+        c.getLong(c.getColumnIndexOrThrow("timestamp")),c.getLong(c.getColumnIndexOrThrow("position_ms")),
+        c.getLong(c.getColumnIndexOrThrow("duration_ms")),c.getString(c.getColumnIndexOrThrow("sync_id")),
+        c.getString(c.getColumnIndexOrThrow("owner_user_id")),c.getInt(c.getColumnIndexOrThrow("synced"))!=0
+    )
+    fun pendingHistory(userId:String,limit:Int=500):List<LibraryHistoryEvent> =
+        readableDatabase.rawQuery("SELECT * FROM history_events WHERE owner_user_id=? AND synced=0 ORDER BY timestamp,id LIMIT ?",arrayOf(userId,limit.coerceIn(1,1000).toString())).use { c -> buildList { while(c.moveToNext()) add(readHistoryRow(c)) } }
+    fun markHistorySynced(syncIds:List<String>) {
+        if(syncIds.isEmpty()) return
+        val db=writableDatabase;db.beginTransaction()
+        try { syncIds.chunked(400).forEach { batch -> db.execSQL("UPDATE history_events SET synced=1 WHERE sync_id IN (${batch.joinToString(",") { "?" }})",batch.toTypedArray()) };db.setTransactionSuccessful() }
+        finally { db.endTransaction() }
+    }
+    fun mergeRemoteHistory(event:LibraryHistoryEvent) {
+        val syncId=event.syncId ?: return
+        writableDatabase.insertWithOnConflict("history_events",null,ContentValues().apply {
+            put("track_id",event.trackId);put("event_type",event.type.name);put("timestamp",event.timestamp)
+            put("position_ms",event.positionMs.coerceAtLeast(0));put("duration_ms",event.durationMs.coerceAtLeast(0))
+            put("sync_id",syncId);put("owner_user_id",event.ownerUserId);put("synced",1)
+        },SQLiteDatabase.CONFLICT_IGNORE)
     }
     fun history(limit:Int=100,trackId:String?=null):List<LibraryHistoryEvent> {
         val sql=if(trackId==null) "SELECT * FROM history_events ORDER BY timestamp DESC,id DESC LIMIT ?" else "SELECT * FROM history_events WHERE track_id=? ORDER BY timestamp DESC,id DESC LIMIT ?"
         val args=if(trackId==null) arrayOf(limit.coerceIn(1,10000).toString()) else arrayOf(trackId,limit.coerceIn(1,10000).toString())
-        return readableDatabase.rawQuery(sql,args).use { c -> buildList {
-            while(c.moveToNext()) add(LibraryHistoryEvent(c.getLong(0),c.getString(1),HistoryEventType.valueOf(c.getString(2)),c.getLong(3),c.getLong(4),c.getLong(5)))
-        } }
+        return readableDatabase.rawQuery(sql,args).use { c -> buildList { while(c.moveToNext()) add(readHistoryRow(c)) } }
     }
     fun stats():Map<String,LibraryListeningStats> {
         val result=linkedMapOf<String,LibraryListeningStats>()
@@ -276,9 +310,12 @@ private fun smartPlaylistFromJson(json:JSONObject):NativeSmartPlaylist {
 
 /** Complete native library-management logic. UI screens consume this API; this class has no Compose dependency. */
 class MusicLibraryManager(context:Context) {
-    private val repository=MusicLibraryRepository.getInstance(context.applicationContext)
-    private val state=LibraryManagementDatabase(context.applicationContext)
-    private val clapPreferences=context.applicationContext.getSharedPreferences("soundprint_clap_scan",Context.MODE_PRIVATE)
+    private val appContext=context.applicationContext
+    private val repository=MusicLibraryRepository.getInstance(appContext)
+    private val state=LibraryManagementDatabase(appContext)
+    private val clapPreferences=appContext.getSharedPreferences("soundprint_clap_scan",Context.MODE_PRIVATE)
+    private val accountPreferences=appContext.getSharedPreferences("soundprint_account_security",Context.MODE_PRIVATE)
+    private fun activeStatsUserId():String?=accountPreferences.getString("listening_stats_sync_user_id",null)?.takeIf { it.isNotBlank() }
 
     fun allSongs(query:String="",sort:TrackSort=TrackSort.TITLE,ascending:Boolean=true)=repository.tracks(query,sort,ascending)
     fun recentlyPlayed(limit:Int=50)=repository.recentlyPlayed(limit)
@@ -349,22 +386,37 @@ class MusicLibraryManager(context:Context) {
     fun isFavorite(id:String)=repository.track(id)?.isFavorite==true
     fun toggleFavorite(id:String)=repository.toggleFavorite(id)
 
+    private fun recordHistory(id:String,type:HistoryEventType,positionMs:Long,durationMs:Long) {
+        val owner=activeStatsUserId()
+        state.addHistory(id,type,positionMs,durationMs,ownerUserId=owner)
+        if(owner!=null) runCatching { ListeningStatsSync.enqueue(appContext,owner) }
+    }
     fun recordPlay(id:String,positionMs:Long,durationMs:Long) {
-        require(repository.track(id)!=null) { "Song not found." };repository.markPlayed(id);state.addHistory(id,HistoryEventType.PLAY,positionMs,durationMs)
+        require(repository.track(id)!=null) { "Song not found." };repository.markPlayed(id);recordHistory(id,HistoryEventType.PLAY,positionMs,durationMs)
     }
     fun recordSkip(id:String,positionMs:Long,durationMs:Long) {
-        require(repository.track(id)!=null) { "Song not found." };state.addHistory(id,HistoryEventType.SKIP,positionMs,durationMs)
+        require(repository.track(id)!=null) { "Song not found." };recordHistory(id,HistoryEventType.SKIP,positionMs,durationMs)
     }
     fun recordListeningTime(id:String,listenedMs:Long,durationMs:Long) {
         if(listenedMs<=0L) return
         require(repository.track(id)!=null) { "Song not found." }
-        state.addHistory(id,HistoryEventType.LISTEN,listenedMs.coerceAtMost(durationMs.takeIf { it>0L } ?: listenedMs),durationMs)
+        recordHistory(id,HistoryEventType.LISTEN,listenedMs.coerceAtMost(durationMs.takeIf { it>0L } ?: listenedMs),durationMs)
     }
+    fun pendingListeningEvents(userId:String,limit:Int=500)=state.pendingHistory(userId,limit)
+    fun markListeningEventsSynced(syncIds:List<String>)=state.markHistorySynced(syncIds)
+    fun mergeRemoteListeningEvent(event:LibraryHistoryEvent)=state.mergeRemoteHistory(event)
     fun listeningHistory(limit:Int=100):List<Pair<LibraryHistoryEvent,MusicTrack?>> = state.history(limit).map { it to repository.track(it.trackId) }.filter { it.second!=null }
     fun trackHistory(id:String,limit:Int=100)=state.history(limit,id)
     fun listeningStats()=state.stats()
     fun listeningEvents(limit:Int=10000)=state.history(limit.coerceIn(1,10000))
-    fun clearListeningHistory() { state.clearHistory();repository.tracks().forEach { repository.resetPlayStats(it.id) } }
+    fun clearListeningHistory() {
+        val owner=activeStatsUserId()
+        state.clearHistory();repository.tracks().forEach { repository.resetPlayStats(it.id) }
+        if(owner!=null) {
+            accountPreferences.edit().putBoolean("listening_stats_clear_cloud_$owner",true).apply()
+            runCatching { ListeningStatsSync.enqueue(appContext,owner) }
+        }
+    }
     fun clearAllLibraryData() {
         repository.clearLibrary()
         state.clearAllLibraryData()

@@ -125,7 +125,7 @@ fun ListeningStatsScreen(libraryManager:MusicLibraryManager,onBack:()->Unit) {
         item {
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp)) {
                 Text("Your listening stays yours",fontSize=14.sp,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.onSurface)
-                Text("Statistics are calculated from playback recorded on this device. No account or cloud connection is required.",modifier=Modifier.padding(top=5.dp),fontSize=12.sp,lineHeight=18.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Your listening history is saved on this device and syncs with your account whenever you are online.",modifier=Modifier.padding(top=5.dp),fontSize=12.sp,lineHeight=18.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

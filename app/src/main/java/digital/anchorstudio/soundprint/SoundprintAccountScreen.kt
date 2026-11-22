@@ -212,6 +212,7 @@ internal fun SoundprintAccountScreen(
     suspend fun refreshAccount() {
         val user = supabase.auth.currentUserOrNull()
         if (user == null) {
+            context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE).edit().remove("listening_stats_sync_user_id").apply()
             signedIn = false
             userId = null
             accountEmail = ""
@@ -221,6 +222,8 @@ internal fun SoundprintAccountScreen(
         } else {
             signedIn = true
             userId = user.id
+            context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE).edit().putString("listening_stats_sync_user_id", user.id).apply()
+            ListeningStatsSync.enqueue(context, user.id)
             accountEmail = user.email.orEmpty()
             val preferences = context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
             val pendingUsername = preferences.getString("pending_username_$userId", null).orEmpty()
