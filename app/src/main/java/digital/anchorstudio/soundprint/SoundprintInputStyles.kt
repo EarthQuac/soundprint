@@ -13,8 +13,8 @@ import androidx.compose.material3.TextFieldDefaults
 @Composable
 internal fun soundprintOutlinedFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = MaterialTheme.colorScheme.primary,
-    unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
-    disabledBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.42f),
+    unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.92f),
+    disabledBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.60f),
     errorBorderColor = MaterialTheme.colorScheme.error,
     cursorColor = MaterialTheme.colorScheme.primary,
     focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -29,8 +29,8 @@ internal fun soundprintOutlinedFieldColors() = OutlinedTextFieldDefaults.colors(
 @Composable
 internal fun soundprintFilledFieldColors() = TextFieldDefaults.colors(
     focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-    unfocusedIndicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
-    disabledIndicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.42f),
+    unfocusedIndicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.92f),
+    disabledIndicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.60f),
     errorIndicatorColor = MaterialTheme.colorScheme.error,
     cursorColor = MaterialTheme.colorScheme.primary,
     focusedContainerColor = MaterialTheme.colorScheme.surface,
