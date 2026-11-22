@@ -706,7 +706,11 @@ internal fun SoundprintAccountScreen(
                                 placeholder = { Text("SOUNDPRINT/DELETE", color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f)) },
                                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
                                 singleLine = true,
-                                colors = soundprintOutlinedFieldColors()
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.error,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.65f),
+                                    cursorColor = MaterialTheme.colorScheme.error
+                                )
                             )
                             Button(
                                 onClick = { permanentlyDeleteAccount() },
