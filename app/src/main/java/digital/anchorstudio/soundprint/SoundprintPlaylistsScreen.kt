@@ -34,7 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -321,8 +321,8 @@ fun SoundprintPlaylistsScreen(
         AlertDialog(
             onDismissRequest = { createPlaylistOpen = false },
             title = { Text("New playlist") },
-            text = { TextField(value = playlistName, onValueChange = { playlistName = it }, singleLine = true, placeholder = { Text("Playlist name") },
-                colors = soundprintFilledFieldColors()
+            text = { OutlinedTextField(value = playlistName, onValueChange = { playlistName = it }, singleLine = true, placeholder = { Text("Playlist name") },
+                colors = soundprintOutlinedFieldColors()
             ) },
             confirmButton = {
                 TextButton(enabled = playlistName.isNotBlank(), onClick = {
