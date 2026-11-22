@@ -412,20 +412,40 @@ internal fun SoundprintAccountScreen(
             messageError = true
             return
         }
+        val verifiedUserId = deletionOriginalUserId
+        val activeUserId = supabase.auth.currentUserOrNull()?.id
+        if (verifiedUserId.isNullOrBlank() || activeUserId != verifiedUserId || userId != verifiedUserId) {
+            message = "Your signed-in account changed. Restart account deletion and verify the correct account."
+            messageError = true
+            deletionStep = "idle"
+            deletionCode = ""
+            deletionConfirmation = ""
+            deletionOriginalUserId = null
+            return
+        }
         perform {
+            // Re-check the live Supabase session inside the operation, not only Compose state.
+            val currentUserId = supabase.auth.currentUserOrNull()?.id
+            if (currentUserId != verifiedUserId) {
+                error("Your signed-in account changed. Restart account deletion and verify the correct account.")
+            }
             val payload = buildJsonObject {
                 put("action", "delete")
                 put("confirmation", "SOUNDPRINT/DELETE")
             }.toString()
-            callDeleteAccountFunction(payload)
-            userId?.let { verifiedUserId ->
-                context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
-                    .edit().remove("delete_verified_at_$verifiedUserId").apply()
+            val response = org.json.JSONObject(callDeleteAccountFunction(payload))
+            if (!response.optBoolean("success", false)) {
+                error("The account deletion service did not confirm deletion. Please try again.")
             }
-            supabase.auth.signOut()
-            refreshAccount()
+            context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
+                .edit().remove("delete_verified_at_$verifiedUserId").apply()
+            // The server has already deleted the user; local sign-out is cleanup and must not
+            // turn a successful irreversible deletion into a misleading failure state.
+            runCatching { supabase.auth.signOut() }
+            runCatching { refreshAccount() }
             deletionStep = "idle"
             deletionEmail = ""
+            deletionCode = ""
             deletionConfirmation = ""
             deletionOriginalUserId = null
             message = "Your SoundPrint account has been permanently deleted."
