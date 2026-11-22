@@ -31,7 +31,7 @@ internal object ListeningStatsSync {
         if(userId.isBlank()) return
         val request=OneTimeWorkRequestBuilder<ListeningStatsSyncWorker>()
             .setInputData(workDataOf(ListeningStatsSyncWorker.INPUT_USER_ID to userId))
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.UNMETERED).build())
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .build()
         WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
             "soundprint-listening-stats-$userId",ExistingWorkPolicy.APPEND_OR_REPLACE,request
