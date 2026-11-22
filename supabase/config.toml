@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.request-password-reset]
 verify_jwt = false
+
+[functions.soundprint-pro]
+verify_jwt = false
