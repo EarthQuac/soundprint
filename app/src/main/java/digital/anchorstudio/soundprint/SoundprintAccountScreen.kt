@@ -413,8 +413,7 @@ internal fun SoundprintAccountScreen(
             return
         }
         val verifiedUserId = deletionOriginalUserId
-        val activeUserId = supabase.auth.currentUserOrNull()?.id
-        if (verifiedUserId.isNullOrBlank() || activeUserId != verifiedUserId || userId != verifiedUserId) {
+        if (verifiedUserId.isNullOrBlank() || userId != verifiedUserId) {
             message = "Your signed-in account changed. Restart account deletion and verify the correct account."
             messageError = true
             deletionStep = "idle"
