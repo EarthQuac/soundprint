@@ -184,9 +184,18 @@ private fun ProFounderOffer(onClaim: (() -> Unit)?, remaining: Int, capacity: In
                 Spacer(Modifier.width(8.dp))
                 Text("Founder Access · Lifetime Pro", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
             }
-            Text(if (!signedIn) "The first 100 eligible accounts can claim lifetime Pro. Sign in with a verified email address to check availability and claim your spot." else if (!offerEnabled) "Founder Access is currently closed." else if (remaining <= 0) "All founder spots have been claimed." else "$remaining of $capacity founder spots remain. Each verified account can claim once.",
-                modifier = Modifier.padding(top = 7.dp), fontSize = 11.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            message?.let { Text(it, modifier = Modifier.padding(top = 10.dp), fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            Text(
+                when {
+                    message == "Checking spots left..." -> "Checking spots left..."
+                    !offerEnabled -> "Founder Access is currently closed."
+                    remaining <= 0 -> "All founder spots have been claimed."
+                    else -> "$remaining of $capacity founder spots remain. Each eligible account can claim once."
+                },
+                modifier = Modifier.padding(top = 7.dp), fontSize = 11.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            message?.takeUnless { it == "Checking spots left..." }?.let {
+                Text(it, modifier = Modifier.padding(top = 10.dp), fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             Button(onClick = { if (!signedIn) onSignIn?.invoke() else onClaim?.invoke() },
                 enabled = if (!signedIn) onSignIn != null else onClaim != null && offerEnabled && remaining > 0,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp), shape = RoundedCornerShape(50.dp)) {
