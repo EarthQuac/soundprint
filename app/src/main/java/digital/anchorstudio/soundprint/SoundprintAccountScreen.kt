@@ -441,7 +441,14 @@ internal fun SoundprintAccountScreen(
             // The server has already deleted the user; local sign-out is cleanup and must not
             // turn a successful irreversible deletion into a misleading failure state.
             runCatching { supabase.auth.signOut() }
-            runCatching { refreshAccount() }
+            signedIn = false
+            userId = null
+            accountEmail = ""
+            displayName = ""
+            username = ""
+            usernameSyncPending = false
+            context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
+                .edit().remove("pending_username_$verifiedUserId").apply()
             deletionStep = "idle"
             deletionEmail = ""
             deletionCode = ""
