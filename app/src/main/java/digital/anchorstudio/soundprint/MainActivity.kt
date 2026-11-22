@@ -636,7 +636,6 @@ class MainActivity : ComponentActivity() {
                 SoundprintApp(
                     libraryManager = libraryManager,
                     accountReturnRequestCount = accountReturnRequestCount.intValue,
-                    onDebugProCelebrationPreview = { proCelebrationViewModel.showDebugPreview() },
                     proEntitled = proEntitled,
                     themeMode = themeMode,
                     onThemeModeChange = { mode -> themeMode = mode; preferences.edit().putString("theme", mode).apply() },
@@ -865,7 +864,6 @@ private val tabs = listOf(
 private fun SoundprintApp(
     libraryManager: MusicLibraryManager,
     accountReturnRequestCount: Int,
-    onDebugProCelebrationPreview: () -> Unit,
     proEntitled: Boolean,
     themeMode: String,
     onThemeModeChange: (String) -> Unit,
@@ -1105,7 +1103,6 @@ private fun SoundprintApp(
                                 accountOpen = true
                                 accountReturnToSignInKey += 1
                             },
-                            onDebugCelebration = onDebugProCelebrationPreview,
                             onClaimFounder = {
                                 screenScope.launch {
                                     proMessage = "Checking eligibility and claiming your founder spot…"
@@ -1115,6 +1112,13 @@ private fun SoundprintApp(
                                                 val source = result.optString("source").takeUnless { it == "null" }
                                                 proStatus = proStatus.copy(hasPro = true, source = source, isFounder = source == "founder")
                                                 SoundprintProGate.updateEntitlement(true)
+                                                // Celebrate only a newly completed Founder claim, never a retry
+                                                // that reports this account was already entitled.
+                                                if (result.optBoolean("claimed") && !result.optBoolean("already_entitled")) {
+                                                    SoundprintProAccess.currentUserId()?.let(
+                                                        proCelebrationViewModel::onFounderAccessClaimed
+                                                    )
+                                                }
                                             }
                                             runCatching { SoundprintProAccess.refresh() }
                                                 .onSuccess { proStatus = it; SoundprintProGate.updateEntitlement(it.hasPro) }
