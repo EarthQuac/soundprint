@@ -555,7 +555,11 @@ internal fun SoundprintAccountScreen(
                         leadingIcon = { SoundprintIcon(SoundprintIcons.UserRound, null) },
                         supportingText = { Text("3–20 characters · letters, numbers and underscores") },
                         singleLine = true
-                    )
+                    ,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                     Button(
                         onClick = {
                             val clean = nameDraft.trim()
@@ -678,7 +682,11 @@ internal fun SoundprintAccountScreen(
                                 label = { Text("Account email") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                                 singleLine = true
-                            )
+                            ,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                             Button(
                                 onClick = { requestAccountDeletionCode() },
                                 enabled = !busy && deletionEmail.isNotBlank(),
@@ -705,11 +713,7 @@ internal fun SoundprintAccountScreen(
                                 placeholder = { Text("SOUNDPRINT/DELETE", color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f)) },
                                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
                                 singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.error,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.65f),
-                                    cursorColor = MaterialTheme.colorScheme.error
-                                )
+                                colors = soundprintOutlinedFieldColors()
                             )
                             Button(
                                 onClick = { permanentlyDeleteAccount() },
@@ -751,14 +755,22 @@ internal fun SoundprintAccountScreen(
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } },
                         singleLine = true
-                    )
+                    ,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                     OutlinedTextField(
                         confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(),
                         label = { Text("Confirm new password") },
                         visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } },
                         singleLine = true
-                    )
+                    ,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                     Button(
                         onClick = {
                             if (password.length < 8 || password != confirmPassword) {
@@ -834,9 +846,21 @@ internal fun SoundprintAccountScreen(
                         HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
                     }
                 }
-                OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true, enabled = !busy && !otpRequested)
-                if (mode == "sign-up" || (mode == "sign-in" && !otpRequested)) OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } }, singleLine = true)
-                if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } }, singleLine = true)
+                OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true, enabled = !busy && !otpRequested,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
+                if (mode == "sign-up" || (mode == "sign-in" && !otpRequested)) OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } }, singleLine = true,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
+                if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } }, singleLine = true,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                 if (otpRequested) {
                     Text(
                         if (otpIsRecovery) "Enter the 6-digit password reset code sent to ${email.trim()}"
@@ -1023,7 +1047,11 @@ internal fun SoundprintAccountScreen(
                     label = { Text("Username") },
                     supportingText = { Text("3–20 characters · letters, numbers and underscores") },
                     singleLine = true
-                )
+                ,
+    colors = soundprintOutlinedFieldColors()
+,
+    colors = soundprintFilledFieldColors()
+)
                 if (!hasValidatedNetwork) {
                     Text("You're offline. Your change will be saved on this device and synced to Supabase when you're back online.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -1202,7 +1230,11 @@ private fun EmailOtpCodeEntry(code: String, onCodeChange: (String) -> Unit) {
                         }
                     }
                 }
-                Box(Modifier.matchParentSize()) { innerTextField() }
+                Box(Modifier.matchParentSize()) { innerTextField(,
+    colors = soundprintFilledF,
+    colors = soundprintFilledFieldColors()
+ieldColors()
+) }
             }
         }
     )
