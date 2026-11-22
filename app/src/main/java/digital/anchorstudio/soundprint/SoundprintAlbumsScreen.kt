@@ -219,9 +219,7 @@ private fun AlbumSearchBox(value: String, onValueChange: (String) -> Unit) {
         Spacer(Modifier.width(9.dp))
         Box(Modifier.weight(1f)) {
             if (value.isEmpty()) Text("Filter albums or artists…", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            BasicTextField(value, onValueChange, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth(),
-    colors = soundprintFilledFieldColors()
-)
+            BasicTextField(value, onValueChange, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth())
         }
         if (value.isNotEmpty()) SoundprintIcon(SoundprintIcons.X, "Clear filter", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp).clickable { onValueChange("") })
     }
