@@ -944,20 +944,37 @@ private fun SoundprintApp(
     }
     LaunchedEffect(proOpen) {
         if (proOpen) {
-            proMessage = "Checking Founder Access availability…"
-            runCatching { SoundprintProAccess.refresh() }
-                .onSuccess {
-                    proStatus = it
-                    SoundprintProGate.updateEntitlement(it.hasPro)
-                    if (!it.hasPro) enforceFreeTierRestrictions()
+            proMessage = "Checking spots left..."
+            runCatching { SoundprintProAccess.refreshFounderAvailability() }
+                .onSuccess { availability ->
+                    proStatus = proStatus.copy(
+                        founderOfferEnabled = availability.founderOfferEnabled,
+                        founderCapacity = availability.founderCapacity,
+                        founderRemaining = availability.founderRemaining
+                    )
                     proMessage = null
                 }
                 .onFailure {
-                    proStatus = SoundprintProStatus()
-                    SoundprintProGate.updateEntitlement(false)
-                    enforceFreeTierRestrictions()
-                    proMessage = it.message ?: "Could not verify Pro access. Try again."
+                    proMessage = it.message ?: "Could not check Founder Access spots. Try again."
                 }
+
+            if (SoundprintProAccess.hasSession()) {
+                runCatching { SoundprintProAccess.refresh() }
+                    .onSuccess {
+                        proStatus = it
+                        SoundprintProGate.updateEntitlement(it.hasPro)
+                        if (!it.hasPro) enforceFreeTierRestrictions()
+                    }
+                    .onFailure {
+                        SoundprintProGate.updateEntitlement(false)
+                        enforceFreeTierRestrictions()
+                        proMessage = it.message ?: "Could not verify Pro access. Try again."
+                    }
+            } else {
+                proStatus = proStatus.copy(hasPro = false, source = null, isFounder = false)
+                SoundprintProGate.updateEntitlement(false)
+                enforceFreeTierRestrictions()
+            }
         }
     }
     var nowPlayingOpen by remember { mutableStateOf(false) }
