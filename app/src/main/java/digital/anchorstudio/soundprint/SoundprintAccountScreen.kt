@@ -659,6 +659,12 @@ internal fun SoundprintAccountScreen(
                                 },
                                 fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Text(
+                                "If this account has Founder Access, deleting it will release its Founder spot back into the available pool. Another eligible listener can claim it after creating an account and verifying their email.",
+                                fontSize = 12.sp,
+                                lineHeight = 18.sp,
+                                color = MaterialTheme.colorScheme.error
+                            )
                         } else {
                             Text(
                                 if (deletionStep == "email")
