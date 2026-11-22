@@ -802,7 +802,7 @@ internal fun SoundprintAccountScreen(
                         "forgot" -> "We'll email you a six-digit recovery code to verify before choosing a new password."
                         else -> "Sign in to manage your account. Your music library stays on this device by default."
                     },
-                    icon = if (mode == "forgot") SoundprintIcons.Lock else SoundprintIcons.AudioWaveform
+                    icon = if (mode == "forgot") SoundprintIcons.Lock else SoundprintIcons.UserRound
                 )
                 if (mode != "forgot") {
                     OutlinedButton(
