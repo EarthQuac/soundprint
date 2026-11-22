@@ -536,7 +536,7 @@ internal fun SoundprintAccountScreen(
                     CircularProgressIndicator()
                     Text("Checking your account…", Modifier.padding(top = 14.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            } else if (signedIn && username.isBlank()) {
+            } else if (signedIn && !resetOtpVerified && username.isBlank()) {
                 AccountIntroPanel(
                     title = "Choose your username",
                     description = "You're signed in. Set the username SoundPrint will use to address you. You can change it later.",
@@ -577,7 +577,7 @@ internal fun SoundprintAccountScreen(
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Sign out") }
-            } else if (signedIn) {
+            } else if (signedIn && !resetOtpVerified) {
                 AccountPanel {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         Box(
@@ -769,6 +769,8 @@ internal fun SoundprintAccountScreen(
                                 mode = "sign-in"
                                 password = ""
                                 confirmPassword = ""
+                                otpRequested = false
+                                otpCode = ""
                                 message = "Password reset successfully. You can now sign in."
                                 messageError = false
                             }
@@ -797,7 +799,7 @@ internal fun SoundprintAccountScreen(
                     },
                     description = when (mode) {
                         "sign-up" -> "Create an account to keep your SoundPrint identity available across devices."
-                        "forgot" -> "We'll send you a secure link to reset your password."
+                        "forgot" -> "We'll email you a six-digit recovery code to verify before choosing a new password."
                         else -> "Sign in to manage your account. Your music library stays on this device by default."
                     },
                     icon = if (mode == "forgot") SoundprintIcons.Lock else SoundprintIcons.AudioWaveform
@@ -859,7 +861,10 @@ internal fun SoundprintAccountScreen(
                     TextButton(onClick = {
                         perform {
                             when {
-                                otpIsRecovery -> supabase.auth.resetPasswordForEmail(email.trim())
+                                otpIsRecovery -> {
+                                    val sent = requestPasswordResetForKnownAccount(email.trim().lowercase())
+                                    if (!sent) error("Your account could not be found. Check the email address and try again.")
+                                }
                                 otpIsSignup -> supabase.auth.resendEmail(OtpType.Email.SIGNUP, email.trim())
                                 else -> supabase.auth.signInWith(OTP) { this.email = email.trim() }
                             }
@@ -880,14 +885,18 @@ internal fun SoundprintAccountScreen(
                             } else perform {
                                 val requestedEmail = email.trim().lowercase()
                                 val resetEmailSent = requestPasswordResetForKnownAccount(requestedEmail)
-                                otpIsRecovery = false
+                                otpIsRecovery = true
                                 otpIsSignup = false
-                                otpRequested = false
+                                resetOtpVerified = false
+                                otpRequested = resetEmailSent
                                 otpCode = ""
+                                password = ""
+                                confirmPassword = ""
                                 if (resetEmailSent) {
-                                    message = "Check your email. If you don't see the password reset code, check your spam folder."
+                                    message = "A six-digit password recovery code has been sent to $requestedEmail. Enter it below."
                                     messageError = false
                                 } else {
+                                    otpRequested = false
                                     message = "Your account doesn't exist. Please try a different account."
                                     messageError = true
                                 }
@@ -928,7 +937,7 @@ internal fun SoundprintAccountScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    else Text(when (mode) { "sign-up" -> "Create account"; "forgot" -> "Send reset link"; else -> "Sign in" })
+                    else Text(when (mode) { "sign-up" -> "Create account"; "forgot" -> "Send recovery code"; else -> "Sign in" })
                 }
                 if (mode == "sign-in" && !otpRequested) TextButton(
                     onClick = {
@@ -954,7 +963,18 @@ internal fun SoundprintAccountScreen(
                     TextButton(onClick = { mode = if (mode == "sign-up") "sign-in" else "sign-up"; message = null }) { Text(if (mode == "sign-up") "Sign in" else "Create account") }
                 }
                 if (otpRequested) TextButton(onClick = { otpRequested = false; otpCode = ""; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Back") }
-                if (mode == "forgot") TextButton(onClick = { mode = "sign-in"; otpIsRecovery = false; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Back to sign in") }
+                if (mode == "forgot") TextButton(onClick = {
+                    mode = "sign-in"
+                    otpRequested = false
+                    otpCode = ""
+                    otpIsRecovery = false
+                    otpIsSignup = false
+                    resetOtpVerified = false
+                    password = ""
+                    confirmPassword = ""
+                    message = null
+                    messageError = false
+                }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Back to sign in") }
                 }
             }
             if (busy) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
