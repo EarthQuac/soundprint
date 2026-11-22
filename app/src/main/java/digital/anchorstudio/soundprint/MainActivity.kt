@@ -113,6 +113,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.sync.Mutex
@@ -238,6 +239,9 @@ private data class PendingArtworkImport(val enqueue: (Boolean) -> Unit)
 
 class MainActivity : ComponentActivity() {
     private val accountReturnRequestCount = mutableIntStateOf(0)
+    private val proCelebrationViewModel by lazy {
+        ViewModelProvider(this)[SoundprintProCelebrationViewModel::class.java]
+    }
 
     private fun handleAccountReturnIntent(intent: Intent) {
         if (intent.data?.scheme == "soundprint" && intent.data?.host == "account") {
@@ -632,6 +636,7 @@ class MainActivity : ComponentActivity() {
                 SoundprintApp(
                     libraryManager = libraryManager,
                     accountReturnRequestCount = accountReturnRequestCount.intValue,
+                    onDebugProCelebrationPreview = { proCelebrationViewModel.showDebugPreview() },
                     proEntitled = proEntitled,
                     themeMode = themeMode,
                     onThemeModeChange = { mode -> themeMode = mode; preferences.edit().putString("theme", mode).apply() },
@@ -827,6 +832,12 @@ class MainActivity : ComponentActivity() {
                 }
                 }
             }
+            if (proCelebrationViewModel.showProCelebration) {
+                SoundprintProCelebration(
+                    onContinue = { proCelebrationViewModel.dismiss() },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
             if (showSplash) SoundprintSplash(onFinished = { showSplash = false })
             }
         }
@@ -854,6 +865,7 @@ private val tabs = listOf(
 private fun SoundprintApp(
     libraryManager: MusicLibraryManager,
     accountReturnRequestCount: Int,
+    onDebugProCelebrationPreview: () -> Unit,
     proEntitled: Boolean,
     themeMode: String,
     onThemeModeChange: (String) -> Unit,
@@ -1093,6 +1105,7 @@ private fun SoundprintApp(
                                 accountOpen = true
                                 accountReturnToSignInKey += 1
                             },
+                            onDebugCelebration = onDebugProCelebrationPreview,
                             onClaimFounder = {
                                 screenScope.launch {
                                     proMessage = "Checking eligibility and claiming your founder spot…"
