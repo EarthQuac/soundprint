@@ -71,7 +71,7 @@ private fun accountFriendlyError(error: Throwable, googleSignIn: Boolean = false
     return when {
         details.contains("invalid login credentials") || details.contains("invalid_credentials") ||
             details.contains("wrong password") ->
-            "That email or password doesn't match an account. Check your details and try again."
+            "We couldn't sign you in. Check your email and password. If you haven't created a SoundPrint account yet, choose Create account."
         details.contains("email not confirmed") || details.contains("email_not_confirmed") ->
             "Please verify your email address before signing in."
         details.contains("already registered") || details.contains("user already exists") ||
