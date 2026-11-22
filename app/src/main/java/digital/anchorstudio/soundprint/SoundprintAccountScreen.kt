@@ -783,12 +783,22 @@ internal fun SoundprintAccountScreen(
                     ) { Text("Save new password") }
                     TextButton(
                         onClick = {
-                            resetOtpVerified = false
-                            otpIsRecovery = false
-                            mode = "sign-in"
-                            password = ""
-                            confirmPassword = ""
-                            message = null
+                            perform {
+                                // Recovery verification creates a temporary authenticated session.
+                                // End it before returning to the normal sign-in screen.
+                                supabase.auth.signOut()
+                                refreshAccount()
+                                resetOtpVerified = false
+                                otpIsRecovery = false
+                                otpIsSignup = false
+                                otpRequested = false
+                                otpCode = ""
+                                mode = "sign-in"
+                                password = ""
+                                confirmPassword = ""
+                                message = "You're back at sign in."
+                                messageError = false
+                            }
                         },
                         enabled = !busy,
                         modifier = Modifier.fillMaxWidth()
@@ -843,7 +853,7 @@ internal fun SoundprintAccountScreen(
                                     otpIsSignup -> OtpType.Email.SIGNUP
                                     else -> OtpType.Email.EMAIL
                                 },
-                                email = email.trim(), token = otpCode
+                                email = email.trim().lowercase(), token = otpCode
                             )
                             otpRequested = false
                             otpCode = ""
@@ -887,6 +897,7 @@ internal fun SoundprintAccountScreen(
                                 messageError = true
                             } else perform {
                                 val requestedEmail = email.trim().lowercase()
+                                email = requestedEmail
                                 val resetEmailSent = requestPasswordResetForKnownAccount(requestedEmail)
                                 otpIsRecovery = true
                                 otpIsSignup = false
