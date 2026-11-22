@@ -424,8 +424,8 @@ private fun PlaylistDetailNative(
     }
     if (renameOpen) AlertDialog(
         onDismissRequest = { renameOpen = false }, title = { Text("Rename playlist") },
-        text = { TextField(value = name, onValueChange = { name = it }, singleLine = true,
-            colors = soundprintFilledFieldColors()
+        text = { OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true,
+            colors = soundprintOutlinedFieldColors()
         ) },
         confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { libraryManager.renamePlaylist(playlistId, name.trim()); renameOpen = false; refresh++; onChanged() }) { Text("Save") } },
         dismissButton = { TextButton(onClick = { renameOpen = false }) { Text("Cancel") } }
@@ -513,8 +513,8 @@ private fun SmartPlaylistEditorDialog(
         title = { Text(if (editing) "Edit smart playlist" else "Create smart playlist") },
         text = {
             Column(Modifier.fillMaxWidth().heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextField(value = draft.name, onValueChange = { onDraftChange(draft.copy(name = it)) }, singleLine = true, placeholder = { Text("Playlist name") }, modifier = Modifier.fillMaxWidth(),
-                    colors = soundprintFilledFieldColors()
+                OutlinedTextField(value = draft.name, onValueChange = { onDraftChange(draft.copy(name = it)) }, singleLine = true, placeholder = { Text("Playlist name") }, modifier = Modifier.fillMaxWidth(),
+                    colors = soundprintOutlinedFieldColors()
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Match groups", Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -542,14 +542,14 @@ private fun SmartPlaylistEditorDialog(
                                         updateCondition(group.id, condition.id, condition.copy(value = value))
                                     }
                                 } else {
-                                    TextField(
+                                    OutlinedTextField(
                                         value = condition.value,
                                         onValueChange = { updateCondition(group.id, condition.id, condition.copy(value = it)) },
                                         modifier = Modifier.fillMaxWidth(),
                                         singleLine = true,
                                         placeholder = { Text(if (smartFieldType(condition.field) == "number") "Number" else "Value") }
                                     ,
-                                        colors = soundprintFilledFieldColors()
+                                        colors = soundprintOutlinedFieldColors()
                                     )
                                 }
                                 TextButton(enabled = group.conditions.size > 1, onClick = {
@@ -573,11 +573,11 @@ private fun SmartPlaylistEditorDialog(
                     onDraftChange(draft.copy(ascending = value == "asc"))
                 }
                 var limitText by remember(draft.id) { mutableStateOf(draft.limit?.toString().orEmpty()) }
-                TextField(value = limitText, onValueChange = {
+                OutlinedTextField(value = limitText, onValueChange = {
                     limitText = it.filter(Char::isDigit).take(4)
                     onDraftChange(draft.copy(limit = limitText.toIntOrNull()?.coerceIn(1, 1000)))
                 }, singleLine = true, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Limit (optional)") },
-                    colors = soundprintFilledFieldColors()
+                    colors = soundprintOutlinedFieldColors()
                 )
                 Text("Mood and energy rules use saved music matches. Tempo and lyrics filters need those details to be available in your library.", fontSize = 10.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
