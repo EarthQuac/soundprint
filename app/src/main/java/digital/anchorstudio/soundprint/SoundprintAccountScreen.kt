@@ -137,6 +137,7 @@ internal fun SoundprintAccountScreen(
     var deletionCode by remember { mutableStateOf("") }
     var deletionConfirmation by remember { mutableStateOf("") }
     var deletionOriginalUserId by remember { mutableStateOf<String?>(null) }
+    var signOutConfirmationOpen by remember { mutableStateOf(false) }
     val authSessionState by supabase.auth.sessionStatus.collectAsState()
 
     // Account feedback belongs in the app-wide notification host, never in the form layout.
@@ -530,7 +531,7 @@ internal fun SoundprintAccountScreen(
                     ) { Text(if (busy) "Saving…" else "Continue") }
                 }
                 TextButton(
-                    onClick = { perform { supabase.auth.signOut(); refreshAccount(); message = "Signed out."; messageError = false } },
+                    onClick = { signOutConfirmationOpen = true },
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Sign out") }
@@ -715,7 +716,7 @@ internal fun SoundprintAccountScreen(
                         ) { Text("Cancel") }
                     }
                 }
-                TextButton(onClick = { perform { supabase.auth.signOut(); refreshAccount(); message = "Signed out."; messageError = false } }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                TextButton(onClick = { signOutConfirmationOpen = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                     Text("Sign out")
                 }
             } else {
@@ -947,6 +948,30 @@ internal fun SoundprintAccountScreen(
             }
         }
     }
+    if (signOutConfirmationOpen) AlertDialog(
+        onDismissRequest = { signOutConfirmationOpen = false },
+        title = { Text("Sign out of SoundPrint?") },
+        text = { Text("You'll be signed out of your SoundPrint account on this device. Your music files and local library will remain on this device.") },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    signOutConfirmationOpen = false
+                    perform {
+                        supabase.auth.signOut()
+                        refreshAccount()
+                        message = "Signed out."
+                        messageError = false
+                    }
+                },
+                enabled = !busy
+            ) { Text("Sign out", color = MaterialTheme.colorScheme.error) }
+        },
+        dismissButton = {
+            TextButton(onClick = { signOutConfirmationOpen = false }, enabled = !busy) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable
