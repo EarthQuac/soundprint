@@ -62,7 +62,7 @@ internal class ListeningStatsSyncWorker(context:Context,params:androidx.work.Wor
                         CloudListeningHistoryEvent(id,userId,event.trackId,event.type.name,event.timestamp,event.positionMs,event.durationMs)
                     }
                     if(records.isNotEmpty()) {
-                        client.from("listening_history").insert(records,upsert=true,onConflict="id")
+                        client.from("listening_history").upsert(records) { onConflict = "id" }
                         manager.markListeningEventsSynced(records.map { it.id })
                     }
                 }
