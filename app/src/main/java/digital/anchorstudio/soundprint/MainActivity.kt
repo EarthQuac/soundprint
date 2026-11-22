@@ -636,6 +636,7 @@ class MainActivity : ComponentActivity() {
                 SoundprintApp(
                     libraryManager = libraryManager,
                     accountReturnRequestCount = accountReturnRequestCount.intValue,
+                    onFounderAccessClaimed = proCelebrationViewModel::onFounderAccessClaimed,
                     proEntitled = proEntitled,
                     themeMode = themeMode,
                     onThemeModeChange = { mode -> themeMode = mode; preferences.edit().putString("theme", mode).apply() },
@@ -864,6 +865,7 @@ private val tabs = listOf(
 private fun SoundprintApp(
     libraryManager: MusicLibraryManager,
     accountReturnRequestCount: Int,
+    onFounderAccessClaimed: (String) -> Unit,
     proEntitled: Boolean,
     themeMode: String,
     onThemeModeChange: (String) -> Unit,
@@ -1116,7 +1118,7 @@ private fun SoundprintApp(
                                                 // that reports this account was already entitled.
                                                 if (result.optBoolean("claimed") && !result.optBoolean("already_entitled")) {
                                                     SoundprintProAccess.currentUserId()?.let(
-                                                        proCelebrationViewModel::onFounderAccessClaimed
+                                                        onFounderAccessClaimed
                                                     )
                                                 }
                                             }
