@@ -24,29 +24,25 @@ internal class SoundprintProCelebrationViewModel(application: Application) : And
         private set
 
     @Synchronized
-    fun onPurchaseAcknowledged(purchaseToken: String) {
-        val token = purchaseToken.trim()
-        if (token.isEmpty()) return
+    fun onFounderAccessClaimed(userId: String) {
+        val id = userId.trim()
+        if (id.isEmpty()) return
 
-        val tokenHash = MessageDigest.getInstance("SHA-256")
-            .digest(token.toByteArray(Charsets.UTF_8))
+        val eventHash = MessageDigest.getInstance("SHA-256")
+            .digest("founder:$id".toByteArray(Charsets.UTF_8))
             .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
-        val consumed = preferences.getStringSet(KEY_CONSUMED_PURCHASES, emptySet())
+        val consumed = preferences.getStringSet(KEY_CONSUMED_FOUNDER_CLAIMS, emptySet())
             .orEmpty()
             .toMutableSet()
-        if (!consumed.add(tokenHash)) return
+        if (!consumed.add(eventHash)) return
 
-        // Persist before showing so process death or rotation cannot replay this purchase.
+        // Commit before displaying: rotations, process death and duplicate claim responses
+        // cannot replay the celebration for the same Founder account.
         val persisted = preferences.edit()
-            .putStringSet(KEY_CONSUMED_PURCHASES, consumed)
+            .putStringSet(KEY_CONSUMED_FOUNDER_CLAIMS, consumed)
             .commit()
         if (persisted) showProCelebration = true
-    }
-
-    /** Debug-only preview path. It deliberately does not consume or persist a purchase. */
-    fun showDebugPreview() {
-        showProCelebration = true
     }
 
     fun dismiss() {
@@ -54,6 +50,6 @@ internal class SoundprintProCelebrationViewModel(application: Application) : And
     }
 
     private companion object {
-        const val KEY_CONSUMED_PURCHASES = "consumed_purchase_token_hashes"
+        const val KEY_CONSUMED_FOUNDER_CLAIMS = "consumed_founder_claims"
     }
 }
