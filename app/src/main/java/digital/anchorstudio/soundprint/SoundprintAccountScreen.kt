@@ -57,6 +57,44 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.buildJsonObject
 
+private fun accountFriendlyError(error: Throwable, googleSignIn: Boolean = false): String {
+    val details = generateSequence(error) { it.cause }
+        .flatMap { sequenceOf(it.message.orEmpty(), it.javaClass.simpleName) }
+        .joinToString(" ").lowercase()
+
+    return when {
+        details.contains("invalid login credentials") || details.contains("invalid_credentials") ||
+            details.contains("wrong password") ->
+            "That email or password doesn't match an account. Check your details and try again."
+        details.contains("email not confirmed") || details.contains("email_not_confirmed") ->
+            "Please verify your email address before signing in."
+        details.contains("already registered") || details.contains("user already exists") ||
+            details.contains("email address is already") ->
+            "An account with this email already exists. Sign in instead."
+        details.contains("weak password") || details.contains("password should") ||
+            details.contains("password is too") ->
+            "Choose a stronger password with at least 8 characters."
+        (details.contains("otp") && (details.contains("expired") || details.contains("invalid"))) ||
+            details.contains("token has expired") || details.contains("invalid token") ->
+            "That verification code is invalid or has expired. Request a new code and try again."
+        details.contains("rate limit") || details.contains("too many requests") ||
+            details.contains("over_email_send_rate_limit") ->
+            "Too many attempts. Please wait a little before trying again."
+        details.contains("username") && (details.contains("duplicate") || details.contains("unique")) ->
+            "That username is already taken. Choose another one."
+        details.contains("unknownhost") || details.contains("connectexception") ||
+            details.contains("sockettimeoutexception") || details.contains("timed out") ||
+            details.contains("network is unreachable") || details.contains("no address associated") ->
+            "We couldn't connect. Check your internet connection and try again."
+        googleSignIn && (details.contains("developer_error") || details.contains("developererror") ||
+            details.contains("configuration") || details.contains("oauth")) ->
+            "Google sign-in isn't configured correctly yet. Please try again later or use email sign-in."
+        googleSignIn ->
+            "Google sign-in couldn't start. Check that Google Play services are up to date, then try again."
+        else -> "We couldn't complete that account request. Please try again."
+    }
+}
+
 @Serializable
 private data class SoundprintProfileUpdate(@SerialName("display_name") val displayName: String)
 
@@ -155,8 +193,9 @@ internal fun SoundprintAccountScreen(
 
     LaunchedEffect(authSessionState) {
         try { refreshAccount() }
-        catch (_: Exception) {
-            message = "Couldn't restore your saved session. Check your connection and try again."
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (error: Exception) {
+            message = accountFriendlyError(error)
             messageError = true
         } finally { loading = false }
     }
@@ -166,8 +205,9 @@ internal fun SoundprintAccountScreen(
             busy = true
             message = null
             try { action() }
+            catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) {
-                message = error.message?.take(220) ?: "Something went wrong. Please try again."
+                message = accountFriendlyError(error)
                 messageError = true
             } finally { busy = false }
         }
@@ -192,8 +232,7 @@ internal fun SoundprintAccountScreen(
                     ?.bufferedReader()?.use { it.readText() }.orEmpty()
                 val result = runCatching { org.json.JSONObject(body) }.getOrNull()
                 if (status !in 200..299) {
-                    error(result?.optString("message")?.takeIf { it.isNotBlank() }
-                        ?: "We couldn't process your password reset request. Please try again.")
+                    error("PASSWORD_RESET_REQUEST_FAILED")
                 }
                 result?.optBoolean("sent", false) == true
             } finally {
@@ -222,7 +261,11 @@ internal fun SoundprintAccountScreen(
                 val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
                     ?.bufferedReader()?.use { it.readText() }.orEmpty()
                 if (status !in 200..299) {
-                    error("The account request failed ($status). ${body.take(160)}")
+                    error(when (status) {
+                        401, 403 -> "Your session has expired. Sign in again and restart account deletion."
+                        429 -> "Too many attempts. Please wait a little before trying again."
+                        else -> "We couldn't complete the account request. Please try again."
+                    })
                 }
                 body
             } finally {
@@ -363,13 +406,11 @@ internal fun SoundprintAccountScreen(
                 message = when (error) {
                     is androidx.credentials.exceptions.GetCredentialCancellationException ->
                         "Google sign-in was cancelled."
-                    else -> error.message?.take(220)
-                        ?: "Google sign-in couldn't start (${error::class.simpleName}). Check Google Play services and try again."
+                    else -> accountFriendlyError(error, googleSignIn = true)
                 }
                 messageError = true
             } catch (error: Exception) {
-                message = error.message?.take(220)
-                    ?: "Google sign-in failed (${error.javaClass.simpleName}). Check the Google OAuth configuration and your connection."
+                message = accountFriendlyError(error, googleSignIn = true)
                 messageError = true
             } finally {
                 busy = false
