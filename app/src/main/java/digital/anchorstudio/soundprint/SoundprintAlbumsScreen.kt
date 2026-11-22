@@ -214,7 +214,7 @@ private fun AlbumPageHeader(title: String, subtitle: String, onBack: (() -> Unit
 private fun AlbumSearchBox(value: String, onValueChange: (String) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).height(46.dp).clip(RoundedCornerShape(16.dp))
         .background(MaterialTheme.colorScheme.surface)
-        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.72f), RoundedCornerShape(16.dp))
+        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.92f), RoundedCornerShape(16.dp))
         .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
         SoundprintIcon(SoundprintIcons.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp))
