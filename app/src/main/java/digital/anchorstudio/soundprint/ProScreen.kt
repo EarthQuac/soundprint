@@ -187,19 +187,21 @@ private fun ProFounderOffer(onClaim: (() -> Unit)?, remaining: Int, capacity: In
             Text(
                 when {
                     message == "Checking spots left..." -> "Checking spots left..."
-                    !offerEnabled -> "Founder Access is currently closed."
                     remaining <= 0 -> "All founder spots have been claimed."
                     else -> "$remaining of $capacity founder spots remain. Each eligible account can claim once."
                 },
                 modifier = Modifier.padding(top = 7.dp), fontSize = 11.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (!offerEnabled && message != "Checking spots left...") {
+                Text("Founder Access is currently closed.", fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             message?.takeUnless { it == "Checking spots left..." }?.let {
                 Text(it, modifier = Modifier.padding(top = 10.dp), fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Button(onClick = { if (!signedIn) onSignIn?.invoke() else onClaim?.invoke() },
-                enabled = if (!signedIn) onSignIn != null else onClaim != null && offerEnabled && remaining > 0,
+                enabled = if (!signedIn) onSignIn != null && offerEnabled && remaining > 0 else onClaim != null && offerEnabled && remaining > 0,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp), shape = RoundedCornerShape(50.dp)) {
-                Text(if (!signedIn) "Sign in to claim Founder Access" else if (!offerEnabled || remaining <= 0) "Founder offer unavailable" else "Claim founder offer")
+                Text(if (!offerEnabled || remaining <= 0) "Founder offer unavailable" else if (!signedIn) "Sign in to claim Founder Access" else "Claim founder offer")
             }
         }
     }
