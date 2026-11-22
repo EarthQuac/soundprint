@@ -162,10 +162,8 @@ internal fun SongsLibraryScreen(
                         leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null) },
                         shape = RoundedCornerShape(14.dp)
                     ,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                        colors = soundprintOutlinedFieldColors()
+                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(Modifier.weight(1f)) {
                             OutlinedButton(onClick = { sortMenu = true }, modifier = Modifier.fillMaxWidth()) {
@@ -583,25 +581,17 @@ private fun NativeSongLibraryRow(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, singleLine = true,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                        colors = soundprintOutlinedFieldColors()
+                    )
                     OutlinedTextField(value = artist, onValueChange = { artist = it }, label = { Text("Artist") }, singleLine = true,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                        colors = soundprintOutlinedFieldColors()
+                    )
                     OutlinedTextField(value = album, onValueChange = { album = it }, label = { Text("Album") }, singleLine = true,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                        colors = soundprintOutlinedFieldColors()
+                    )
                     OutlinedTextField(value = genre, onValueChange = { genre = it }, label = { Text("Genre") }, singleLine = true,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                        colors = soundprintOutlinedFieldColors()
+                    )
                 }
             },
             confirmButton = {
@@ -656,10 +646,8 @@ private fun NativeSongLibraryRow(
                     label = { Text("New playlist name") },
                     singleLine = true
                 ,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                    colors = soundprintOutlinedFieldColors()
+                )
             },
             confirmButton = {
                 TextButton(
