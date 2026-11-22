@@ -459,10 +459,8 @@ fun SoundprintLyricsPanel(
                     shape = RoundedCornerShape(16.dp),
                     textStyle = MaterialTheme.typography.bodySmall
                 ,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                    colors = soundprintOutlinedFieldColors()
+                )
                 Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
@@ -702,10 +700,8 @@ fun SoundprintLyricsPanel(
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { discoverCandidates() })
                     ,
-    colors = soundprintOutlinedFieldColors()
-,
-    colors = soundprintFilledFieldColors()
-)
+                        colors = soundprintOutlinedFieldColors()
+                    )
                     OutlinedButton(
                         onClick = { discoverCandidates() },
                         enabled = !loading && searchQuery.isNotBlank(),
