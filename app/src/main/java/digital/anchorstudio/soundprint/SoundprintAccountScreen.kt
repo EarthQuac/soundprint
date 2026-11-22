@@ -2,6 +2,9 @@ package digital.anchorstudio.soundprint
 
 import android.app.Activity
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.content.ContextWrapper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -119,6 +122,10 @@ internal fun SoundprintAccountScreen(
     var displayName by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var nameDraft by remember { mutableStateOf("") }
+    var usernameActionsOpen by remember { mutableStateOf(false) }
+    var usernameEditorOpen by remember { mutableStateOf(false) }
+    var usernameSyncPending by remember { mutableStateOf(false) }
+    var hasValidatedNetwork by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -139,6 +146,33 @@ internal fun SoundprintAccountScreen(
     var deletionOriginalUserId by remember { mutableStateOf<String?>(null) }
     var signOutConfirmationOpen by remember { mutableStateOf(false) }
     val authSessionState by supabase.auth.sessionStatus.collectAsState()
+    val connectivityManager = remember {
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    }
+
+    DisposableEffect(connectivityManager) {
+        fun updateNetworkState() {
+            val network = connectivityManager.activeNetwork
+            val capabilities = network?.let(connectivityManager::getNetworkCapabilities)
+            hasValidatedNetwork = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        }
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                val capabilities = connectivityManager.getNetworkCapabilities(network)
+                hasValidatedNetwork = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            }
+            override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+                hasValidatedNetwork = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            }
+            override fun onLost(network: Network) { updateNetworkState() }
+        }
+        updateNetworkState()
+        connectivityManager.registerDefaultNetworkCallback(callback)
+        onDispose { runCatching { connectivityManager.unregisterNetworkCallback(callback) } }
+    }
 
     // Account feedback belongs in the app-wide notification host, never in the form layout.
     LaunchedEffect(message, messageError) {
@@ -187,9 +221,16 @@ internal fun SoundprintAccountScreen(
             signedIn = true
             userId = user.id
             accountEmail = user.email.orEmpty()
-            username = user.userMetadata?.get("username")?.toString()?.trim('"').orEmpty()
-            displayName = user.userMetadata?.get("display_name")?.toString()?.trim('"')
-                ?.ifBlank { null } ?: username.ifBlank { accountEmail.substringBefore("@").ifBlank { "Listener" } }
+            val preferences = context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
+            val pendingUsername = preferences.getString("pending_username_$userId", null).orEmpty()
+            usernameSyncPending = pendingUsername.isNotBlank()
+            username = pendingUsername.ifBlank {
+                user.userMetadata?.get("username")?.toString()?.trim('"').orEmpty()
+            }
+            displayName = username.ifBlank {
+                user.userMetadata?.get("display_name")?.toString()?.trim('"')
+                    ?.ifBlank { null } ?: accountEmail.substringBefore("@").ifBlank { "Listener" }
+            }
             nameDraft = username
         }
     }
@@ -556,45 +597,19 @@ internal fun SoundprintAccountScreen(
                             ) {
                                 Text("ACCOUNT CONNECTED", Modifier.padding(horizontal = 9.dp, vertical = 5.dp), fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             }
-                            Text("@$username", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                            TextButton(onClick = { usernameActionsOpen = true }, contentPadding = PaddingValues(0.dp), enabled = !busy) {
+                                Text("@$username", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                                Spacer(Modifier.width(6.dp))
+                                Text("✎", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+                            }
                             Text(accountEmail, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                            if (usernameSyncPending) {
+                                Text("Saved on this device · waiting to sync", fontSize = 11.sp, color = MaterialTheme.colorScheme.tertiary)
+                            }
                         }
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = .42f))
                     Text("Your music files and playback library stay on this device unless you choose to sync supported data.", fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                AccountPanel {
-                    Text("PROFILE", fontSize = 10.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedTextField(
-                        value = nameDraft,
-                        onValueChange = { nameDraft = it.lowercase().filter { ch -> ch.isLetterOrDigit() || ch == '_' }.take(20) },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Username") },
-                        leadingIcon = { SoundprintIcon(SoundprintIcons.UserRound, null) },
-                        supportingText = { Text("3–20 characters · letters, numbers and underscores") },
-                        singleLine = true
-                    )
-                    Button(
-                        onClick = {
-                            val clean = nameDraft.trim()
-                            val id = userId
-                            if (!clean.matches(Regex("[a-z0-9_]{3,20}")) || id == null) {
-                                message = "Choose a username with 3–20 letters, numbers or underscores."
-                                messageError = true
-                            } else perform {
-                                supabase.auth.updateUser { data { put("username", clean); put("display_name", clean) } }
-                                supabase.from("account_profiles").update(SoundprintProfileUpdate(clean)) {
-                                    filter { eq("id", id) }
-                                }
-                                username = clean
-                                displayName = clean
-                                message = "Username updated."
-                                messageError = false
-                            }
-                        },
-                        enabled = !busy && nameDraft.trim().isNotEmpty(),
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Save profile") }
                 }
                 if (deletionStep == "idle") {
                     AccountPanel {
@@ -945,6 +960,101 @@ internal fun SoundprintAccountScreen(
                 CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(10.dp))
                 Text("Working securely…", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+    if (usernameActionsOpen) AlertDialog(
+        onDismissRequest = { usernameActionsOpen = false },
+        title = { Text("Username") },
+        text = { Text("Would you like to change your SoundPrint username?") },
+        confirmButton = {
+            TextButton(onClick = {
+                usernameActionsOpen = false
+                nameDraft = username
+                usernameEditorOpen = true
+            }) { Text("Edit my username") }
+        },
+        dismissButton = { TextButton(onClick = { usernameActionsOpen = false }) { Text("Cancel") } }
+    )
+    if (usernameEditorOpen) AlertDialog(
+        onDismissRequest = { if (!busy) usernameEditorOpen = false },
+        title = { Text("Edit my username") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = nameDraft,
+                    onValueChange = { nameDraft = it.lowercase().filter { ch -> ch.isLetterOrDigit() || ch == '_' }.take(20) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Username") },
+                    supportingText = { Text("3–20 characters · letters, numbers and underscores") },
+                    singleLine = true
+                )
+                if (!hasValidatedNetwork) {
+                    Text("You're offline. Your change will be saved on this device and synced to Supabase when you're back online.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val clean = nameDraft.trim()
+                val id = userId
+                if (!clean.matches(Regex("[a-z0-9_]{3,20}")) || id == null) {
+                    message = "Choose a username with 3–20 letters, numbers or underscores."
+                    messageError = true
+                } else if (!hasValidatedNetwork) {
+                    context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
+                        .edit().putString("pending_username_$id", clean).apply()
+                    username = clean
+                    displayName = clean
+                    usernameSyncPending = true
+                    usernameEditorOpen = false
+                    message = "Username saved on this device. It will sync to Supabase when you're back online."
+                    messageError = false
+                } else {
+                    perform {
+                        supabase.auth.updateUser { data { put("username", clean); put("display_name", clean) } }
+                        supabase.from("account_profiles").update(SoundprintProfileUpdate(clean)) {
+                            filter { eq("id", id) }
+                        }
+                        context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
+                            .edit().remove("pending_username_$id").apply()
+                        username = clean
+                        displayName = clean
+                        usernameSyncPending = false
+                        usernameEditorOpen = false
+                        message = "Username updated."
+                        messageError = false
+                    }
+                }
+            }, enabled = !busy && nameDraft.matches(Regex("[a-z0-9_]{3,20}"))) {
+                Text(if (busy) "Saving…" else "Save")
+            }
+        },
+        dismissButton = { TextButton(onClick = { usernameEditorOpen = false }, enabled = !busy) { Text("Cancel") } }
+    )
+    if (usernameSyncPending && hasValidatedNetwork && signedIn && userId != null) {
+        LaunchedEffect(userId, hasValidatedNetwork, usernameSyncPending) {
+            val id = userId ?: return@LaunchedEffect
+            val preferences = context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
+            val pending = preferences.getString("pending_username_$id", null)?.trim().orEmpty()
+            if (pending.isNotBlank()) {
+                try {
+                    supabase.auth.updateUser { data { put("username", pending); put("display_name", pending) } }
+                    supabase.from("account_profiles").update(SoundprintProfileUpdate(pending)) {
+                        filter { eq("id", id) }
+                    }
+                    preferences.edit().remove("pending_username_$id").apply()
+                    username = pending
+                    displayName = pending
+                    usernameSyncPending = false
+                    message = "Your username has synced to Supabase."
+                    messageError = false
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    message = accountFriendlyError(error)
+                    messageError = true
+                }
             }
         }
     }
