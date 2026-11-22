@@ -29,7 +29,7 @@ class ListeningStatsSyncTest {
             mimeType="audio/mpeg",sizeBytes=100L,modifiedAt=1L,folder="Music",artworkUri=null,addedAt=1L,
             isFavorite=false,playCount=0,lastPlayedAt=null,contentHash="sync-test"
         )
-        MusicLibraryDatabase.getInstance(context).upsert(track)
+        MusicLibraryDatabase(context).apply { upsert(track); close() }
     }
     @After fun tearDown() {
         context.getSharedPreferences("soundprint_account_security",Context.MODE_PRIVATE).edit().clear().commit()
