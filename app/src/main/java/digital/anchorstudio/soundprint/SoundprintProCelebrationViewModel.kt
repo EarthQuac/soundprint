@@ -21,24 +21,34 @@ internal class SoundprintProCelebrationViewModel(application: Application) : And
     var showProCelebration by mutableStateOf(false)
         private set
 
+    /** Call only after Play Billing confirms that the purchase was acknowledged. */
+    @Synchronized
+    fun onPurchaseAcknowledged(purchaseToken: String) {
+        val token = purchaseToken.trim()
+        if (token.isNotEmpty()) recordAndShowOnce(KEY_CONSUMED_PURCHASES, "purchase:$token")
+    }
+
+    /** Call only for a newly completed Founder claim, not an already-entitled response. */
     @Synchronized
     fun onFounderAccessClaimed(userId: String) {
         val id = userId.trim()
-        if (id.isEmpty()) return
+        if (id.isNotEmpty()) recordAndShowOnce(KEY_CONSUMED_FOUNDER_CLAIMS, "founder:$id")
+    }
 
+    private fun recordAndShowOnce(preferenceKey: String, stableEventId: String) {
         val eventHash = MessageDigest.getInstance("SHA-256")
-            .digest("founder:$id".toByteArray(Charsets.UTF_8))
+            .digest(stableEventId.toByteArray(Charsets.UTF_8))
             .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
-        val consumed = preferences.getStringSet(KEY_CONSUMED_FOUNDER_CLAIMS, emptySet())
+        val consumed = preferences.getStringSet(preferenceKey, emptySet())
             .orEmpty()
             .toMutableSet()
         if (!consumed.add(eventHash)) return
 
-        // Commit before displaying: rotations, process death and duplicate claim responses
-        // cannot replay the celebration for the same Founder account.
+        // Commit before displaying so rotations, process death and duplicate callbacks
+        // cannot replay the celebration for the same purchase or Founder claim.
         val persisted = preferences.edit()
-            .putStringSet(KEY_CONSUMED_FOUNDER_CLAIMS, consumed)
+            .putStringSet(preferenceKey, consumed)
             .commit()
         if (persisted) showProCelebration = true
     }
@@ -49,5 +59,6 @@ internal class SoundprintProCelebrationViewModel(application: Application) : And
 
     private companion object {
         const val KEY_CONSUMED_FOUNDER_CLAIMS = "consumed_founder_claims"
+        const val KEY_CONSUMED_PURCHASES = "consumed_purchase_tokens"
     }
 }
