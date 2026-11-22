@@ -1062,6 +1062,10 @@ private fun SoundprintApp(
                         "pro" -> ProScreen(
                             onBack = { proOpen = false },
                             entitled = proStatus.hasPro,
+                            founderRemaining = proStatus.founderRemaining,
+                            founderCapacity = proStatus.founderCapacity,
+                            founderOfferEnabled = proStatus.founderOfferEnabled,
+                            founderMessage = proMessage,
                             signedIn = SoundprintProAccess.hasSession(),
                             onSignIn = {
                                 proOpen = false
