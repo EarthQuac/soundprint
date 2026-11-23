@@ -3036,14 +3036,19 @@ private fun SettingsScreen(
                 SettingsSection("LIBRARY") {
                     SettingsToggleRow(
                         "Custom artwork",
-                        "Save Soundprint covers for songs without embedded art. Embedded covers always win; the player still shows a fallback cover when this is off.",
-                        customArtwork,
-                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("custom-artwork"))
+                        "Add Soundprint artwork to songs that do not have embedded cover art.",
+                        proAccess.entitled && customArtwork,
+                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("custom-artwork")),
+                        proFeature = true
                     ) { enabled ->
-                        customArtwork = enabled
-                        artworkPreferences.edit().putBoolean("custom_artwork_enabled", enabled).apply()
-                        settingsScope.launch {
-                            withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(enabled) }
+                        if (!proAccess.entitled) {
+                            proAccess.onOpenPro()
+                        } else {
+                            customArtwork = enabled
+                            artworkPreferences.edit().putBoolean("custom_artwork_enabled", enabled).apply()
+                            settingsScope.launch {
+                                withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(enabled) }
+                            }
                         }
                     }
                     SettingsActionRow("Your music", "$libraryTrackCount songs stored on this device", "Add folder", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("your-music")), onClick = onImportMusic)
