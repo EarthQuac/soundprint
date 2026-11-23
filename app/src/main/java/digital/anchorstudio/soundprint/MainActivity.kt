@@ -300,36 +300,15 @@ class MainActivity : ComponentActivity() {
             var watchedFolderName by remember { mutableStateOf(preferences.getString("watched_folder_name", null)) }
             var folderWatchEnabled by remember { mutableStateOf(preferences.getBoolean("folder_watch_enabled", false)) }
             var folderWatchLastScan by remember { mutableStateOf(preferences.getLong("folder_watch_last_scan", 0L)) }
-            var autoAddNewSongs by remember { mutableStateOf(preferences.getBoolean("auto_add_new_songs", true)) }
-            var proEntitled by remember { mutableStateOf(false) }
-            var proEntitlementLoaded by remember { mutableStateOf(false) }
-            val authSessionState by SoundprintSupabase.client.auth.sessionStatus.collectAsState()
-            LaunchedEffect(authSessionState) {
-                proEntitlementLoaded = false
-                proEntitled = false
-                if (SoundprintProAccess.hasSession()) {
-                    try {
-                        proEntitled = SoundprintProAccess.refresh().hasPro
-                    } catch (cancelled: CancellationException) {
-                        throw cancelled
-                    } catch (_: Exception) {
-                        proEntitled = false
-                    }
-                }
-                proEntitlementLoaded = true
+            var autoAddNewSongs by remember { mutableStateOf(preferences.getBoolean("auto_add_new_songs", false)) }
+            // Read the shared entitlement state so Founder claims and purchases update
+            // the app shell immediately instead of leaving a stale free-tier snapshot.
+            val proEntitlementLoaded = SoundprintProGate.isResolved
+            val proEntitled = SoundprintProGate.hasPro
+            LaunchedEffect(proEntitlementLoaded, proEntitled) {
                 getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit()
-                    .putBoolean("pro_entitled", proEntitled)
+                    .putBoolean("pro_entitled", proEntitlementLoaded && proEntitled)
                     .apply()
-                if (!proEntitled) {
-                    preferences.edit().putBoolean("custom_artwork_enabled", false).apply()
-                    withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(false) }
-                }
-            }
-            LaunchedEffect(proEntitlementLoaded, proEntitled, selectedPalette) {
-                if (proEntitlementLoaded && !proEntitled && selectedPalette != "Amber" && selectedPalette != "Lavender") {
-                    selectedPalette = "Lavender"
-                    preferences.edit().putString("palette", "Lavender").apply()
-                }
             }
             var pendingTagExport by remember { mutableStateOf<SoundprintTagExportRequest?>(null) }
             val folderWatchMutex = remember { Mutex() }
@@ -978,6 +957,11 @@ private fun SoundprintApp(
         disableProPlaybackOptions(appContext)
         if (selectedPalette != "Amber" && selectedPalette != "Lavender") onPaletteChange("Lavender")
         if (folderWatchEnabled) onToggleFolderWatch(false)
+        appContext.getSharedPreferences("soundprint_native_preferences", android.content.Context.MODE_PRIVATE)
+            .edit().putBoolean("custom_artwork_enabled", false).apply()
+        screenScope.launch {
+            withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(false) }
+        }
         clapScanner.setAutoScanEnabled(false)
     }
     LaunchedEffect(authSessionState) {
@@ -3019,7 +3003,7 @@ private fun SettingsScreen(
                 SettingsSection("MUSIC INTELLIGENCE") {
                     if (SoundprintProGate.hasPro) {
                         SettingsToggleRow(
-                            "Scan entire library in background · Pro",
+                            "Scan entire library in background",
                             "Build offline mood profiles for personalized Discover recommendations",
                             backgroundMoodScan,
                             modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("mood-scan"))
@@ -3481,7 +3465,7 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(name, modifier = Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-                if (locked) ProFeatureBadge(showWhenEntitled = true)
+                if (locked && !proAccess.entitled) ProFeatureBadge()
             }
             Text(
                 when {
