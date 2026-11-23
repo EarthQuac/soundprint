@@ -63,7 +63,6 @@ internal fun SongsLibraryScreen(
     initialTwinSenseOpen: Boolean = false
 ) {
     val context = LocalContext.current
-    val proAccess = LocalSoundprintProUiAccess.current
     val scope = rememberCoroutineScope()
     val scanner = remember(context, library) { TwinSenseScanner(context.applicationContext, library) }
     var songs by remember { mutableStateOf<List<MusicTrack>>(emptyList()) }
@@ -123,6 +122,34 @@ internal fun SongsLibraryScreen(
     val cleanupTracks = remember(scanResult) {
         scanResult?.let { TwinSenseCleanupPlanner.tracksToRemove(it) }.orEmpty()
     }
+
+    val hasTwinSensePro = SoundprintProGate.isResolved && SoundprintProGate.hasPro
+
+    fun startTwinSenseScan(advanced: Boolean) {
+        if (scanning) return
+        if (advanced && !SoundprintProGate.require("TwinSense Advanced Scan")) return
+        scanError = ""
+        scanning = true
+        advancedScanning = advanced
+        scanProgress = TwinSenseScanProgress(0, songs.size, "", 0, 0)
+        scanJob = scope.launch {
+            try {
+                scanResult = scanner.scan(advanced = advanced) { scanProgress = it }
+                if ((scanResult?.failed ?: 0) > 0) {
+                    scanError = "${scanResult?.failed} tracks could not be decoded. Available tracks were still compared."
+                }
+            } catch (cancel: CancellationException) {
+                scanError = "Scan cancelled. Completed fingerprints remain saved for the next scan."
+            } catch (error: Exception) {
+                scanError = error.message ?: "TwinSense could not complete this scan."
+            } finally {
+                scanning = false
+                advancedScanning = false
+                scanJob = null
+            }
+        }
+    }
+
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -225,75 +252,52 @@ internal fun SongsLibraryScreen(
                                     Text("Compare the actual audio stored on this device.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(
-                                    onClick = {
-                                        if (!scanning) {
-                                            scanError = ""
-                                            scanning = true
-                                            advancedScanning = false
-                                            scanProgress = TwinSenseScanProgress(0, songs.size, "", 0, 0)
-                                            scanJob = scope.launch {
-                                                try {
-                                                    scanResult = scanner.scan(advanced = false) { scanProgress = it }
-                                                    if ((scanResult?.failed ?: 0) > 0) {
-                                                        scanError = "${scanResult?.failed} tracks could not be decoded. Available tracks were still compared."
-                                                    }
-                                                } catch (cancel: CancellationException) {
-                                                    scanError = "Scan cancelled. Completed fingerprints remain saved for the next scan."
-                                                } catch (error: Exception) {
-                                                    scanError = error.message ?: "TwinSense could not complete this scan."
-                                                } finally {
-                                                    scanning = false
-                                                    advancedScanning = false
-                                                    scanJob = null
-                                                }
-                                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (!hasTwinSensePro) {
+                                    Button(
+                                        onClick = { startTwinSenseScan(advanced = false) },
+                                        enabled = !scanning && songs.size >= 2,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        if (scanning && !advancedScanning) {
+                                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                                        } else {
+                                            SoundprintIcon(SoundprintIcons.AudioWaveform, null, modifier = Modifier.size(16.dp))
                                         }
-                                    },
-                                    enabled = !scanning && songs.size >= 2,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    if (scanning && !advancedScanning) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                                    else SoundprintIcon(SoundprintIcons.AudioWaveform, null, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(if (scanning && !advancedScanning) "Scanning…" else "Basic Scan", maxLines = 1)
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(if (scanning && !advancedScanning) "Scanning…" else "Basic Scan", maxLines = 1, fontSize = 12.sp)
+                                    }
                                 }
                                 OutlinedButton(
                                     onClick = {
-                                        if (SoundprintProGate.require("TwinSense Advanced Scan") && !scanning) {
-                                            scanError = ""
-                                            scanning = true
-                                            advancedScanning = true
-                                            scanProgress = TwinSenseScanProgress(0, songs.size, "", 0, 0)
-                                            scanJob = scope.launch {
-                                                try {
-                                                    scanResult = scanner.scan(advanced = true) { scanProgress = it }
-                                                    if ((scanResult?.failed ?: 0) > 0) {
-                                                        scanError = "${scanResult?.failed} tracks could not be decoded. Available tracks were still compared."
-                                                    }
-                                                } catch (cancel: CancellationException) {
-                                                    scanError = "Scan cancelled. Completed fingerprints remain saved for the next scan."
-                                                } catch (error: Exception) {
-                                                    scanError = error.message ?: "TwinSense could not complete this scan."
-                                                } finally {
-                                                    scanning = false
-                                                    advancedScanning = false
-                                                    scanJob = null
-                                                }
-                                            }
-                                        }
+                                        if (hasTwinSensePro) startTwinSenseScan(advanced = true)
+                                        else SoundprintProGate.require("TwinSense Advanced Scan")
                                     },
                                     enabled = !scanning && songs.size >= 2,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    if (scanning && advancedScanning) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                                    else SoundprintIcon(SoundprintIcons.Zap, null, modifier = Modifier.size(16.dp))
+                                    if (scanning && advancedScanning) {
+                                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        SoundprintIcon(SoundprintIcons.Zap, null, modifier = Modifier.size(16.dp))
+                                    }
                                     Spacer(Modifier.width(6.dp))
-                                    Text(if (SoundprintProGate.isResolved && SoundprintProGate.hasPro) "Advanced" else "Advanced · Pro", maxLines = 1)
+                                    Text(
+                                        if (scanning && advancedScanning) "Scanning…"
+                                        else if (hasTwinSensePro) "Advanced Scan" else "Advanced · Pro",
+                                        maxLines = 1,
+                                        fontSize = 12.sp
+                                    )
                                 }
-                                if (scanning) TextButton(onClick = { scanJob?.cancel() }) { Text("Cancel") }
-                                else if (scanResult != null) Text("${scanResult?.groups?.size ?: 0} groups", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (scanning) {
+                                    TextButton(onClick = { scanJob?.cancel() }) { Text("Cancel", fontSize = 11.sp) }
+                                } else if (scanResult != null) {
+                                    Text("${scanResult?.groups?.size ?: 0} groups", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                             if (scanning) {
                                 LinearProgressIndicator(progress = { scanProgress.percent / 100f }, modifier = Modifier.fillMaxWidth())
