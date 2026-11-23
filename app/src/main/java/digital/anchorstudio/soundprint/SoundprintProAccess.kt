@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -157,11 +158,13 @@ internal fun ProFeatureLockedScreen(feature: String, description: String) {
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(34.dp))
-            Text(feature, modifier = Modifier.padding(top = 14.dp), fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+            Row(modifier = Modifier.padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(feature, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                ProFeatureBadge()
+            }
             Text(description, modifier = Modifier.padding(top = 8.dp), fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Button(onClick = { SoundprintProGate.lockedFeature = feature }, modifier = Modifier.padding(top = 18.dp)) {
-                Text("Unlock with Pro")
+                Text("Explore Pro")
             }
         }
     }
