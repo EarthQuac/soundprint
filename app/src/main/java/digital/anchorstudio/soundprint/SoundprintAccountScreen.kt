@@ -55,6 +55,7 @@ import io.github.jan.supabase.auth.providers.builtin.OTP
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
 import java.security.MessageDigest
 import java.util.UUID
@@ -136,6 +137,7 @@ internal fun SoundprintAccountScreen(
     var messageError by remember { mutableStateOf(false) }
     var otpRequested by remember { mutableStateOf(false) }
     var otpCode by remember { mutableStateOf("") }
+    var otpCooldownRemaining by remember { mutableIntStateOf(0) }
     var otpIsSignup by remember { mutableStateOf(false) }
     var otpIsRecovery by remember { mutableStateOf(false) }
     var resetOtpVerified by remember { mutableStateOf(false) }
@@ -146,6 +148,37 @@ internal fun SoundprintAccountScreen(
     var deletionOriginalUserId by remember { mutableStateOf<String?>(null) }
     var signOutConfirmationOpen by remember { mutableStateOf(false) }
     val authSessionState by supabase.auth.sessionStatus.collectAsState()
+    val accountSecurityPreferences = remember {
+        context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
+    }
+    val normalizedOtpEmail = email.trim().lowercase()
+    LaunchedEffect(normalizedOtpEmail) {
+        while (true) {
+            val deadline = if (normalizedOtpEmail.isNotBlank()) {
+                accountSecurityPreferences.getLong("otp_signin_cooldown_$normalizedOtpEmail", 0L)
+            } else 0L
+            val remainingMillis = deadline - System.currentTimeMillis()
+            otpCooldownRemaining = if (remainingMillis > 0L) {
+                ((remainingMillis + 999L) / 1000L).toInt().coerceAtMost(60)
+            } else 0
+            delay(1_000L)
+        }
+    }
+    fun startOtpCooldown(requestedEmail: String) {
+        val normalized = requestedEmail.trim().lowercase()
+        if (normalized.isBlank()) return
+        accountSecurityPreferences.edit()
+            .putLong("otp_signin_cooldown_$normalized", System.currentTimeMillis() + 60_000L)
+            .apply()
+        if (normalized == normalizedOtpEmail) otpCooldownRemaining = 60
+    }
+    fun isRateLimitError(error: Throwable): Boolean =
+        generateSequence(error) { it.cause }
+            .any { cause ->
+                val details = (cause.message.orEmpty() + " " + cause.javaClass.simpleName).lowercase()
+                details.contains("rate limit") || details.contains("too many requests") ||
+                    details.contains("over_email_send_rate_limit") || details.contains("429")
+            }
     val connectivityManager = remember {
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     }
@@ -896,25 +929,48 @@ internal fun SoundprintAccountScreen(
                     }, enabled = !busy && otpCode.length == 6, modifier = Modifier.fillMaxWidth()) {
                         Text(if (otpIsRecovery) "Verify reset code" else "Verify email")
                     }
-                    TextButton(onClick = {
-                        perform {
-                            when {
-                                otpIsRecovery -> {
-                                    val sent = requestPasswordResetForKnownAccount(email.trim().lowercase())
-                                    if (!sent) error("Your account could not be found. Check the email address and try again.")
-                                }
-                                otpIsSignup -> supabase.auth.resendEmail(OtpType.Email.SIGNUP, email.trim())
-                                else -> supabase.auth.signInWith(OTP) {
-                                    this.email = email.trim()
-                                    createUser = false
+                    TextButton(
+                        onClick = {
+                            perform {
+                                try {
+                                    when {
+                                        otpIsRecovery -> {
+                                            val sent = requestPasswordResetForKnownAccount(email.trim().lowercase())
+                                            if (!sent) error("Your account could not be found. Check the email address and try again.")
+                                        }
+                                        otpIsSignup -> supabase.auth.resendEmail(OtpType.Email.SIGNUP, email.trim())
+                                        else -> supabase.auth.signInWith(OTP) {
+                                            this.email = email.trim()
+                                            createUser = false
+                                        }
+                                    }
+                                    if (!otpIsRecovery && !otpIsSignup) startOtpCooldown(email)
+                                    otpCode = ""
+                                    message = "A new verification code has been sent."
+                                    messageError = false
+                                } catch (error: Exception) {
+                                    if (!otpIsRecovery && !otpIsSignup && isRateLimitError(error)) {
+                                        startOtpCooldown(email)
+                                        message = "Please wait 60 seconds before requesting another sign-in code."
+                                        messageError = true
+                                    } else throw error
                                 }
                             }
-                            otpCode = ""
-                            message = "A new verification code has been sent."
-                            messageError = false
-                        }
-                    }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (otpIsRecovery) "Resend reset code" else "Resend code")
+                        },
+                        enabled = !busy && (otpIsRecovery || otpIsSignup || otpCooldownRemaining == 0),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = TextButtonDefaults.textButtonColors(
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .42f)
+                        )
+                    ) {
+                        Text(
+                            when {
+                                otpIsRecovery -> "Resend reset code"
+                                otpIsSignup -> "Resend code"
+                                otpCooldownRemaining > 0 -> "Resend code · ${otpCooldownRemaining}s"
+                                else -> "Resend code"
+                            }
+                        )
                     }
                 }
                 if (!otpRequested) Button(
@@ -986,21 +1042,38 @@ internal fun SoundprintAccountScreen(
                             message = "Enter your email address."
                             messageError = true
                         } else perform {
-                            supabase.auth.signInWith(OTP) {
-                                this.email = email.trim()
-                                createUser = false
+                            try {
+                                supabase.auth.signInWith(OTP) {
+                                    this.email = email.trim()
+                                    createUser = false
+                                }
+                                startOtpCooldown(email)
+                                otpIsSignup = false
+                                otpIsRecovery = false
+                                otpRequested = true
+                                otpCode = ""
+                                message = "Sign-in code sent. Enter it below to sign in."
+                                messageError = false
+                            } catch (error: Exception) {
+                                if (isRateLimitError(error)) {
+                                    startOtpCooldown(email)
+                                    message = "Please wait 60 seconds before requesting another sign-in code."
+                                    messageError = true
+                                } else throw error
                             }
-                            otpIsSignup = false
-                            otpIsRecovery = false
-                            otpRequested = true
-                            otpCode = ""
-                            message = "Sign-in code sent. Enter it below to sign in."
-                            messageError = false
                         }
                     },
-                    enabled = !busy && email.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Email me a sign-in code") }
+                    enabled = !busy && email.isNotBlank() && otpCooldownRemaining == 0,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextButtonDefaults.textButtonColors(
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .42f)
+                    )
+                ) {
+                    Text(
+                        if (otpCooldownRemaining > 0) "Request sign-in code · ${otpCooldownRemaining}s"
+                        else "Email me a sign-in code"
+                    )
+                }
                 if (mode != "forgot" && !otpRequested) TextButton(onClick = { mode = "forgot"; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Forgot password?") }
                 if (!otpRequested) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     Text(if (mode == "sign-up") "Already have an account?" else "New to SoundPrint?", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
