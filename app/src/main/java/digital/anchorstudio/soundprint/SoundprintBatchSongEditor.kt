@@ -117,10 +117,8 @@ internal fun SoundprintSongsLibraryScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 9.dp),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(7.dp))
                 Text("TwinSense duplicate finder", modifier = Modifier.weight(1f))
-                Text("PRO", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                ProFeatureBadge()
             }
             if (selectedIds.isNotEmpty()) {
                 Surface(
