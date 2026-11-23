@@ -430,13 +430,13 @@ private fun PlaylistDetailNative(
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 Button(onClick = {
                     playback.applyPlaylistPreset(preset)
-                    playback.playTracks(tracks, shuffle = preset.shuffle)
+                    playback.playTracks(tracks, shuffle = preset.shuffle, playlistPreset = preset)
                 }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
                     SoundprintIcon(SoundprintIcons.Play, null); Spacer(Modifier.width(5.dp)); Text("Play")
                 }
                 OutlinedButton(onClick = {
                     playback.applyPlaylistPreset(preset.copy(shuffle = true))
-                    playback.playTracks(tracks, shuffle = true)
+                    playback.playTracks(tracks, shuffle = true, playlistPreset = preset.copy(shuffle = true))
                 }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
                     SoundprintIcon(SoundprintIcons.Shuffle, null); Spacer(Modifier.width(5.dp)); Text("Shuffle")
                 }
@@ -489,7 +489,7 @@ private fun PlaylistDetailNative(
             } else {
                 tracks.forEachIndexed { index, track ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        NativeTrackRow(track, onClick = { playback.applyPlaylistPreset(preset); playback.playTracks(tracks, index, shuffle = preset.shuffle) }, onRemove = { libraryManager.removeFromPlaylist(selected.id, track.id); refresh++; onChanged() }, modifier = Modifier.weight(1f))
+                        NativeTrackRow(track, onClick = { playback.applyPlaylistPreset(preset); playback.playTracks(tracks, index, shuffle = preset.shuffle, playlistPreset = preset) }, onRemove = { libraryManager.removeFromPlaylist(selected.id, track.id); refresh++; onChanged() }, modifier = Modifier.weight(1f))
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             SoundprintIcon(SoundprintIcons.ArrowUp, "Move up", Modifier.size(16.dp).clickable(enabled = index > 0) { libraryManager.reorderPlaylist(selected.id, index, index - 1); refresh++ }.padding(1.dp), tint = if (index > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline)
                             SoundprintIcon(SoundprintIcons.ArrowDown, "Move down", Modifier.size(16.dp).clickable(enabled = index < tracks.lastIndex) { libraryManager.reorderPlaylist(selected.id, index, index + 1); refresh++ }.padding(1.dp), tint = if (index < tracks.lastIndex) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline)
