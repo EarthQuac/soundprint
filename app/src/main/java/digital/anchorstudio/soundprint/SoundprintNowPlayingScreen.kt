@@ -426,7 +426,7 @@ fun SoundprintNowPlayingScreen(
                     Text("NOW PLAYING", fontSize = 11.sp, letterSpacing = 1.8.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row {
                         IconButton(onClick = { queueOpen = true }) { SoundprintIcon(SoundprintIcons.ListMusic, "Queue") }
-                        IconButton(onClick = onBack) { SoundprintIcon(SoundprintIcons.X, "Close", tint = MaterialTheme.colorScheme.error) }
+                        IconButton(onClick = onMinimize) { SoundprintIcon(SoundprintIcons.X, "Minimize to mini player", tint = MaterialTheme.colorScheme.error) }
                     }
                 }
             }
