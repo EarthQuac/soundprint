@@ -1061,15 +1061,14 @@ private fun SoundprintApp(
         val activePlayer = playbackConnection.controller ?: return@LaunchedEffect
         val listener = object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-                // Auto-advance must not pull the full-screen player over whatever the person is doing.
-                if (mediaItem != null && reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) nowPlayingOpen = true
-            }
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                if (isPlaying && activePlayer.currentMediaItem != null) nowPlayingOpen = true
+                // A newly selected queue item may open Now Playing; mini-player skips and
+                // ordinary play/pause must never steal the current navigation destination.
+                if (mediaItem != null && reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
+                    nowPlayingOpen = true
+                }
             }
         }
         activePlayer.addListener(listener)
-        if (activePlayer.isPlaying && activePlayer.currentMediaItem != null) nowPlayingOpen = true
         try { awaitCancellation() } finally { activePlayer.removeListener(listener) }
     }
 
