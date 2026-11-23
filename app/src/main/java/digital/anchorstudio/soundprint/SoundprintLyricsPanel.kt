@@ -562,8 +562,7 @@ fun SoundprintLyricsPanel(
                             else SoundprintIcon(SoundprintIcons.Maximize, null, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                if (karaokeLoading) "Finding timed lyrics…"
-                                "Karaoke mode",
+                                if (karaokeLoading) "Finding timed lyrics…" else "Karaoke mode",
                                 fontSize = 12.sp, fontWeight = FontWeight.SemiBold
                             )
                             if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) {
