@@ -75,6 +75,9 @@ internal object SoundprintIcons {
     val Dumbbell = LucideR.drawable.lucide_ic_dumbbell
     val ArchiveRestore = LucideR.drawable.lucide_ic_archive_restore
     val ArrowUpDown = LucideR.drawable.lucide_ic_arrow_up_down
+    val ArrowDownUp = LucideR.drawable.lucide_ic_arrow_down_up
+    val CopyCheck = LucideR.drawable.lucide_ic_copy_check
+    val Trash = LucideR.drawable.lucide_ic_trash
     val ListPlus = LucideR.drawable.lucide_ic_list_plus
     val Check = LucideR.drawable.lucide_ic_check
     val Infinity = LucideR.drawable.lucide_ic_infinity
