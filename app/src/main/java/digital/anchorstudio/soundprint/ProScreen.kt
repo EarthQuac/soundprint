@@ -53,7 +53,8 @@ private val proFeatures = listOf(
     ProFeature(SoundprintIcons.Palette, "Exclusive colour palettes", "Personalize Soundprint with five Pro palettes: Blue & white, Emerald, Monochrome, Aurora and Sakura. Lavender and Amber remain free."),
     ProFeature(SoundprintIcons.ListMusic, "Smart playlists & folder auto-watch", "Use unlimited rule-based smart playlists and automatically watch music folders for new tracks."),
     ProFeature(SoundprintIcons.ShieldCheck, "TwinSense", "Advanced on-device audio matching helps surface duplicates even when tags differ, explains match confidence, and flags alternate versions for review—not auto-deletion."),
-    ProFeature(SoundprintIcons.Waves, "Aura Mode", "Settle into immersive listening with reverb, tonal shaping and slow stereo movement.")
+    ProFeature(SoundprintIcons.Waves, "Aura Mode", "Settle into immersive listening with reverb, tonal shaping and slow stereo movement."),
+    ProFeature(SoundprintIcons.Image, "Custom artwork", "Add Soundprint cover artwork to songs that do not have embedded artwork.")
 )
 
 private val proGuides = listOf(
