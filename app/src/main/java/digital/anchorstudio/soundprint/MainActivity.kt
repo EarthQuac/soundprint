@@ -812,7 +812,8 @@ class MainActivity : ComponentActivity() {
                             refreshLibraryState()
                             libraryStatus = "Library cleared. Your saved music locations are kept, so use Rescan folders to rebuild your library. Original audio files are untouched."
                         }
-                    }
+                    },
+                    onProArtworkAvailable = { customArtworkOfferOpen = true }
                 )
                 SoundprintToastHost(
                     Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 12.dp)
@@ -1010,7 +1011,8 @@ private fun SoundprintApp(
     onRemoveSource: (String) -> Unit,
     onBackup: () -> Unit,
     onRestore: () -> Unit,
-    onClearLibrary: () -> Unit
+    onClearLibrary: () -> Unit,
+    onProArtworkAvailable: () -> Unit
 ) {
     val appContext = LocalContext.current
     val clapScanner = remember { ClapLibraryScanner(appContext, libraryManager) }
@@ -1058,6 +1060,20 @@ private fun SoundprintApp(
             withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(false) }
         }
         clapScanner.setAutoScanEnabled(false)
+    }
+    LaunchedEffect(authSessionState, libraryTrackCount, proStatus.hasPro) {
+        val userId = SoundprintProAccess.currentUserId()
+        if (SoundprintProAccess.hasSession() && proStatus.hasPro && libraryTrackCount > 0 &&
+            !appContext.getSharedPreferences("soundprint_native_preferences", android.content.Context.MODE_PRIVATE)
+                .getBoolean("custom_artwork_enabled", false) &&
+            userId != null &&
+            !appContext.getSharedPreferences("soundprint_native_preferences", android.content.Context.MODE_PRIVATE)
+                .getBoolean("custom_artwork_offer_seen_$userId", false)
+        ) {
+            appContext.getSharedPreferences("soundprint_native_preferences", android.content.Context.MODE_PRIVATE)
+                .edit().putBoolean("custom_artwork_offer_seen_$userId", true).apply()
+            onProArtworkAvailable()
+        }
     }
     LaunchedEffect(authSessionState) {
         SoundprintProGate.beginVerification()
@@ -1342,30 +1358,25 @@ private fun SoundprintApp(
                 }
             }
 
+            if (!nowPlayingOpen && !tagEditorOpen && playbackConnection.controller?.currentMediaItem != null) {
+                SoundprintMiniPlayer(
+                    controller = playbackConnection.controller,
+                    library = libraryManager,
+                    onOpen = { miniPlayerExpanded = false; nowPlayingOpen = true },
+                    onExpand = { miniPlayerExpanded = !miniPlayerExpanded },
+                    onToggle = { playbackConnection.toggle() },
+                    onNext = { playbackConnection.next() },
+                    onClear = { playbackConnection.clearQueue() },
+                    expanded = miniPlayerExpanded,
+                    onCollapse = { miniPlayerExpanded = false }
+                )
+            }
+
             if (!nowPlayingOpen && !tagEditorOpen) Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background.copy(alpha = 0.96f))
             ) {
-                if (miniPlayerExpanded) {
-                    SoundprintExpandedMiniPlayer(
-                        controller = playbackConnection.controller,
-                        library = libraryManager,
-                        onMaximize = { miniPlayerExpanded = false; nowPlayingOpen = true },
-                        onCollapse = { miniPlayerExpanded = false }
-                    )
-                } else {
-                    SoundprintMiniPlayer(
-                        controller = playbackConnection.controller,
-                        library = libraryManager,
-                        onOpen = { nowPlayingOpen = true },
-                        onExpand = { miniPlayerExpanded = true },
-                        onToggle = { playbackConnection.toggle() },
-                        onNext = { playbackConnection.next() },
-                        onClear = { playbackConnection.clearQueue() }
-                    )
-                }
-                Spacer(Modifier.height(0.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
