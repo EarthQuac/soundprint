@@ -399,7 +399,22 @@ fun ClapDiscoverScreen(
     onBack: () -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    if (!SoundprintListeningPreferences.musicRecommendationsEnabled(context)) {
+    var musicRecommendationsEnabled by remember { mutableStateOf(SoundprintListeningPreferences.musicRecommendationsEnabled(context)) }
+    var backgroundActivityEnabled by remember { mutableStateOf(SoundprintListeningPreferences.backgroundActivityEnabled(context)) }
+    DisposableEffect(context) {
+        val prefs = SoundprintListeningPreferences.preferences(context)
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            when (key) {
+                SoundprintListeningPreferences.KEY_MUSIC_RECOMMENDATIONS_ENABLED ->
+                    musicRecommendationsEnabled = SoundprintListeningPreferences.musicRecommendationsEnabled(context)
+                SoundprintListeningPreferences.KEY_BACKGROUND_ACTIVITY_ENABLED ->
+                    backgroundActivityEnabled = SoundprintListeningPreferences.backgroundActivityEnabled(context)
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    if (!musicRecommendationsEnabled) {
         Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
             Text("Music recommendations are off", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
             Text(
@@ -446,7 +461,7 @@ fun ClapDiscoverScreen(
                 profiles = profiles.filterKeys { it in currentIds } + newProfiles
                 // Newly imported songs join the same sequential scan only while background
                 // activity is allowed; manual scans remain available from Discover.
-                if (currentIds != knownTrackIds && SoundprintListeningPreferences.backgroundActivityEnabled(context)) scanner.startScan()
+                if (currentIds != knownTrackIds && backgroundActivityEnabled) scanner.startScan()
             } else {
                 profiles = profiles.filterKeys { it in currentIds }
                 if (currentIds != knownTrackIds && SoundprintListeningPreferences.backgroundActivityEnabled(context)) scanner.startScan()
@@ -463,11 +478,11 @@ fun ClapDiscoverScreen(
         }
         if (profile != null) profiles = profiles + (id to profile)
     }
-    androidx.compose.runtime.LaunchedEffect(libraryLoaded, tracks.size, scan.running, scan.pending, scan.stage) {
+    androidx.compose.runtime.LaunchedEffect(libraryLoaded, tracks.size, scan.running, scan.pending, scan.stage, backgroundActivityEnabled) {
         // Resume only genuinely pending work. Failed tracks stay available for manual
         // correction or an explicit retry instead of causing an automatic retry loop.
         if (libraryLoaded && tracks.isNotEmpty() && scan.pending > 0 && !scan.running && scan.stage != "Error" && !scan.modelDownloadRequired &&
-            SoundprintListeningPreferences.backgroundActivityEnabled(context)
+            backgroundActivityEnabled
         ) {
             scanner.startScan()
         }
