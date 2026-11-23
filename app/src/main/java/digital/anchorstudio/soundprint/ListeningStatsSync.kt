@@ -37,6 +37,12 @@ internal object ListeningStatsSync {
             "soundprint-listening-stats-$userId",ExistingWorkPolicy.APPEND_OR_REPLACE,request
         )
     }
+
+    fun cancel(context:Context,userId:String) {
+        if(userId.isBlank()) return
+        WorkManager.getInstance(context.applicationContext)
+            .cancelUniqueWork("soundprint-listening-stats-$userId")
+    }
 }
 
 internal class ListeningStatsSyncWorker(context:Context,params:androidx.work.WorkerParameters):CoroutineWorker(context,params) {
