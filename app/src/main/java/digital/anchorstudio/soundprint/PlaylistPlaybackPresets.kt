@@ -5,6 +5,7 @@ import android.content.Context
 internal enum class PlaylistRepeatPreset { OFF, ALL, ONE }
 
 internal data class PlaylistPlaybackPreset(
+    val enabled: Boolean = false,
     val extraBass: Boolean = false,
     val shuffle: Boolean = false,
     val repeat: PlaylistRepeatPreset = PlaylistRepeatPreset.OFF,
@@ -18,6 +19,7 @@ internal class PlaylistPlaybackPresetStore(context: Context) {
     fun get(playlistId: String): PlaylistPlaybackPreset {
         val key = playlistId
         return PlaylistPlaybackPreset(
+            enabled = prefs.getBoolean("${key}_enabled", false),
             extraBass = prefs.getBoolean("${key}_bass", false),
             shuffle = prefs.getBoolean("${key}_shuffle", false),
             repeat = runCatching {
@@ -29,6 +31,7 @@ internal class PlaylistPlaybackPresetStore(context: Context) {
 
     fun set(playlistId: String, preset: PlaylistPlaybackPreset) {
         prefs.edit()
+            .putBoolean("${playlistId}_enabled", preset.enabled)
             .putBoolean("${playlistId}_bass", preset.extraBass)
             .putBoolean("${playlistId}_shuffle", preset.shuffle)
             .putString("${playlistId}_repeat", preset.repeat.name)
