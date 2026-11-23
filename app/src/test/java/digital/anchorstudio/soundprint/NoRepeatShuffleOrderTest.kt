@@ -40,6 +40,10 @@ class NoRepeatShuffleOrderTest {
         assertEquals(837, afterInsert.size)
         assertEquals(837, afterInsert.distinct().size)
         assertEquals((0 until 837).toSet(), afterInsert.toSet())
+        assertEquals(
+            original.snapshotIndices().map { if (it >= 200) it + 37 else it },
+            afterInsert.take(800)
+        )
 
         val removed = inserted.cloneAndRemove(100, 250) as NoRepeatShuffleOrder
         val afterRemove = removed.snapshotIndices()
