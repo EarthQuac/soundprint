@@ -226,7 +226,7 @@ private val SakuraDark = SoundprintPalette(
     border = Color(0xFF4B3345), onPrimary = Color(0xFF29121F)
 )
 private fun palette(name: String, dark: Boolean): SoundprintPalette = when (name) {
-    "Blue" -> if (dark) BlueDark else BlueLight
+    "Blue", "Blue & white" -> if (dark) BlueDark else BlueLight
     "Emerald" -> if (dark) EmeraldDark else EmeraldLight
     "Mono" -> if (dark) MonoDark else MonoLight
     "Lavender" -> if (dark) LavenderDark else LavenderLight
