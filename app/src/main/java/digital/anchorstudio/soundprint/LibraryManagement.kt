@@ -387,18 +387,23 @@ class MusicLibraryManager(context:Context) {
     fun toggleFavorite(id:String)=repository.toggleFavorite(id)
 
     private fun recordHistory(id:String,type:HistoryEventType,positionMs:Long,durationMs:Long) {
+        if (!SoundprintListeningPreferences.historyEnabled(appContext)) return
         val owner=activeStatsUserId()
         state.addHistory(id,type,positionMs,durationMs,ownerUserId=owner)
         if(owner!=null) runCatching { ListeningStatsSync.enqueue(appContext,owner) }
     }
     fun recordPlay(id:String,positionMs:Long,durationMs:Long) {
-        require(repository.track(id)!=null) { "Song not found." };repository.markPlayed(id);recordHistory(id,HistoryEventType.PLAY,positionMs,durationMs)
+        require(repository.track(id)!=null) { "Song not found." }
+        if (!SoundprintListeningPreferences.historyEnabled(appContext)) return
+        repository.markPlayed(id)
+        recordHistory(id,HistoryEventType.PLAY,positionMs,durationMs)
     }
     fun recordSkip(id:String,positionMs:Long,durationMs:Long) {
-        require(repository.track(id)!=null) { "Song not found." };recordHistory(id,HistoryEventType.SKIP,positionMs,durationMs)
+        require(repository.track(id)!=null) { "Song not found." }
+        recordHistory(id,HistoryEventType.SKIP,positionMs,durationMs)
     }
     fun recordListeningTime(id:String,listenedMs:Long,durationMs:Long) {
-        if(listenedMs<=0L) return
+        if(listenedMs<=0L || !SoundprintListeningPreferences.historyEnabled(appContext)) return
         require(repository.track(id)!=null) { "Song not found." }
         recordHistory(id,HistoryEventType.LISTEN,listenedMs.coerceAtMost(durationMs.takeIf { it>0L } ?: listenedMs),durationMs)
     }
@@ -453,9 +458,11 @@ class MusicLibraryManager(context:Context) {
     fun smartPlaylists()=nativeSmartPlaylistPresets()+state.smartPlaylists().filterNot { saved -> nativeSmartPlaylistPresets().any { it.id==saved.id } }
     fun deleteSmartPlaylist(id:String)=state.deleteSmartPlaylist(id)
     fun evaluateSmartPlaylist(id:String,profiles:Map<String,AudioRuleProfile> = emptyMap()):List<MusicTrack> {
+        if (!SoundprintListeningPreferences.automaticPlaylistsEnabled(appContext)) return emptyList()
         val playlist=smartPlaylists().firstOrNull { it.id==id } ?: return emptyList()
         val resolvedProfiles=clapAudioRuleProfiles()+profiles
-        return evaluateNativeSmartPlaylist(playlist,SmartPlaylistContext(repository.tracks(),listeningStats(),state.history(10000),resolvedProfiles))
+        val history = if (SoundprintListeningPreferences.historyEnabled(appContext)) state.history(10000) else emptyList()
+        return evaluateNativeSmartPlaylist(playlist,SmartPlaylistContext(repository.tracks(),listeningStats(),history,resolvedProfiles))
     }
 
     fun saveTwinSenseFingerprint(fingerprint:TwinSenseFingerprint)=repository.saveTwinSenseFingerprint(fingerprint)
