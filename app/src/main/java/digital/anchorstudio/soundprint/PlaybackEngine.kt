@@ -831,12 +831,13 @@ class SoundprintPlaybackConnection(
     ) {
         if (tracks.isEmpty() || closed) return
         if (playlistPreset != null) applyPlaylistPreset(playlistPreset) else restorePlaylistPreset()
+        val presetEntitled = pausePreferences.getBoolean("pro_entitled", false)
         val requestedIndex = startIndex.coerceIn(tracks.indices)
         val ignoreClips = pausePreferences.getBoolean("ignore_short_tracks", false)
         val eligible = tracks.withIndex().filter { !ignoreClips || it.value.durationMs >= 30_000L }
         if (eligible.isEmpty()) return
         val mappedStartIndex = eligible.indexOfFirst { it.index >= requestedIndex }.takeIf { it >= 0 } ?: eligible.lastIndex
-        val request = PendingPlay(eligible.map { it.value }, mappedStartIndex, shuffle)
+        val request = PendingPlay(eligible.map { it.value }, mappedStartIndex, if (playlistPreset != null && !presetEntitled) false else shuffle)
         val player = controller
         if (player == null) {
             synchronized(this) {
@@ -1026,7 +1027,7 @@ class SoundprintPlaybackConnection(
             .putString("playlist_repeat_mode", if (entitled) preset.repeat.name else PlaylistRepeatPreset.OFF.name)
             .apply()
         controller?.let { player ->
-            player.shuffleModeEnabled = preset.shuffle
+            player.shuffleModeEnabled = entitled && preset.shuffle
             player.repeatMode = if (!entitled) Player.REPEAT_MODE_OFF else when (preset.repeat) {
                 PlaylistRepeatPreset.ALL -> Player.REPEAT_MODE_ALL
                 PlaylistRepeatPreset.ONE -> Player.REPEAT_MODE_ONE
