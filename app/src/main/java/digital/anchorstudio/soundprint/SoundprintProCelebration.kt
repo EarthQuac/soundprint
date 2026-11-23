@@ -151,7 +151,7 @@ fun SoundprintProCelebration(
     onContinue: () -> Unit,
     modifier: Modifier = Modifier,
     title: String = "You're Pro",
-    subtitle: String = "Every feature is unlocked.",
+    subtitle: String = "Your Pro features are ready.",
     buttonText: String = "Start exploring",
 ) {
     val context = LocalContext.current
