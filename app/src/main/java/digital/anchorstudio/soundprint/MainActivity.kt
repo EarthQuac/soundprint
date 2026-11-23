@@ -8,7 +8,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.view.WindowCompat
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.systemBars
 import android.net.Uri
@@ -268,7 +267,6 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
         super.onCreate(savedInstanceState)
         handleAccountReturnIntent(intent)
         SoundprintSupabase.client.handleDeeplinks(intent)
