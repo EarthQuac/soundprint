@@ -2939,12 +2939,13 @@ private fun SettingsScreen(
                     ) { enabled ->
                         historyEnabled = enabled
                         listeningPreferences.edit().putBoolean(SoundprintListeningPreferences.KEY_HISTORY_ENABLED, enabled).apply()
-                        if (enabled) {
-                            settingsContext.getSharedPreferences("soundprint_account_security", 0)
-                                .getString("listening_stats_sync_user_id", null)
-                                ?.takeIf { it.isNotBlank() }
-                                ?.let { ListeningStatsSync.enqueue(settingsContext, it) }
-                        }
+                        settingsContext.getSharedPreferences("soundprint_account_security", 0)
+                            .getString("listening_stats_sync_user_id", null)
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { userId ->
+                                if (enabled) ListeningStatsSync.enqueue(settingsContext, userId)
+                                else ListeningStatsSync.cancel(settingsContext, userId)
+                            }
                     }
                     SettingsToggleRow(
                         "Music recommendations",
