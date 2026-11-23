@@ -1258,6 +1258,13 @@ private fun SoundprintApp(
                                 }
                             }
                         )
+                        "twinsense" -> SongsLibraryScreen(
+                            library = libraryManager,
+                            playback = playbackConnection,
+                            onImportFiles = onImportFiles,
+                            onBack = { twinSenseOpen = false },
+                            initialTwinSenseOpen = true
+                        )
                         "stats" -> ListeningStatsScreen(libraryManager = libraryManager, onBack = { statsOpen = false })
                         "account" -> SoundprintAccountScreen(
                             onBack = { accountOpen = false },
