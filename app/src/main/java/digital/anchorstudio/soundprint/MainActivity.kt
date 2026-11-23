@@ -1249,18 +1249,20 @@ private fun SoundprintApp(
                     SoundprintExpandedMiniPlayer(
                         controller = playbackConnection.controller,
                         library = libraryManager,
-                        onMaximize = { miniPlayerExpanded = false; nowPlayingOpen = true }
+                        onMaximize = { miniPlayerExpanded = false; nowPlayingOpen = true },
+                        onCollapse = { miniPlayerExpanded = false }
+                    )
+                } else {
+                    SoundprintMiniPlayer(
+                        controller = playbackConnection.controller,
+                        library = libraryManager,
+                        onOpen = { nowPlayingOpen = true },
+                        onExpand = { miniPlayerExpanded = true },
+                        onToggle = { playbackConnection.toggle() },
+                        onNext = { playbackConnection.next() },
+                        onClear = { playbackConnection.clearQueue() }
                     )
                 }
-                SoundprintMiniPlayer(
-                    controller = playbackConnection.controller,
-                    library = libraryManager,
-                    onOpen = { miniPlayerExpanded = false; nowPlayingOpen = true },
-                    onExpand = { miniPlayerExpanded = true },
-                    onToggle = { playbackConnection.toggle() },
-                    onNext = { playbackConnection.next() },
-                    onClear = { playbackConnection.clearQueue() }
-                )
                 Spacer(Modifier.height(0.dp))
                 Row(
                     modifier = Modifier
