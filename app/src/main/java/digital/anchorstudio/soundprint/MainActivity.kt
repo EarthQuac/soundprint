@@ -225,6 +225,22 @@ private val SakuraDark = SoundprintPalette(
     primary = Color(0xFFF29AB8), muted = Color(0xFFC3A8B5),
     border = Color(0xFF4B3345), onPrimary = Color(0xFF29121F)
 )
+
+// Vesper pairs deep aubergine with an electric citron accent.
+// Its light and dark variants use dedicated tones rather than borrowing another palette.
+private val VesperLight = SoundprintPalette(
+    background = Color(0xFFF7F8E9), foreground = Color(0xFF241D28),
+    surface = Color(0xFFFEFFF6), surface2 = Color(0xFFEEF1D8),
+    primary = Color(0xFF657A1D), muted = Color(0xFF6C6E58),
+    border = Color(0xFFD9DFC0), onPrimary = Color(0xFFFFFFFF)
+)
+private val VesperDark = SoundprintPalette(
+    background = Color(0xFF100E13), foreground = Color(0xFFF4F2E8),
+    surface = Color(0xFF1B1820), surface2 = Color(0xFF28252D),
+    primary = Color(0xFFD9F36A), muted = Color(0xFFB4B29F),
+    border = Color(0xFF4D5136), onPrimary = Color(0xFF20250D)
+)
+
 private fun palette(name: String, dark: Boolean): SoundprintPalette = when (name) {
     "Blue", "Blue & white" -> if (dark) BlueDark else BlueLight
     "Emerald" -> if (dark) EmeraldDark else EmeraldLight
@@ -232,6 +248,7 @@ private fun palette(name: String, dark: Boolean): SoundprintPalette = when (name
     "Lavender" -> if (dark) LavenderDark else LavenderLight
     "Aurora" -> if (dark) AuroraDark else AuroraLight
     "Sakura" -> if (dark) SakuraDark else SakuraLight
+    "Vesper" -> if (dark) VesperDark else VesperLight
     else -> if (dark) AmberDark else AmberLight
 }
 
@@ -2710,7 +2727,7 @@ private fun SettingsScreen(
     }
     val settingSearchEntries = listOf(
         Triple("Theme", "theme", "appearance light dark system"),
-        Triple("Colour palette", "palette", "appearance colors colours amber blue emerald mono lavender purple aurora teal turquoise sakura rose pink cherry blossom"),
+        Triple("Colour palette", "palette", "appearance colors colours amber blue emerald mono lavender purple aurora teal turquoise sakura rose pink cherry blossom vesper aubergine citron lime"),
         Triple("Gapless playback", "gapless", "audio seamless track transitions"),
         Triple("Fade on pause", "fade", "audio pause stop fade"),
         Triple("Loudness leveling", "loudness", "audio volume consistent"),
@@ -2789,7 +2806,7 @@ private fun SettingsScreen(
                     }
                 }
             }
-            if (matches("appearance theme colour palette amber blue emerald mono lavender purple")) {
+            if (matches("appearance theme colour palette amber blue emerald mono lavender purple aurora sakura vesper citron lime")) {
                 SettingsSection("APPEARANCE") {
                     Column(Modifier.fillMaxWidth().bringIntoViewRequester(settingRequesters.getValue("theme")).padding(horizontal = 16.dp, vertical = 14.dp)) {
                         Text("Theme", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
@@ -2808,16 +2825,17 @@ private fun SettingsScreen(
                                 PaletteChoice("Amber", selectedPalette == "Amber", Modifier.weight(1f)) { selectPalette("Amber") }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PaletteChoice("Blue & white", selectedPalette == "Blue", Modifier.weight(1f)) { selectPalette("Blue") }
                                 PaletteChoice("Emerald", selectedPalette == "Emerald", Modifier.weight(1f)) { selectPalette("Emerald") }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 PaletteChoice("Mono", selectedPalette == "Mono", Modifier.weight(1f)) { selectPalette("Mono") }
-                                PaletteChoice("Aurora", selectedPalette == "Aurora", Modifier.weight(1f)) { selectPalette("Aurora") }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                PaletteChoice("Aurora", selectedPalette == "Aurora", Modifier.weight(1f)) { selectPalette("Aurora") }
                                 PaletteChoice("Sakura", selectedPalette == "Sakura", Modifier.weight(1f)) { selectPalette("Sakura") }
-                                Spacer(Modifier.weight(1f))
+                            }
+                            // Two-colour signature palettes are intentionally grouped at the bottom.
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                PaletteChoice("Blue & white", selectedPalette == "Blue", Modifier.weight(1f)) { selectPalette("Blue") }
+                                PaletteChoice("Vesper", selectedPalette == "Vesper", Modifier.weight(1f)) { selectPalette("Vesper") }
                             }
                         }
                     }
@@ -3474,6 +3492,7 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
         "Lavender" -> listOf(Color(0xFF14141B), Color(0xFFC4B5FD))
         "Aurora" -> listOf(Color(0xFF0E2426), Color(0xFF63E0D2))
         "Sakura" -> listOf(Color(0xFF291824), Color(0xFFF29AB8))
+        "Vesper" -> listOf(Color(0xFF241D28), Color(0xFFD9F36A))
         else -> listOf(Color(0xFF24211E), Color(0xFFE6A15D))
     }
     Row(
@@ -3501,6 +3520,7 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
                     name == "Mono" -> "Minimal monochrome palette"
                     name == "Aurora" -> "Midnight teal with aurora glow"
                     name == "Sakura" -> "Soft cherry blossom rose"
+                    name == "Vesper" -> "Aubergine with electric citron"
                     else -> "Original Soundprint palette"
                 },
                 fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
