@@ -2851,21 +2851,21 @@ private fun SettingsScreen(
                     }
                     SettingsActionRow(
                         "Pro Audio Lab",
-                        "Advanced EQ, bass, treble and loudness controls are coming in a future update",
-                        "Coming later",
+                        "Advanced EQ, bass, treble and loudness controls",
+                        "",
                         modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("equalizer")),
                         proFeature = true
                     )
                     SettingsValueRow(
                         "Crossfade",
-                        if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro || crossfade == 0) "Off" else "$crossfade seconds",
+                        "Choose how tracks transition between songs",
                         modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade")),
                         proFeature = true,
                         controlBelow = true
                     ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             listOf(0, 2, 4, 6, 8).forEach { seconds ->
-                                val selected = SoundprintProGate.isResolved && SoundprintProGate.hasPro && crossfade == seconds
+                                val selected = crossfade == seconds && (seconds == 0 || (SoundprintProGate.isResolved && SoundprintProGate.hasPro))
                                 Box(
                                     Modifier.width(31.dp).height(30.dp).clip(RoundedCornerShape(9.dp))
                                         .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
@@ -3370,7 +3370,9 @@ private fun SettingsActionRow(
                 }
                 Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text(action, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, maxLines = 1)
+            if (action.isNotBlank()) {
+                Text(action, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, maxLines = 1)
+            }
         }
         SettingsDivider()
     }
