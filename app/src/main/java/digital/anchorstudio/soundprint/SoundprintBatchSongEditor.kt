@@ -117,17 +117,6 @@ internal fun SoundprintSongsLibraryScreen(
         }
         Spacer(Modifier.height(0.dp))
         Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(15.dp),
-                placeholder = { Text("Search songs, artists, albums…", fontSize = 12.sp) },
-                leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null, modifier = Modifier.size(18.dp)) }
-            ,
-                colors = soundprintOutlinedFieldColors()
-            )
             Row(
                 Modifier.fillMaxWidth().padding(top = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -177,7 +166,17 @@ internal fun SoundprintSongsLibraryScreen(
                     )
                 }
             }
-            if (selectedIds.isNotEmpty()) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(15.dp),
+                placeholder = { Text("Search songs, artists, albums…", fontSize = 12.sp) },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null, modifier = Modifier.size(18.dp)) }
+            ,
+                colors = soundprintOutlinedFieldColors()
+            )            if (selectedIds.isNotEmpty()) {
                 Surface(
                     Modifier.fillMaxWidth().padding(top = 10.dp),
                     shape = RoundedCornerShape(16.dp),
@@ -208,7 +207,7 @@ internal fun SoundprintSongsLibraryScreen(
                         ) {
                             SoundprintIcon(SoundprintIcons.Pencil, null, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(5.dp))
-                            Text("Edit")
+                            Text("Batch edit")
                         }
                     }
                 }
