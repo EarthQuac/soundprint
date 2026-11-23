@@ -48,7 +48,8 @@ class PlaybackEngineTest {
             currentIndex = 2,
             positionMs = 48_321L,
             shuffleEnabled = true,
-            repeatMode = SoundprintRepeatMode.ONE
+            repeatMode = SoundprintRepeatMode.ONE,
+            shuffleIndices = listOf(2, 0, 3, 1)
         )
 
         store.write(expected)
@@ -59,6 +60,7 @@ class PlaybackEngineTest {
         assertEquals(expected.positionMs, restored.positionMs)
         assertEquals(expected.shuffleEnabled, restored.shuffleEnabled)
         assertEquals(expected.repeatMode, restored.repeatMode)
+        assertEquals(expected.shuffleIndices, restored.shuffleIndices)
         assertTrue(restored.savedAtMs > 0L)
     }
 
@@ -102,14 +104,16 @@ class PlaybackEngineTest {
 
     @Test fun repeatModeAndShuffleStateArePersistedIndependently() {
         val store = PlaybackQueueStore(context)
-        store.write(PlaybackQueueSnapshot(listOf("a", "b"), 1, 0L, false, SoundprintRepeatMode.OFF))
+        store.write(PlaybackQueueSnapshot(listOf("a", "b"), 1, 0L, false, SoundprintRepeatMode.OFF, shuffleIndices = listOf(1, 0)))
         assertFalse(store.read().shuffleEnabled)
         assertEquals(SoundprintRepeatMode.OFF, store.read().repeatMode)
+        assertEquals(listOf(1, 0), store.read().shuffleIndices)
 
         store.write(store.read().copy(shuffleEnabled = true, repeatMode = SoundprintRepeatMode.ALL))
 
         assertTrue(store.read().shuffleEnabled)
         assertEquals(SoundprintRepeatMode.ALL, store.read().repeatMode)
+        assertEquals(listOf(1, 0), store.read().shuffleIndices)
     }
 
     @Test fun mediaItemKeepsTheLocalContentUriAndSoundprintMetadata() {
