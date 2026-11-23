@@ -9,11 +9,4 @@
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
-
-    <style name="Theme.Soundprint.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/soundprint_window_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_transparent</item>
-        <item name="windowSplashScreenAnimationDuration">1</item>
-        <item name="postSplashScreenTheme">@style/Theme.Soundprint</item>
-    </style>
 </resources>
