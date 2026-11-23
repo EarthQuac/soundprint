@@ -955,7 +955,7 @@ private fun SoundprintApp(
     val authSessionState by SoundprintSupabase.client.auth.sessionStatus.collectAsState()
     fun enforceFreeTierRestrictions() {
         disableProPlaybackOptions(appContext)
-        if (selectedPalette == "Emerald" || selectedPalette == "Mono") onPaletteChange("Amber")
+        if (selectedPalette != "Amber" && selectedPalette != "Lavender") onPaletteChange("Lavender")
         if (folderWatchEnabled) onToggleFolderWatch(false)
         clapScanner.setAutoScanEnabled(false)
     }
@@ -2727,7 +2727,6 @@ private fun SettingsScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(MaterialTheme.colorScheme.surface)
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f), RoundedCornerShape(14.dp))
                         
                 ) {
                     if (settingSearchResults.isEmpty()) {
@@ -2780,7 +2779,9 @@ private fun SettingsScreen(
                                 PaletteChoice("Amber", selectedPalette == "Amber", Modifier.weight(1f)) { onPaletteChange("Amber") }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PaletteChoice("Blue & white", selectedPalette == "Blue", Modifier.weight(1f)) { onPaletteChange("Blue") }
+                                PaletteChoice("Blue & white", selectedPalette == "Blue", Modifier.weight(1f)) {
+                    if (proAccess.entitled) onPaletteChange("Blue") else proAccess.onOpenPro()
+                }
                                 PaletteChoice("Emerald", selectedPalette == "Emerald", Modifier.weight(1f)) {
                                     if (!proAccess.entitled) proAccess.onOpenPro() else onPaletteChange("Emerald")
                                 }
@@ -2789,10 +2790,14 @@ private fun SettingsScreen(
                                 PaletteChoice("Mono", selectedPalette == "Mono", Modifier.weight(1f)) {
                                     if (!proAccess.entitled) proAccess.onOpenPro() else onPaletteChange("Mono")
                                 }
-                                PaletteChoice("Aurora", selectedPalette == "Aurora", Modifier.weight(1f)) { onPaletteChange("Aurora") }
+                                PaletteChoice("Aurora", selectedPalette == "Aurora", Modifier.weight(1f)) {
+                                    if (proAccess.entitled) onPaletteChange("Aurora") else proAccess.onOpenPro()
+                                }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PaletteChoice("Sakura", selectedPalette == "Sakura", Modifier.weight(1f)) { onPaletteChange("Sakura") }
+                                PaletteChoice("Sakura", selectedPalette == "Sakura", Modifier.weight(1f)) {
+                                    if (proAccess.entitled) onPaletteChange("Sakura") else proAccess.onOpenPro()
+                                }
                                 Spacer(Modifier.weight(1f))
                             }
                         }
@@ -3259,8 +3264,7 @@ private fun SettingsSearchBox(value: String, onValueChange: (String) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 2.dp)
             .heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.92f), RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -3414,7 +3418,6 @@ private fun SettingsSection(title: String, content: @Composable () -> Unit) {
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
                 .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.46f), RoundedCornerShape(18.dp))
         ) { content() }
     }
 }
@@ -3439,13 +3442,7 @@ private fun MoodCountCard(label: String, value: String) {
 private fun ThemeChoice(modifier: Modifier, label: String, icon: Int?, selected: Boolean, onClick: () -> Unit) {
     Column(
         modifier = modifier.height(76.dp).clip(RoundedCornerShape(16.dp))
-            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
-            .border(
-                1.dp,
-                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
-                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
-                RoundedCornerShape(16.dp)
-            )
+            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick).padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -3470,13 +3467,7 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
     }
     Row(
         modifier = modifier.height(76.dp).clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(
-                1.dp,
-                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
-                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
-                RoundedCornerShape(16.dp)
-            )
+            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
