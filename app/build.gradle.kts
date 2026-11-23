@@ -135,10 +135,13 @@ val normalizeSoundprintLogoPng = tasks.register("normalizeSoundprintLogoPng") {
             val type = String(typeBytes, Charsets.US_ASCII)
             val data = input.copyOfRange(dataStart, dataEnd)
             val isCritical = type[0] in 'A'..'Z'
+            // Preserve rendering-affecting ancillary chunks (especially tRNS alpha).
+            // Strip text/time/ICC metadata, which is the source of the malformed metadata.
+            val keepChunk = isCritical || type in setOf(
+                "tRNS", "gAMA", "cHRM", "sRGB", "sBIT", "bKGD", "pHYs"
+            )
 
-            // Ancillary chunks carry metadata (profiles, timestamps, text) and are
-            // intentionally discarded; critical image chunks preserve the artwork.
-            if (isCritical) {
+            if (keepChunk) {
                 if (type == "IHDR") {
                     if (sawHeader || length != 13) throw GradleException("Invalid PNG IHDR")
                     sawHeader = true
