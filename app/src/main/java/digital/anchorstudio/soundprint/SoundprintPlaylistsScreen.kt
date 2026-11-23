@@ -549,6 +549,7 @@ private fun SmartPlaylistDetailNative(
     onBack: () -> Unit,
     refreshVersion: Int
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val scan by clapScanner.state.collectAsState()
     var tracks by remember { mutableStateOf(emptyList<MusicTrack>()) }
     var title by remember { mutableStateOf("") }
@@ -557,7 +558,7 @@ private fun SmartPlaylistDetailNative(
         val loaded = withContext(Dispatchers.IO) {
             when (smartId) {
                 "liked" -> Triple("Liked Songs", libraryManager.allSongs().filter { it.isFavorite }, false)
-                "recent" -> Triple("Recently Played", if (SoundprintListeningPreferences.historyEnabled(androidx.compose.ui.platform.LocalContext.current)) libraryManager.listeningHistory(500).mapNotNull { it.second }.distinctBy { it.id }.take(30) else emptyList(), false)
+                "recent" -> Triple("Recently Played", if (SoundprintListeningPreferences.historyEnabled(context)) libraryManager.listeningHistory(500).mapNotNull { it.second }.distinctBy { it.id }.take(30) else emptyList(), false)
                 "added" -> Triple("Recently Added", libraryManager.allSongs().sortedByDescending { it.addedAt }.take(20), false)
                 else -> {
                     val rule = libraryManager.smartPlaylists().firstOrNull { it.id == smartId }
