@@ -9,7 +9,7 @@ class NoRepeatShuffleOrderTest {
     fun largeLibraryVisitsEveryIndexExactlyOnceBeforeCycleEnds() {
         val order = NoRepeatShuffleOrder(1_200, seed = 42L)
         val visited = mutableListOf<Int>()
-        var index = order.firstIndex
+        var index = order.getFirstIndex()
         while (index != -1) {
             visited += index
             index = order.getNextIndex(index)
@@ -18,15 +18,15 @@ class NoRepeatShuffleOrderTest {
         assertEquals(1_200, visited.size)
         assertEquals((0 until 1_200).toSet(), visited.toSet())
         assertEquals(1_200, visited.distinct().size)
-        assertEquals(-1, order.getPreviousIndex(order.firstIndex))
-        assertEquals(-1, order.getNextIndex(order.lastIndex))
+        assertEquals(-1, order.getPreviousIndex(order.getFirstIndex()))
+        assertEquals(-1, order.getNextIndex(order.getLastIndex()))
     }
 
     @Test
     fun startingShuffleAtCurrentTrackKeepsEveryUpcomingIndexInTheCycle() {
         val order = NoRepeatShuffleOrder.startingWith(1_200, firstIndex = 633, seed = 123L)
         val indices = order.snapshotIndices()
-        assertEquals(633, order.firstIndex)
+        assertEquals(633, order.getFirstIndex())
         assertEquals(1_200, indices.size)
         assertEquals(1_200, indices.distinct().size)
         assertEquals((0 until 1_200).toSet(), indices.toSet())
