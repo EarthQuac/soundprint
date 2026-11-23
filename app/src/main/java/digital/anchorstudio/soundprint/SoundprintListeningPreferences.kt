@@ -29,7 +29,7 @@ internal object SoundprintListeningPreferences {
         preferences(context).getBoolean(KEY_PLAYLIST_RECOMMENDATIONS_ENABLED, true)
 
     fun automaticPlaylistsEnabled(context: Context): Boolean =
-        preferences(context).getBoolean(KEY_AUTOMATIC_PLAYLISTS_ENABLED, true)
+        preferences(context).getBoolean(KEY_AUTOMATIC_PLAYLISTS_ENABLED, false)
 
     fun backgroundActivityEnabled(context: Context): Boolean =
         preferences(context).getBoolean(KEY_BACKGROUND_ACTIVITY_ENABLED, true)
