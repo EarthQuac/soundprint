@@ -404,7 +404,7 @@ class MainActivity : ComponentActivity() {
                         SoundprintMusicImportQueue.enqueueFolder(
                             applicationContext,
                             uri,
-                            preferences.getBoolean("custom_artwork_enabled", true)
+                            proEntitlementLoaded && proEntitled && preferences.getBoolean("custom_artwork_enabled", false)
                         )
                     }
                 }
@@ -2664,7 +2664,7 @@ private fun SettingsScreen(
     DisposableEffect(artworkPreferences) {
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == "custom_artwork_enabled") {
-                customArtwork = artworkPreferences.getBoolean("custom_artwork_enabled", true)
+                customArtwork = artworkPreferences.getBoolean("custom_artwork_enabled", false)
             }
         }
         artworkPreferences.registerOnSharedPreferenceChangeListener(listener)
