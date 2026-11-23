@@ -35,6 +35,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -377,14 +379,25 @@ private fun PlaylistPresetSwitch(
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(top = 10.dp),
+        Modifier.fillMaxWidth().padding(top = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
             Text(title, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
-            Text(description, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(description, modifier = Modifier.padding(top = 3.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 15.sp)
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                uncheckedBorderColor = Color.Transparent
+            )
+        )
     }
 }
 
@@ -445,34 +458,52 @@ private fun PlaylistDetailNative(
             Text(selected.name, Modifier.fillMaxWidth().padding(top = 13.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
             Text("${tracks.size} songs", Modifier.fillMaxWidth().padding(top = 3.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                Button(onClick = {
-                    if (preset.enabled) {
-                        playback.playTracks(tracks, shuffle = preset.shuffle, playlistPreset = preset)
-                    } else playback.playTracks(tracks)
-                }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
+                Button(
+                    onClick = {
+                        if (preset.enabled && proAccess.entitled) {
+                            playback.playTracks(tracks, shuffle = preset.shuffle, playlistPreset = preset)
+                        } else playback.playTracks(tracks)
+                    },
+                    enabled = tracks.isNotEmpty(),
+                    modifier = Modifier.weight(1f),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
                     SoundprintIcon(SoundprintIcons.Play, null); Spacer(Modifier.width(5.dp)); Text("Play")
                 }
-                OutlinedButton(onClick = {
-                    if (!proAccess.entitled || !preset.enabled) {
-                        playback.playTracks(tracks, shuffle = true)
-                    } else {
-                        val shuffledPreset = preset.copy(shuffle = true)
-                        playback.playTracks(tracks, shuffle = true, playlistPreset = shuffledPreset)
-                    }
-                }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
+                Button(
+                    onClick = {
+                        if (!proAccess.entitled || !preset.enabled) {
+                            playback.playTracks(tracks, shuffle = true)
+                        } else {
+                            val shuffledPreset = preset.copy(shuffle = true)
+                            playback.playTracks(tracks, shuffle = true, playlistPreset = shuffledPreset)
+                        }
+                    },
+                    enabled = tracks.isNotEmpty(),
+                    modifier = Modifier.weight(1f),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
                     SoundprintIcon(SoundprintIcons.Shuffle, null); Spacer(Modifier.width(5.dp)); Text("Shuffle")
                 }
             }
             Column(
-                Modifier.fillMaxWidth().padding(top = 15.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .38f))
-                    .padding(14.dp)
+                Modifier.fillMaxWidth().padding(top = 18.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .46f))
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Playlist Intelligence", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                        Text("Custom playback for this playlist", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Custom playback for this playlist", modifier = Modifier.padding(top = 4.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     ProFeatureBadge()
                 }
@@ -480,7 +511,7 @@ private fun PlaylistDetailNative(
                 PlaylistPresetSwitch("Extra Bass", "Adds low-end punch", preset.extraBass) { updatePreset(preset.copy(enabled = true, extraBass = it)) }
                 PlaylistPresetSwitch("Shuffle", "Mix this playlist automatically", preset.shuffle) { updatePreset(preset.copy(enabled = true, shuffle = it)) }
                 PlaylistPresetSwitch("Loudness leveling", "Keep track volume more consistent", preset.loudnessLeveling) { updatePreset(preset.copy(enabled = true, loudnessLeveling = it)) }
-                Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Repeat", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                         Text("Off, repeat playlist, or repeat one", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -512,7 +543,7 @@ private fun PlaylistDetailNative(
             } else {
                 tracks.forEachIndexed { index, track ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        NativeTrackRow(track, onClick = { if (preset.enabled) playback.playTracks(tracks, index, shuffle = preset.shuffle, playlistPreset = preset) else playback.playTracks(tracks, index) }, onRemove = { libraryManager.removeFromPlaylist(selected.id, track.id); refresh++; onChanged() }, modifier = Modifier.weight(1f))
+                        NativeTrackRow(track, onClick = { if (preset.enabled && proAccess.entitled) playback.playTracks(tracks, index, shuffle = preset.shuffle, playlistPreset = preset) else playback.playTracks(tracks, index) }, onRemove = { libraryManager.removeFromPlaylist(selected.id, track.id); refresh++; onChanged() }, modifier = Modifier.weight(1f))
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             SoundprintIcon(SoundprintIcons.ArrowUp, "Move up", Modifier.size(16.dp).clickable(enabled = index > 0) { libraryManager.reorderPlaylist(selected.id, index, index - 1); refresh++ }.padding(1.dp), tint = if (index > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline)
                             SoundprintIcon(SoundprintIcons.ArrowDown, "Move down", Modifier.size(16.dp).clickable(enabled = index < tracks.lastIndex) { libraryManager.reorderPlaylist(selected.id, index, index + 1); refresh++ }.padding(1.dp), tint = if (index < tracks.lastIndex) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline)
