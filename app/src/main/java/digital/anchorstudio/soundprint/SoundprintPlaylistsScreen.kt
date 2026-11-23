@@ -146,8 +146,9 @@ fun SoundprintPlaylistsScreen(
             val tracks = libraryManager.allSongs()
             val smart = libraryManager.smartPlaylists()
             val results = smart.associate { it.id to libraryManager.evaluateSmartPlaylist(it.id) }
-            val recent = libraryManager.listeningHistory(500).mapNotNull { it.second }
-                .distinctBy { it.id }.take(30)
+            val recent = if (SoundprintListeningPreferences.historyEnabled(androidx.compose.ui.platform.LocalContext.current)) {
+                libraryManager.listeningHistory(500).mapNotNull { it.second }.distinctBy { it.id }.take(30)
+            } else emptyList()
             PlaylistPageData(
                 tracks = tracks,
                 playlists = libraryManager.playlists(),
@@ -187,6 +188,7 @@ fun SoundprintPlaylistsScreen(
 
     val playlists = current?.playlists.orEmpty()
     val filtered = playlists.filter { it.name.contains(query.trim(), ignoreCase = true) }
+    val showPlaylistRecommendations = SoundprintListeningPreferences.playlistRecommendationsEnabled(androidx.compose.ui.platform.LocalContext.current)
     val mixes = current?.let {
         listOf(
             PlaylistMixItem("liked", "Liked Songs", it.liked, SoundprintIcons.Heart),
@@ -206,22 +208,24 @@ fun SoundprintPlaylistsScreen(
             verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
             PlaylistSearchBox(query, { query = it }, "Search playlists…")
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("SMART MIXES", fontSize = 11.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                mixes.forEach { mix ->
-                    Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)
-                            .clickable { selectedSmartId = mix.id }.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                            SoundprintIcon(mix.icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            if (showPlaylistRecommendations) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("SMART MIXES", fontSize = 11.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    mixes.forEach { mix ->
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)
+                                .clickable { selectedSmartId = mix.id }.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                                SoundprintIcon(mix.icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                            }
+                            Column(Modifier.weight(1f).padding(start = 11.dp)) {
+                                Text(mix.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                Text("${mix.tracks.size} songs", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            SoundprintIcon(SoundprintIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(17.dp))
                         }
-                        Column(Modifier.weight(1f).padding(start = 11.dp)) {
-                            Text(mix.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                            Text("${mix.tracks.size} songs", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        SoundprintIcon(SoundprintIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(17.dp))
                     }
                 }
             }
@@ -232,7 +236,7 @@ fun SoundprintPlaylistsScreen(
                             Text("Smart playlists", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             ProFeatureBadge()
                         }
-                        Text("Automatically updated from your listening and library", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(if (SoundprintListeningPreferences.automaticPlaylistsEnabled(androidx.compose.ui.platform.LocalContext.current)) "Automatically updated from your listening and library" else "Updates paused in Settings · your saved rules are kept", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Button(onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true }, shape = CircleShape, contentPadding = ButtonDefaults.ContentPadding) {
                         SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(15.dp))
@@ -539,7 +543,7 @@ private fun SmartPlaylistDetailNative(
         val loaded = withContext(Dispatchers.IO) {
             when (smartId) {
                 "liked" -> Triple("Liked Songs", libraryManager.allSongs().filter { it.isFavorite }, false)
-                "recent" -> Triple("Recently Played", libraryManager.listeningHistory(500).mapNotNull { it.second }.distinctBy { it.id }.take(30), false)
+                "recent" -> Triple("Recently Played", if (SoundprintListeningPreferences.historyEnabled(androidx.compose.ui.platform.LocalContext.current)) libraryManager.listeningHistory(500).mapNotNull { it.second }.distinctBy { it.id }.take(30) else emptyList(), false)
                 "added" -> Triple("Recently Added", libraryManager.allSongs().sortedByDescending { it.addedAt }.take(20), false)
                 else -> {
                     val rule = libraryManager.smartPlaylists().firstOrNull { it.id == smartId }
