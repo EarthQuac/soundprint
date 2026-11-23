@@ -134,8 +134,8 @@ internal fun SongsLibraryScreen(
             }
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
-                Text("Songs", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
-                Text("${songs.size} songs", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(if (initialTwinSenseOpen) "TwinSense" else "Songs", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+                Text(if (initialTwinSenseOpen) "${songs.size} tracks to compare" else "${songs.size} songs", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             OutlinedButton(onClick = onImportFiles, shape = RoundedCornerShape(50)) {
                 SoundprintIcon(SoundprintIcons.Music2, contentDescription = null, modifier = Modifier.size(16.dp))
