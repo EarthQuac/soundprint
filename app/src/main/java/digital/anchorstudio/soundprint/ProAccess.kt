@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -25,21 +26,31 @@ internal data class SoundprintProUiAccess(
 internal val LocalSoundprintProUiAccess = staticCompositionLocalOf { SoundprintProUiAccess() }
 
 @Composable
-internal fun ProFeatureBadge(modifier: Modifier = Modifier) {
+internal fun ProFeatureBadge(
+    modifier: Modifier = Modifier,
+    showWhenEntitled: Boolean = false
+) {
     val access = LocalSoundprintProUiAccess.current
-    if (!access.entitled) {
+    if (!access.entitled || showWhenEntitled) {
         Surface(
-            modifier = modifier.clip(CircleShape).clickable(onClick = access.onOpenPro),
+            modifier = modifier.clip(CircleShape).clickable(enabled = !access.entitled, onClick = access.onOpenPro),
             shape = CircleShape,
             color = MaterialTheme.colorScheme.primary.copy(alpha = .12f)
         ) {
             Row(
-                Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                Modifier.height(20.dp).padding(horizontal = 7.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
-                Text("PRO", fontSize = 9.sp, letterSpacing = .7.sp, color = MaterialTheme.colorScheme.primary)
+                SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(11.dp), tint = MaterialTheme.colorScheme.primary)
+                Text(
+                    "PRO",
+                    fontSize = 9.sp,
+                    lineHeight = 10.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    letterSpacing = .65.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
