@@ -2,6 +2,9 @@
 <resources>
     <style name="Theme.Soundprint" parent="@android:style/Theme.Material.NoActionBar">
         <item name="postSplashScreenTheme">@style/Theme.Soundprint</item>
+        <item name="windowSplashScreenBackground">@color/soundprint_window_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_transparent</item>
+        <item name="windowSplashScreenAnimationDuration">1</item>
         <item name="android:fontFamily">sans</item>
         <item name="android:windowBackground">@color/soundprint_window_background</item>
         <item name="android:statusBarColor">@color/soundprint_window_background</item>
