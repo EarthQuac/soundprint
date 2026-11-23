@@ -536,7 +536,7 @@ private fun PlaylistDetailNative(
             Row(Modifier.fillMaxWidth().padding(top = 7.dp), horizontalArrangement = Arrangement.Center) {
                 TextButton(onClick = { addOpen = true }) { SoundprintIcon(SoundprintIcons.Plus, null); Text("Add songs") }
                 TextButton(onClick = { name = selected.name; renameOpen = true }) { SoundprintIcon(SoundprintIcons.Pencil, null); Text("Rename") }
-                TextButton(onClick = { libraryManager.deletePlaylist(selected.id); onBack(); onChanged() }) { SoundprintIcon(SoundprintIcons.Trash2, null); Text("Delete") }
+                TextButton(onClick = { presetStore.delete(selected.id); libraryManager.deletePlaylist(selected.id); onBack(); onChanged() }) { SoundprintIcon(SoundprintIcons.Trash2, null); Text("Delete") }
             }
             Spacer(Modifier.height(10.dp))
             if (tracks.isEmpty()) {
