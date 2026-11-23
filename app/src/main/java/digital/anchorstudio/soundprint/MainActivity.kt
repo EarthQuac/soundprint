@@ -343,7 +343,7 @@ class MainActivity : ComponentActivity() {
             }
             fun enqueueAudioLinkImport(url: String): Boolean {
                 val result = runCatching {
-                    SoundprintMusicImportQueue.enqueueUrl(applicationContext, url, preferences.getBoolean("custom_artwork_enabled", true))
+                    SoundprintMusicImportQueue.enqueueUrl(applicationContext, url, proEntitlementLoaded && proEntitled && preferences.getBoolean("custom_artwork_enabled", false))
                 }
                 result.onSuccess {
                     libraryStatus = "Link import queued. SoundPrint will download the audio and add it to your library."
@@ -359,15 +359,23 @@ class MainActivity : ComponentActivity() {
                 else if (url != null) libraryStatus = "Storage permission is needed to save linked audio on this Android version."
             }
             fun finishArtworkImportChoice(pending: PendingArtworkImport, useArtwork: Boolean) {
-                preferences.edit().putBoolean("custom_artwork_enabled", useArtwork).apply()
+                val allowed = useArtwork && proEntitlementLoaded && proEntitled
+                preferences.edit().putBoolean("custom_artwork_enabled", allowed).apply()
                 pendingArtworkImport = null
-                pending.enqueue(useArtwork)
+                pending.enqueue(allowed)
                 scope.launch {
-                    withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(useArtwork) }
+                    withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(allowed) }
+                }
+            }
+            fun requestArtworkImport(enqueue: (Boolean) -> Unit) {
+                if (proEntitlementLoaded && proEntitled) {
+                    pendingArtworkImport = PendingArtworkImport(enqueue)
+                } else {
+                    enqueue(false)
                 }
             }
             val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
-                if (uri != null) pendingArtworkImport = PendingArtworkImport { useArtwork ->
+                if (uri != null) requestArtworkImport { useArtwork ->
                     enqueueMusicImport("Folder import") {
                         SoundprintMusicImportQueue.enqueueFolder(applicationContext, uri, useArtwork)
                     }
@@ -398,14 +406,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
             val singleFilePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-                if (uri != null) pendingArtworkImport = PendingArtworkImport { useArtwork ->
+                if (uri != null) requestArtworkImport { useArtwork ->
                     enqueueMusicImport("File import") {
                         SoundprintMusicImportQueue.enqueueFiles(applicationContext, listOf(uri), useArtwork)
                     }
                 }
             }
             val filesPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-                if (uris.isNotEmpty()) pendingArtworkImport = PendingArtworkImport { useArtwork ->
+                if (uris.isNotEmpty()) requestArtworkImport { useArtwork ->
                     enqueueMusicImport("File import") {
                         SoundprintMusicImportQueue.enqueueFiles(applicationContext, uris, useArtwork)
                     }
@@ -2639,7 +2647,7 @@ private fun SettingsScreen(
     var rememberPosition by remember { mutableStateOf(playbackPrefs.getBoolean("remember_position", true)) }
     var seekSeconds by remember { mutableIntStateOf(playbackPrefs.getInt("double_tap_seek_seconds", 10).coerceIn(5, 60)) }
     var replaceQueue by remember { mutableStateOf(playbackPrefs.getBoolean("replace_queue_on_play", false)) }
-    var customArtwork by remember { mutableStateOf(artworkPreferences.getBoolean("custom_artwork_enabled", true)) }
+    var customArtwork by remember { mutableStateOf(artworkPreferences.getBoolean("custom_artwork_enabled", false)) }
     val listeningPreferences = remember(settingsContext) { SoundprintListeningPreferences.preferences(settingsContext) }
     var historyEnabled by remember { mutableStateOf(SoundprintListeningPreferences.historyEnabled(settingsContext)) }
     var musicRecommendationsEnabled by remember { mutableStateOf(SoundprintListeningPreferences.musicRecommendationsEnabled(settingsContext)) }
