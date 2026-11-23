@@ -16,6 +16,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.ShuffleOrder
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
@@ -25,6 +26,7 @@ import androidx.media3.session.SessionToken
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.Random
 import java.util.concurrent.Executor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +44,8 @@ data class PlaybackQueueSnapshot(
     val positionMs: Long = 0L,
     val shuffleEnabled: Boolean = false,
     val repeatMode: SoundprintRepeatMode = SoundprintRepeatMode.OFF,
-    val savedAtMs: Long = 0L
+    val savedAtMs: Long = 0L,
+    val shuffleIndices: List<Int> = emptyList()
 )
 
 data class PlaybackResumePrompt(
@@ -75,7 +78,10 @@ class PlaybackQueueStore(context: Context) {
                 positionMs = json.optLong("positionMs", 0L).coerceAtLeast(0L),
                 shuffleEnabled = json.optBoolean("shuffleEnabled", false),
                 repeatMode = runCatching { SoundprintRepeatMode.valueOf(json.optString("repeatMode", "OFF")) }.getOrDefault(SoundprintRepeatMode.OFF),
-                savedAtMs = json.optLong("savedAtMs", 0L).coerceAtLeast(0L)
+                savedAtMs = json.optLong("savedAtMs", 0L).coerceAtLeast(0L),
+                shuffleIndices = (json.optJSONArray("shuffleIndices") ?: JSONArray()).let { array ->
+                    (0 until array.length()).map { array.optInt(it, -1) }.filter { it >= 0 }
+                }
             )
         }.getOrDefault(PlaybackQueueSnapshot())
     }
@@ -88,6 +94,7 @@ class PlaybackQueueStore(context: Context) {
             put("shuffleEnabled", snapshot.shuffleEnabled)
             put("repeatMode", snapshot.repeatMode.name)
             put("savedAtMs", System.currentTimeMillis())
+            put("shuffleIndices", JSONArray(snapshot.shuffleIndices))
         }
         preferences.edit().putString(KEY_SNAPSHOT, json.toString()).apply()
     }
@@ -218,12 +225,14 @@ class SoundprintPlaybackService : MediaSessionService() {
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .build()
+        player.shuffleOrder = NoRepeatShuffleOrder(0)
         // Two players must never compete for audio focus: the standby player stays silent until a
         // crossfade hands over, otherwise Android can tell the playing track to stop.
         standbyPlayer = ExoPlayer.Builder(this)
             .setAudioAttributes(audioAttributes, false)
             .setHandleAudioBecomingNoisy(true)
             .build()
+        standbyPlayer.shuffleOrder = NoRepeatShuffleOrder(0)
         mediaSession = MediaSession.Builder(this, player).build()
         handler.post(maintenance)
         servicePlayerListener = object : Player.Listener {
@@ -633,6 +642,11 @@ class SoundprintPlaybackService : MediaSessionService() {
             )
         }
         player.setMediaItems(resolved.map { it.second.toSoundprintMediaItem() }, restoredIndex, resumeAtMs)
+        val restoredShuffleIndices = saved.shuffleIndices.mapNotNull { savedIndex ->
+            resolved.indexOfFirst { it.first == savedIndex }.takeIf { it >= 0 }
+        }
+        player.shuffleOrder = NoRepeatShuffleOrder.fromOrder(resolved.size, restoredShuffleIndices)
+        player.shuffleModeEnabled = saved.shuffleEnabled
         player.prepare()
         activeTrackId = player.currentMediaItem?.mediaId
         activeMediaIndex = restoredIndex
@@ -654,7 +668,8 @@ class SoundprintPlaybackService : MediaSessionService() {
                 currentIndex = player.currentMediaItemIndex,
                 positionMs = player.currentPosition.coerceAtLeast(0L),
                 shuffleEnabled = player.shuffleModeEnabled,
-                repeatMode = player.repeatMode.toSoundprintRepeatMode()
+                repeatMode = player.repeatMode.toSoundprintRepeatMode(),
+                shuffleIndices = (player.shuffleOrder as? NoRepeatShuffleOrder)?.snapshotIndices().orEmpty()
             )
         )
         lastPersistElapsedMs = SystemClock.elapsedRealtime()
@@ -837,7 +852,11 @@ class SoundprintPlaybackConnection(
         val eligible = tracks.withIndex().filter { !ignoreClips || it.value.durationMs >= 30_000L }
         if (eligible.isEmpty()) return
         val mappedStartIndex = eligible.indexOfFirst { it.index >= requestedIndex }.takeIf { it >= 0 } ?: eligible.lastIndex
-        val request = PendingPlay(eligible.map { it.value }, mappedStartIndex, if (playlistPreset != null && !presetEntitled) false else shuffle)
+        val effectiveShuffle = if (playlistPreset != null && !presetEntitled) false else shuffle
+        val selectedTrackId = eligible[mappedStartIndex].value.id
+        val playbackTracks = if (effectiveShuffle) eligible.map { it.value }.distinctBy { it.id } else eligible.map { it.value }
+        val playbackStartIndex = playbackTracks.indexOfFirst { it.id == selectedTrackId }.coerceAtLeast(0)
+        val request = PendingPlay(playbackTracks, playbackStartIndex, effectiveShuffle)
         val player = controller
         if (player == null) {
             synchronized(this) {
@@ -869,17 +888,25 @@ class SoundprintPlaybackConnection(
                 require(track.uri.isNotBlank()) { "The selected song has no playable file location: ${track.title}" }
                 track.toSoundprintMediaItem()
             }
-            player.shuffleModeEnabled = request.shuffle
             if (!pausePreferences.getBoolean("replace_queue_on_play", false) && player.mediaItemCount > 0) {
-                val firstAddedIndex = player.mediaItemCount
-                player.addMediaItems(mediaItems)
-                player.seekTo(firstAddedIndex + request.startIndex.coerceIn(request.tracks.indices), 0L)
+                if (request.shuffle) deduplicateQueueByMediaId(player)
+                val targetTrackId = request.tracks[request.startIndex.coerceIn(request.tracks.indices)].id
+                val existingIds = if (request.shuffle) {
+                    (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }.toSet()
+                } else emptySet()
+                val tracksToAppend = if (request.shuffle) request.tracks.filterNot { it.id in existingIds } else request.tracks
+                if (tracksToAppend.isNotEmpty()) player.addMediaItems(tracksToAppend.map(MusicTrack::toSoundprintMediaItem))
+                if (request.shuffle) {
+                    player.shuffleModeEnabled = true
+                    val targetIndex = (0 until player.mediaItemCount).firstOrNull { player.getMediaItemAt(it).mediaId == targetTrackId }
+                    if (targetIndex != null) player.seekTo(targetIndex, 0L)
+                } else {
+                    val firstAddedIndex = player.mediaItemCount - tracksToAppend.size
+                    player.seekTo(firstAddedIndex + request.startIndex.coerceIn(request.tracks.indices), 0L)
+                }
             } else {
-                player.setMediaItems(
-                    mediaItems,
-                    request.startIndex.coerceIn(request.tracks.indices),
-                    0L
-                )
+                player.setMediaItems(mediaItems, request.startIndex.coerceIn(request.tracks.indices), 0L)
+                player.shuffleModeEnabled = request.shuffle
             }
             player.prepare()
             player.play()
@@ -939,6 +966,19 @@ class SoundprintPlaybackConnection(
         controllerContext.getSharedPreferences("soundprint_playback_options", Context.MODE_PRIVATE)
     }
 
+    private fun deduplicateQueueByMediaId(player: MediaController) {
+        if (player.mediaItemCount < 2) return
+        val currentIndex = player.currentMediaItemIndex
+        val currentId = player.currentMediaItem?.mediaId
+        val seen = HashSet<String>()
+        if (!currentId.isNullOrBlank()) seen.add(currentId)
+        for (index in player.mediaItemCount - 1 downTo 0) {
+            if (index == currentIndex) continue
+            val id = player.getMediaItemAt(index).mediaId
+            if (id.isBlank() || !seen.add(id)) player.removeMediaItem(index)
+        }
+    }
+
     private fun cancelPauseFade(restoreVolume: Boolean) {
         pauseFadeRunnable?.let(mainHandler::removeCallbacks)
         pauseFadeRunnable = null
@@ -965,8 +1005,13 @@ class SoundprintPlaybackConnection(
             playTracks(eligibleTracks)
             return
         }
+        val queueTracks = if (player.shuffleModeEnabled) {
+            val queuedIds = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }.toSet()
+            eligibleTracks.distinctBy { it.id }.filterNot { it.id in queuedIds }
+        } else eligibleTracks
+        if (queueTracks.isEmpty()) return
         val insertionIndex = if (next) (player.currentMediaItemIndex + 1).coerceAtLeast(0) else player.mediaItemCount
-        player.addMediaItems(insertionIndex, eligibleTracks.map(MusicTrack::toSoundprintMediaItem))
+        player.addMediaItems(insertionIndex, queueTracks.map(MusicTrack::toSoundprintMediaItem))
     }
 
     /** Replace only the upcoming tracks, keeping the currently playing item untouched. */
@@ -977,12 +1022,10 @@ class SoundprintPlaybackConnection(
             if (tracks.isNotEmpty()) playTracks(tracks)
             return
         }
-        for (index in player.mediaItemCount - 1 downTo currentIndex + 1) {
-            player.removeMediaItem(index)
-        }
-        if (tracks.isNotEmpty()) {
-            player.addMediaItems(currentIndex + 1, tracks.map(MusicTrack::toSoundprintMediaItem))
-        }
+        for (index in player.mediaItemCount - 1 downTo currentIndex + 1) player.removeMediaItem(index)
+        val currentId = player.currentMediaItem?.mediaId
+        val replacementTracks = if (player.shuffleModeEnabled) tracks.distinctBy { it.id }.filterNot { it.id == currentId } else tracks
+        if (replacementTracks.isNotEmpty()) player.addMediaItems(currentIndex + 1, replacementTracks.map(MusicTrack::toSoundprintMediaItem))
     }
 
     fun removeFromQueue(index: Int) {
@@ -1004,7 +1047,11 @@ class SoundprintPlaybackConnection(
 
     fun clearQueue() { controller?.clearMediaItems() }
 
-    fun setShuffle(enabled: Boolean) { controller?.shuffleModeEnabled = enabled }
+    fun setShuffle(enabled: Boolean) {
+        val player = controller ?: return
+        if (enabled) deduplicateQueueByMediaId(player)
+        player.shuffleModeEnabled = enabled
+    }
 
     /** Apply an explicit per-playlist Pro preset before starting that playlist's queue. */
     fun applyPlaylistPreset(preset: PlaylistPlaybackPreset) {
