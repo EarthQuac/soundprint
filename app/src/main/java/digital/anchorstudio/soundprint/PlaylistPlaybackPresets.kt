@@ -38,4 +38,14 @@ internal class PlaylistPlaybackPresetStore(context: Context) {
             .putBoolean("${playlistId}_leveling", preset.loudnessLeveling)
             .apply()
     }
+
+    fun delete(playlistId: String) {
+        prefs.edit()
+            .remove("${playlistId}_enabled")
+            .remove("${playlistId}_bass")
+            .remove("${playlistId}_shuffle")
+            .remove("${playlistId}_repeat")
+            .remove("${playlistId}_leveling")
+            .apply()
+    }
 }
