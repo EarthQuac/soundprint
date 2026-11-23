@@ -289,7 +289,7 @@ internal fun SongsLibraryScreen(
                                     if (scanning && advancedScanning) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                                     else SoundprintIcon(SoundprintIcons.Zap, null, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(6.dp))
-                                    Text("Advanced · Pro", maxLines = 1)
+                                    Text(if (SoundprintProGate.isResolved && SoundprintProGate.hasPro) "Advanced" else "Advanced · Pro", maxLines = 1)
                                 }
                                 if (scanning) TextButton(onClick = { scanJob?.cancel() }) { Text("Cancel") }
                                 else if (scanResult != null) Text("${scanResult?.groups?.size ?: 0} groups", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
