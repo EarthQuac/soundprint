@@ -874,11 +874,13 @@ internal fun NativeArtwork(uri: String?, seed: String, modifier: Modifier = Modi
         if (loadedBitmap != null) {
             Image(loadedBitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         } else {
-            Image(
-                painter = painterResource(SoundprintArtwork.resourceFor(seed)),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+            // Missing or unavailable artwork uses the Lucide track-note placeholder.
+            // Bundled custom covers are only stored as artwork when the Pro feature is enabled.
+            SoundprintIcon(
+                SoundprintIcons.Music2,
+                contentDescription = "No artwork",
+                modifier = Modifier.size(26.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
