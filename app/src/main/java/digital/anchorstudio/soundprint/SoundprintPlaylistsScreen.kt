@@ -435,8 +435,13 @@ private fun PlaylistDetailNative(
                     SoundprintIcon(SoundprintIcons.Play, null); Spacer(Modifier.width(5.dp)); Text("Play")
                 }
                 OutlinedButton(onClick = {
-                    playback.applyPlaylistPreset(preset.copy(shuffle = true))
-                    playback.playTracks(tracks, shuffle = true, playlistPreset = preset.copy(shuffle = true))
+                    if (!proAccess.entitled) {
+                        playback.playTracks(tracks, shuffle = true)
+                    } else {
+                        val shuffledPreset = preset.copy(shuffle = true)
+                        playback.applyPlaylistPreset(shuffledPreset)
+                        playback.playTracks(tracks, shuffle = true, playlistPreset = shuffledPreset)
+                    }
                 }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
                     SoundprintIcon(SoundprintIcons.Shuffle, null); Spacer(Modifier.width(5.dp)); Text("Shuffle")
                 }
