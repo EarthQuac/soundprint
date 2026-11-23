@@ -634,14 +634,14 @@ fun SoundprintNowPlayingScreen(
                 Spacer(Modifier.height(12.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PlayerQuickAction("Audio Lab", SoundprintIcons.Gauge, Modifier.weight(1f)) { audioLabOpen = true }
-                        PlayerQuickAction("Aura Mode", SoundprintIcons.Waves, Modifier.weight(1f)) { aura = true }
+                        PlayerQuickAction("Audio Lab", SoundprintIcons.Gauge, Modifier.weight(1f), proFeature = true) { audioLabOpen = true }
+                        PlayerQuickAction("Aura Mode", SoundprintIcons.Waves, Modifier.weight(1f), proFeature = true) { aura = true }
                         PlayerQuickAction("Playlist", SoundprintIcons.Plus, Modifier.weight(1f)) { playlists = library.playlists(); playlistOpen = !playlistOpen }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PlayerQuickAction("Info", SoundprintIcons.Info, Modifier.weight(1f), selected = infoOpen) { infoOpen = !infoOpen }
                         PlayerQuickAction("Lyrics", SoundprintIcons.BookOpenText, Modifier.weight(1f)) { lyricsExpanded = true; scope.launch { delay(80); lyricsPanelRequester.bringIntoView() } }
-                        PlayerQuickAction(displaySleep, if (sleepRemaining > 0L) SoundprintIcons.TimerReset else SoundprintIcons.Moon, Modifier.weight(1f), selected = sleepOpen) {
+                        PlayerQuickAction(displaySleep, if (sleepRemaining > 0L) SoundprintIcons.TimerReset else SoundprintIcons.Moon, Modifier.weight(1f), selected = sleepOpen, proFeature = true) {
                             sleepMinutes = if (sleepRemaining > 0L) ((sleepRemaining + 59_999L) / 60_000L).toString() else "30"
                             sleepOpen = true
                         }
@@ -1095,10 +1095,13 @@ fun SoundprintNowPlayingScreen(
         }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            PlayerToggle("Gapless playback", "Seamless transitions between queued tracks", gapless) { gapless = it }
-            PlayerToggle("Loudness leveling", "Keep volume consistent", loudness) { loudness = it }
-            PlayerToggle("Stop after this song", "Pause at the end of the current track", stopAfterCurrent) { stopAfterCurrent = it }
-            Text("Crossfade", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            PlayerToggle("Gapless playback", "Seamless transitions between queued tracks", gapless, proFeature = true) { gapless = it }
+            PlayerToggle("Loudness leveling", "Keep volume consistent", loudness, proFeature = true) { loudness = it }
+            PlayerToggle("Stop after this song", "Pause at the end of the current track", stopAfterCurrent, proFeature = true) { stopAfterCurrent = it }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Crossfade", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                ProFeatureBadge()
+            }
             Text("Blend into the next queued track", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             PlayerChoiceRow(listOf("Off", "2s", "4s", "6s", "8s"), if (crossfade == 0) "Off" else "${crossfade}s") {
                 crossfade = it.removeSuffix("s").toIntOrNull() ?: 0
@@ -1422,7 +1425,10 @@ private fun PlayerQuickAction(
     ) {
         SoundprintIcon(icon, null, modifier = Modifier.size(20.dp), tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(8.dp))
-        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (proFeature) ProFeatureBadge()
+        }
     }
 }
 @Composable
