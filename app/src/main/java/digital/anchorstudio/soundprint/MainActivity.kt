@@ -1134,6 +1134,7 @@ private fun SoundprintApp(
         }
     }
     var nowPlayingOpen by remember { mutableStateOf(false) }
+    var miniPlayerVisible by remember { mutableStateOf(false) }
     var miniPlayerExpanded by remember { mutableStateOf(false) }
     // Returning from Now Playing must always restore the compact floating circle.
     // The rectangular controls are opened only by tapping that circle.
@@ -1231,7 +1232,19 @@ private fun SoundprintApp(
                             library = libraryManager,
                             scanner = clapScanner,
                             playback = playbackConnection,
-                            onBack = { miniPlayerExpanded = false; nowPlayingOpen = false }
+                            onBack = {
+                                // Back arrow preserves the original navigation behavior:
+                                // leave Now Playing without creating a floating mini-player.
+                                miniPlayerExpanded = false
+                                miniPlayerVisible = false
+                                nowPlayingOpen = false
+                            },
+                            onMinimize = {
+                                // The X action is the explicit "turn into mini-player" action.
+                                miniPlayerExpanded = false
+                                miniPlayerVisible = true
+                                nowPlayingOpen = false
+                            }
                         )
                         "tag-editor" -> SoundprintTagEditorScreen(
                             library = libraryManager,
@@ -1368,7 +1381,7 @@ private fun SoundprintApp(
                 // Float the mini player over the content viewport. Keeping this overlay
                 // inside the weighted screen Box prevents fillMaxSize() from consuming
                 // the parent Column's height and pushing the navigation/content off-screen.
-                if (!nowPlayingOpen && playbackConnection.controller?.currentMediaItem != null) {
+                if (!nowPlayingOpen && miniPlayerVisible && playbackConnection.controller?.currentMediaItem != null) {
                     SoundprintMiniPlayer(
                         controller = playbackConnection.controller,
                         library = libraryManager,
@@ -1376,7 +1389,7 @@ private fun SoundprintApp(
                         onExpand = { miniPlayerExpanded = true },
                         onToggle = { playbackConnection.toggle() },
                         onNext = { playbackConnection.next() },
-                        onClear = { playbackConnection.clearQueue() },
+                        onClear = { playbackConnection.clearQueue(); miniPlayerVisible = false; miniPlayerExpanded = false },
                         expanded = miniPlayerExpanded,
                         onCollapse = { miniPlayerExpanded = false }
                     )
