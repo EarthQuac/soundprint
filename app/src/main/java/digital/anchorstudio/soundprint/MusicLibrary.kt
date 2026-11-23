@@ -967,16 +967,20 @@ class MusicLibraryRepository(context:Context) {
 
     private fun isCustomArtworkEnabled():Boolean =
         app.getSharedPreferences("soundprint_native_preferences",Context.MODE_PRIVATE)
-            .getBoolean("custom_artwork_enabled",true)
+            .getBoolean("custom_artwork_enabled",false)
 
     suspend fun setCustomArtworkEnabled(enabled:Boolean):Int = withContext(Dispatchers.IO) {
-        // Disabling custom artwork is a preference for future imports/rescans.
-        // Never strip covers that are already attached to library tracks: an
-        // explicit "No" in the import prompt must not make existing songs lose art.
-        if (!enabled) return@withContext 0
         var changed=0
         db.tracks().forEach { track ->
             coroutineContext.ensureActive()
+            if (!enabled) {
+                // Remove only Soundprint-generated covers. Embedded/cached covers stay intact.
+                if (SoundprintArtwork.isBundledUri(app, track.artworkUri)) {
+                    db.updateTrack(track.copy(artworkUri=null))
+                    changed++
+                }
+                continue
+            }
             val withEmbedded=ensureArtwork(track.id) ?: track
             if (withEmbedded.artworkUri.isNullOrBlank()) {
                 db.updateTrack(withEmbedded.copy(artworkUri=SoundprintArtwork.uri(app,track.id)))
