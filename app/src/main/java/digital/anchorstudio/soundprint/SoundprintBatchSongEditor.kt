@@ -176,7 +176,8 @@ internal fun SoundprintSongsLibraryScreen(
                 leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null, modifier = Modifier.size(18.dp)) }
             ,
                 colors = soundprintOutlinedFieldColors()
-            )            if (selectedIds.isNotEmpty()) {
+            )
+            if (selectedIds.isNotEmpty()) {
                 Surface(
                     Modifier.fillMaxWidth().padding(top = 10.dp),
                     shape = RoundedCornerShape(16.dp),
