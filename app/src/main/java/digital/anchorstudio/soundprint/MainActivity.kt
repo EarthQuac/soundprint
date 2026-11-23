@@ -383,30 +383,33 @@ class MainActivity : ComponentActivity() {
                 if (allowed) scope.launch { withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(true) } }
             }
             fun requestArtworkImport(enqueue: (Boolean) -> Unit) {
-                if (!SoundprintProAccess.hasSession()) { enqueue(false); return }
-                if (SoundprintProGate.isResolved) {
-                    if (SoundprintProGate.hasPro) {
-                        SoundprintProAccess.currentUserId()?.let { userId ->
-                            preferences.edit().putBoolean("custom_artwork_offer_seen_$userId", true).apply()
-                        }
-                        pendingArtworkImport = PendingArtworkImport(enqueue)
-                    } else enqueue(false)
+                // Logged-out imports never show an artwork upsell or enable generated covers.
+                if (!SoundprintProAccess.hasSession()) {
+                    enqueue(false)
                     return
                 }
+                // Verify the signed-in account for each import. The cached gate can still
+                // reflect a previous account/session while auth restoration is completing.
                 scope.launch {
                     val status = runCatching { SoundprintProAccess.refresh() }.getOrNull()
-                    if (!SoundprintProAccess.hasSession()) enqueue(false)
-                    else if (status != null) {
+                    if (!SoundprintProAccess.hasSession()) {
+                        enqueue(false)
+                    } else if (status != null) {
                         SoundprintProGate.updateEntitlement(status.hasPro)
-                        getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit().putBoolean("pro_entitled", status.hasPro).apply()
+                        getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit()
+                            .putBoolean("pro_entitled", status.hasPro).apply()
                         if (status.hasPro) {
                             SoundprintProAccess.currentUserId()?.let { userId ->
                                 preferences.edit().putBoolean("custom_artwork_offer_seen_$userId", true).apply()
                             }
                             pendingArtworkImport = PendingArtworkImport(enqueue)
-                        } else enqueue(false)
+                        } else {
+                            enqueue(false)
+                        }
                     } else {
                         SoundprintProGate.updateEntitlement(false)
+                        getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit()
+                            .putBoolean("pro_entitled", false).apply()
                         enqueue(false)
                         libraryStatus = "Couldn't verify Pro access, so this import will continue without custom artwork. Try again after reconnecting."
                     }
