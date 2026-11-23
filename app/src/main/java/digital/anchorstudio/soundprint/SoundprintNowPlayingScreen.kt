@@ -1259,7 +1259,9 @@ fun SoundprintMiniPlayer(
     onExpand: () -> Unit,
     onToggle: () -> Unit,
     onNext: () -> Unit,
-    onClear: () -> Unit
+    onClear: () -> Unit,
+    expanded: Boolean,
+    onCollapse: () -> Unit
 ) {
     var track by remember { mutableStateOf<MusicTrack?>(null) }
     var trackId by remember { mutableStateOf(controller?.currentMediaItem?.mediaId.orEmpty()) }
@@ -1293,7 +1295,7 @@ fun SoundprintMiniPlayer(
         val maxHeightPx = with(density) { maxHeight.toPx() }
         val collapsedSize = with(density) { 64.dp.toPx() }
         val panelWidth = with(density) { 276.dp.toPx() }
-        val panelHeight = with(density) { 104.dp.toPx() }
+        val panelHeight = with(density) { 136.dp.toPx() }
         if (!hasPosition) {
             dragOffset = Offset(
                 (maxWidthPx - collapsedSize - with(density) { 18.dp.toPx() }).coerceAtLeast(0f),
@@ -1301,8 +1303,7 @@ fun SoundprintMiniPlayer(
             )
             hasPosition = true
         }
-        val expanded = rememberUpdatedMiniPlayerExpandedState(onExpand)
-        val panelOpen = expanded.value
+        val panelOpen = expanded
         val currentWidth = if (panelOpen) panelWidth else collapsedSize
         val currentHeight = if (panelOpen) panelHeight else collapsedSize
         val safeX = dragOffset.x.coerceIn(0f, (maxWidthPx - currentWidth).coerceAtLeast(0f))
@@ -1337,8 +1338,8 @@ fun SoundprintMiniPlayer(
                         IconButton(onClick = onOpen, modifier = Modifier.size(34.dp)) {
                             SoundprintIcon(SoundprintIcons.Maximize, "Open Now Playing", modifier = Modifier.size(17.dp))
                         }
-                        IconButton(onClick = onExpand, modifier = Modifier.size(30.dp)) {
-                            SoundprintIcon(SoundprintIcons.Minimize, "Minimize floating controls", modifier = Modifier.size(16.dp))
+                        IconButton(onClick = onCollapse, modifier = Modifier.size(30.dp)) {
+                            SoundprintIcon(SoundprintIcons.ChevronDown, "Minimize floating controls", modifier = Modifier.size(16.dp))
                         }
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -1380,13 +1381,6 @@ fun SoundprintMiniPlayer(
     }
 }
 
-@Composable
-private fun rememberUpdatedMiniPlayerExpandedState(onExpand: () -> Unit): androidx.compose.runtime.State<Boolean> {
-    return remember(onExpand) { mutableStateOf(false) }.also { state ->
-        // The parent callback owns the visible panel state; this holder is replaced below
-        // by the shared state overload at the call site.
-    }
-}
 
 @Composable
 private fun MiniPlayerControl(
