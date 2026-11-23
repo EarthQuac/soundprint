@@ -148,7 +148,7 @@ private fun ProHero() {
         }
         Text("Meet Soundprint Pro.", modifier = Modifier.padding(top = 18.dp), fontSize = 34.sp, lineHeight = 39.sp,
             letterSpacing = (-0.8).sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-        Text("More control, smarter music tools, and a deeper listening experience. Keep enjoying Soundprint for free, or unlock the Pro power suite with the plan that works for you.",
+        Text("More control, smarter music tools, and a deeper listening experience. Keep enjoying Soundprint for free, or explore the Pro power suite with the plan that works for you.",
             modifier = Modifier.padding(top = 10.dp), fontSize = 13.sp, lineHeight = 21.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         FlowRow(Modifier.padding(top = 17.dp), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             listOf("Your music, your library", "Local-first listening", "Flexible plans").forEach { label ->
@@ -337,10 +337,13 @@ private fun ProFeaturesGrid() {
                 verticalAlignment = Alignment.Top) {
                 Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
                     contentAlignment = Alignment.Center) {
-                    SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
+                    SoundprintIcon(feature.icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
                 }
                 Column(Modifier.weight(1f).padding(start = 11.dp)) {
-                    Text(feature.title, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(feature.title, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                        ProFeatureBadge()
+                    }
                     Text(feature.description, modifier = Modifier.padding(top = 5.dp), fontSize = 10.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
