@@ -43,7 +43,9 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import digital.anchorstudio.soundprint.R
 import kotlinx.coroutines.delay
+import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /*
  * Soundprint app-open animation (Jetpack Compose).
@@ -59,7 +61,7 @@ import kotlin.math.roundToInt
  *        else HomeScreen()
  *    }
  *
- * Timeline (seconds): bars rise 0.2-1.5, glow 1.3+, light sweep 2.0-2.9,
+ * Timeline (seconds): the logo reveals smoothly from 0.2-1.5, glow 1.3+,
  * wordmark 2.4-3.6, then a short hold and onFinished() at ~5.5s.
  */
 
@@ -75,11 +77,6 @@ private val WordmarkBrush = Brush.horizontalGradient(
 private fun easeOut(p: Float): Float {
     val x = p.coerceIn(0f, 1f)
     return 1f - (1f - x).pow(3)
-}
-
-private fun rnd(j: Int): Float {
-    val s = sin(j * 91.3) * 43758.5453
-    return (s - floor(s)).toFloat()
 }
 
 @Composable
