@@ -45,11 +45,11 @@ android {
         // Standalone debug APKs (Appetize/device testing) include a local fallback.
         // Play releases receive these same files only through the on-demand asset pack.
         getByName("debug").assets.srcDir(rootProject.file("clapmodels/src/main/assets"))
-    }
         // The logo is converted from its clean source asset to a canonical RGBA
         // drawable before AAPT2 compiles resources. This avoids AAPT2's crash on
         // the original indexed PNG and never mutates the source file.
         getByName("main").res.srcDir(layout.buildDirectory.dir("generated/soundprintLogo/res"))
+    }
 
     packaging {
         resources {
