@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.audiofx.BassBoost
 import android.media.audiofx.LoudnessEnhancer
+import android.media.audiofx.Virtualizer
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -187,6 +188,10 @@ class SoundprintPlaybackService : MediaSessionService() {
     private var playlistBassSessionId = 0
     private var standbyPlaylistBassBoost: BassBoost? = null
     private var standbyPlaylistBassSessionId = 0
+    private var spatialVirtualizer: Virtualizer? = null
+    private var spatialSessionId = 0
+    private var standbySpatialVirtualizer: Virtualizer? = null
+    private var standbySpatialSessionId = 0
     private var activeTrackId: String? = null
     private var activeOccurrenceKey: String? = null
     private var activeMediaIndex = -1
@@ -253,6 +258,7 @@ class SoundprintPlaybackService : MediaSessionService() {
                 flushListeningTime()
                 activeTrackId = nextId
                 activeMediaIndex = nextIndex
+                applySpatialAudio()
                 lastTrackDurationMs = player.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0L) ?: 0L
                 transitionSequence += 1L
                 activeOccurrenceKey = if (nextId == null) null else "${transitionSequence}:${nextIndex}:${nextId}"
@@ -355,6 +361,12 @@ class SoundprintPlaybackService : MediaSessionService() {
         runCatching { standbyPlaylistBassBoost?.release() }
         standbyPlaylistBassBoost = null
         standbyPlaylistBassSessionId = 0
+        runCatching { spatialVirtualizer?.release() }
+        spatialVirtualizer = null
+        spatialSessionId = 0
+        runCatching { standbySpatialVirtualizer?.release() }
+        standbySpatialVirtualizer = null
+        standbySpatialSessionId = 0
         drainListeningWrites()
         // Let queued history writes finish, then stop the scope so nothing outlives the service.
         val writesRunning = synchronized(listeningWriteQueue) { listeningWriteInFlight }
@@ -531,6 +543,7 @@ class SoundprintPlaybackService : MediaSessionService() {
         if (::standbyPlayer.isInitialized) standbyPlayer.pauseAtEndOfMediaItems = stopAfterCurrent || !gaplessEnabled
         applyLoudnessLeveling()
         applyPlaylistBassBoost()
+        applySpatialAudio()
 
         val wasCrossfading = crossfadePending || crossfadeActive
         if (!proEntitled && wasCrossfading) cancelCrossfade(restoreVolume = true)
@@ -650,6 +663,49 @@ class SoundprintPlaybackService : MediaSessionService() {
             runCatching {
                 if (standby) standbyPlaylistBassBoost?.enabled = enabled
                 else playlistBassBoost?.enabled = enabled
+            }
+        }
+    }
+
+    /** Keeps 3D audio attached to both playback sessions, including crossfade handovers. */
+    private fun applySpatialAudio() {
+        if (!::player.isInitialized) return
+        val enabled = playbackOptions.getBoolean(KEY_SPATIAL_AUDIO_ENABLED, false)
+        applySpatialVirtualizer(player.audioSessionId, enabled, standby = false)
+        if (::standbyPlayer.isInitialized) {
+            applySpatialVirtualizer(standbyPlayer.audioSessionId, enabled, standby = true)
+        }
+    }
+
+    private fun applySpatialVirtualizer(sessionId: Int, enabled: Boolean, standby: Boolean) {
+        if (sessionId <= 0) return
+        val currentSessionId = if (standby) standbySpatialSessionId else spatialSessionId
+        if (currentSessionId != sessionId) {
+            if (standby) {
+                runCatching { standbySpatialVirtualizer?.release() }
+                standbySpatialVirtualizer = runCatching {
+                    Virtualizer(0, sessionId).also { effect ->
+                        effect.setStrength(1000.toShort())
+                        effect.enabled = enabled
+                    }
+                }.onFailure { Log.w("SoundprintPlayback", "3D audio is not supported by the standby session.", it) }
+                    .getOrNull()
+                standbySpatialSessionId = sessionId
+            } else {
+                runCatching { spatialVirtualizer?.release() }
+                spatialVirtualizer = runCatching {
+                    Virtualizer(0, sessionId).also { effect ->
+                        effect.setStrength(1000.toShort())
+                        effect.enabled = enabled
+                    }
+                }.onFailure { Log.w("SoundprintPlayback", "3D audio is not supported by this audio session.", it) }
+                    .getOrNull()
+                spatialSessionId = sessionId
+            }
+        } else {
+            runCatching {
+                if (standby) standbySpatialVirtualizer?.enabled = enabled
+                else spatialVirtualizer?.enabled = enabled
             }
         }
     }
@@ -859,6 +915,7 @@ class SoundprintPlaybackService : MediaSessionService() {
         const val SLEEP_FADE_MS = 15_000L
         const val CROSSFADE_TICK_MS = 50L
         const val KEY_SLEEP_ENDS_AT = "sleep_ends_at"
+        const val KEY_SPATIAL_AUDIO_ENABLED = "spatial_audio_enabled"
         const val KEY_STOP_AFTER_CURRENT = "stop_after_current"
         const val KEY_CROSSFADE_SECONDS = "crossfade_seconds"
         const val KEY_GAPLESS_ENABLED = "gapless_enabled"
