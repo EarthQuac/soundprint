@@ -93,12 +93,11 @@ val generateSoundprintLogoResource = tasks.register("generateSoundprintLogoResou
 }
 
 tasks.matching {
-    (it.name.contains("Debug") || it.name.contains("Release")) &&
-        (it.name.contains("Resources") || it.name.contains("SourceSetPaths"))
+    it.name.contains("Debug") || it.name.contains("Release")
 }.configureEach {
-    // Every Android resource task that reads this generated source directory must
-    // wait for its producer; wiring only merge*Resources triggers Gradle's
-    // implicit-dependency validation during generate/map/process resource tasks.
+    // The generated res directory is a source-set input consumed by resource,
+    // manifest, navigation/deep-link and variant packaging tasks. Wire the
+    // producer across the variant graph to satisfy Gradle's strict task validation.
     dependsOn(generateSoundprintLogoResource)
 }
 
