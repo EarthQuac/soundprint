@@ -1020,6 +1020,7 @@ private fun SoundprintApp(
         }
     }
     var nowPlayingOpen by remember { mutableStateOf(false) }
+    var miniPlayerExpanded by remember { mutableStateOf(false) }
     var tagEditorOpen by remember { mutableStateOf(false) }
     var resumePrompt by remember { mutableStateOf<PlaybackResumePrompt?>(null) }
     val playbackQueueStore = remember { PlaybackQueueStore(appContext) }
@@ -1039,6 +1040,7 @@ private fun SoundprintApp(
     // A nested screen always unwinds first; only the Home/root screen exits.
     BackHandler {
         when {
+            miniPlayerExpanded -> miniPlayerExpanded = false
             nowPlayingOpen -> nowPlayingOpen = false
             tagEditorOpen -> {
                 tagEditorOpen = false
@@ -1244,10 +1246,18 @@ private fun SoundprintApp(
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background.copy(alpha = 0.96f))
             ) {
+                if (miniPlayerExpanded) {
+                    SoundprintExpandedMiniPlayer(
+                        controller = playbackConnection.controller,
+                        library = libraryManager,
+                        onMaximize = { miniPlayerExpanded = false; nowPlayingOpen = true }
+                    )
+                }
                 SoundprintMiniPlayer(
                     controller = playbackConnection.controller,
                     library = libraryManager,
-                    onOpen = { nowPlayingOpen = true },
+                    onOpen = { miniPlayerExpanded = false; nowPlayingOpen = true },
+                    onExpand = { miniPlayerExpanded = true },
                     onToggle = { playbackConnection.toggle() },
                     onNext = { playbackConnection.next() },
                     onClear = { playbackConnection.clearQueue() }
