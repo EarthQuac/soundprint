@@ -151,7 +151,7 @@ private val AmberDark = SoundprintPalette(
     background = Color(0xFF0C0A07), foreground = Color(0xFFF3F1EF),
     surface = Color(0xFF161310), surface2 = Color(0xFF201C18),
     primary = Color(0xFFFC9E47), muted = Color(0xFF9C9792),
-    border = Color(0x17FFFFFF), onPrimary = Color(0xFF160D07)
+    border = Color(0xFF694321), onPrimary = Color(0xFF160D07)
 )
 private val BlueLight = SoundprintPalette(
     background = Color(0xFFFAFCFE), foreground = Color(0xFF0C1723),
@@ -163,7 +163,7 @@ private val BlueDark = SoundprintPalette(
     background = Color(0xFF090F1A), foreground = Color(0xFFF1F6FA),
     surface = Color(0xFF121B29), surface2 = Color(0xFF1A2435),
     primary = Color(0xFF59AAF8), muted = Color(0xFF99A6B4),
-    border = Color(0x1CFFFFFF), onPrimary = Color(0xFF0A121F)
+    border = Color(0xFF31557D), onPrimary = Color(0xFF0A121F)
 )
 private val EmeraldLight = SoundprintPalette(
     background = Color(0xFFF6FCF7), foreground = Color(0xFF0C1F17),
@@ -175,7 +175,7 @@ private val EmeraldDark = SoundprintPalette(
     background = Color(0xFF05130E), foreground = Color(0xFFEDF4EE),
     surface = Color(0xFF0A1C16), surface2 = Color(0xFF10271F),
     primary = Color(0xFF5ACA94), muted = Color(0xFF99AA9E),
-    border = Color(0x1CFFFFFF), onPrimary = Color(0xFF0B1E15)
+    border = Color(0xFF2D6049), onPrimary = Color(0xFF0B1E15)
 )
 private val MonoLight = SoundprintPalette(
     background = Color(0xFFF8F8F8), foreground = Color(0xFF121212),
@@ -187,7 +187,7 @@ private val MonoDark = SoundprintPalette(
     background = Color(0xFF090909), foreground = Color(0xFFF5F5F5),
     surface = Color(0xFF141414), surface2 = Color(0xFF1D1D1D),
     primary = Color(0xFFE8E8E8), muted = Color(0xFFA4A4A4),
-    border = Color(0x1FFFFFFF), onPrimary = Color(0xFF141414)
+    border = Color(0xFF414141), onPrimary = Color(0xFF141414)
 )
 private val LavenderLight = SoundprintPalette(
     background = Color(0xFFFAF9FC), foreground = Color(0xFF19171F),
@@ -642,13 +642,19 @@ class MainActivity : ComponentActivity() {
                     background = colors.background, onBackground = colors.foreground,
                     surface = colors.surface, onSurface = colors.foreground,
                     surfaceVariant = colors.surface2, onSurfaceVariant = colors.muted,
-                    outline = colors.border
+                    outline = colors.border,
+                    outlineVariant = if (selectedPalette == "Lavender") {
+                        if (darkTheme) Color(0xFF444746) else Color(0xFFC4C7C5)
+                    } else colors.border
                 ) else lightColorScheme(
                     primary = colors.primary, onPrimary = colors.onPrimary,
                     background = colors.background, onBackground = colors.foreground,
                     surface = colors.surface, onSurface = colors.foreground,
                     surfaceVariant = colors.surface2, onSurfaceVariant = colors.muted,
-                    outline = colors.border
+                    outline = colors.border,
+                    outlineVariant = if (selectedPalette == "Lavender") {
+                        if (darkTheme) Color(0xFF444746) else Color(0xFFC4C7C5)
+                    } else colors.border
                 ),
                 shapes = SoundprintShapes
             ) {
