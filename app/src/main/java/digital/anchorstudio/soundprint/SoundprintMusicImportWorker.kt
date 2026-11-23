@@ -32,12 +32,12 @@ object SoundprintMusicImportQueue {
     fun enqueueFolder(context: Context, treeUri: Uri, useCustomArtwork: Boolean = false): UUID =
         enqueue(context, "folder", listOf(treeUri), useCustomArtwork)
 
-    fun enqueueFiles(context: Context, uris: List<Uri>, useCustomArtwork: Boolean = true): UUID {
+    fun enqueueFiles(context: Context, uris: List<Uri>, useCustomArtwork: Boolean = false): UUID {
         require(uris.isNotEmpty()) { "Choose at least one audio file." }
         return enqueue(context, "files", uris.distinctBy(Uri::toString), useCustomArtwork)
     }
 
-    fun enqueueUrl(context: Context, url: String, useCustomArtwork: Boolean = true): UUID {
+    fun enqueueUrl(context: Context, url: String, useCustomArtwork: Boolean = false): UUID {
         val parsed = Uri.parse(url.trim())
         require(parsed.scheme in listOf("https", "http") && !parsed.host.isNullOrBlank()) { "Enter a valid http or https audio link." }
         return enqueue(context, "url", emptyList(), useCustomArtwork, parsed.toString())
