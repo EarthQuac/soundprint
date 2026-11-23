@@ -3469,12 +3469,15 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
             }
             Text(
                 when {
-                    locked -> if (proAccess.entitled) "Included with Pro" else "Unlock with Pro"
+                    locked && !proAccess.entitled -> "Unlock with Pro"
                     name == "Amber" -> "Original warm dark theme"
                     name == "Lavender" -> "Charcoal with soft lavender accents"
+                    name == "Blue & white" -> "Cool blue on clean white"
+                    name == "Emerald" -> "Deep green with emerald accents"
+                    name == "Mono" -> "Minimal monochrome palette"
                     name == "Aurora" -> "Midnight teal with aurora glow"
                     name == "Sakura" -> "Soft cherry blossom rose"
-                    else -> "Cool blue on clean white"
+                    else -> "Original Soundprint palette"
                 },
                 fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis
