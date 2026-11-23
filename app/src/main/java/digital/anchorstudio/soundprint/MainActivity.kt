@@ -299,6 +299,12 @@ class MainActivity : ComponentActivity() {
                     .putBoolean("pro_entitled", proEntitled)
                     .apply()
             }
+            LaunchedEffect(proEntitlementLoaded, proEntitled, selectedPalette) {
+                if (proEntitlementLoaded && !proEntitled && selectedPalette != "Amber" && selectedPalette != "Lavender") {
+                    selectedPalette = "Lavender"
+                    preferences.edit().putString("palette", "Lavender").apply()
+                }
+            }
             var pendingTagExport by remember { mutableStateOf<SoundprintTagExportRequest?>(null) }
             val folderWatchMutex = remember { Mutex() }
             var importUiProgress by remember { mutableStateOf<SoundprintImportUiProgress?>(null) }
@@ -1147,7 +1153,7 @@ private fun SoundprintApp(
                             themeMode = themeMode,
                             onThemeModeChange = onThemeModeChange,
                             selectedPalette = selectedPalette,
-                            onPaletteChange = { name -> if (name == "Emerald" || name == "Mono") { if (SoundprintProGate.require("Emerald & Monochrome palettes")) onPaletteChange(name) } else onPaletteChange(name) },
+                            onPaletteChange = { name -> if (name == "Amber" || name == "Lavender" || SoundprintProGate.require("$name theme")) onPaletteChange(name) },
                             onBack = { settingsOpen = false },
                             onOpenPro = { settingsOpen = false; proOpen = true },
                             libraryTrackCount = libraryTrackCount,
@@ -3345,7 +3351,8 @@ private fun ThemeChoice(modifier: Modifier, label: String, icon: Int?, selected:
 
 @Composable
 private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val locked = name == "Emerald" || name == "Mono"
+    val locked = name != "Amber" && name != "Lavender"
+    val proAccess = LocalSoundprintProUiAccess.current
     val colors = when (name) {
         "Blue & white" -> listOf(Color(0xFFFFFFFF), Color(0xFF527FE2))
         "Emerald" -> listOf(Color(0xFF10271F), Color(0xFF5ACA94))
@@ -3374,15 +3381,15 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(name, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-                if (locked) ProFeatureBadge()
+                if (locked) ProFeatureBadge(showWhenEntitled = true)
             }
             Text(
-                when (name) {
-                    "Emerald", "Mono" -> "Unlock with Pro"
-                    "Amber" -> "Original warm dark theme"
-                    "Lavender" -> "Charcoal with soft lavender accents"
-                    "Aurora" -> "Midnight teal with aurora glow"
-                    "Sakura" -> "Soft cherry blossom rose"
+                when {
+                    locked -> if (proAccess.entitled) "Included with Pro" else "Unlock with Pro"
+                    name == "Amber" -> "Original warm dark theme"
+                    name == "Lavender" -> "Charcoal with soft lavender accents"
+                    name == "Aurora" -> "Midnight teal with aurora glow"
+                    name == "Sakura" -> "Soft cherry blossom rose"
                     else -> "Cool blue on clean white"
                 },
                 fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
