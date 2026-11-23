@@ -179,6 +179,9 @@ fun SoundprintNowPlayingScreen(
         val playingId = player.currentMediaItem?.mediaId
         val savedPosition = player.currentPosition.coerceAtLeast(0L)
         val wasPlaying = player.isPlaying
+        val fallbackMediaItems = (0 until player.mediaItemCount)
+            .map { player.getMediaItemAt(it) }
+            .associateBy { it.mediaId }
         player.shuffleModeEnabled = false
         shuffle = false
         originalQueueIds = emptyList()
@@ -187,13 +190,14 @@ fun SoundprintNowPlayingScreen(
         // Restore original queue entries (including intentional duplicates) from the local library.
         // Rebuilding only happens when shuffle is turned off, never during shuffled playback.
         scope.launch {
-            val restoredTracks = withContext(Dispatchers.IO) {
-                savedOriginalOrder.mapNotNull { id -> library.song(id) }
+            val restoredItems = withContext(Dispatchers.IO) {
+                savedOriginalOrder.mapNotNull { id ->
+                    library.song(id)?.toSoundprintMediaItem() ?: fallbackMediaItems[id]
+                }
             }
-            if (controller !== player || restoredTracks.isEmpty()) return@launch
-            val mediaItems = restoredTracks.map { it.toSoundprintMediaItem() }
-            val restoredIndex = restoredTracks.indexOfFirst { it.id == playingId }.takeIf { it >= 0 } ?: 0
-            player.setMediaItems(mediaItems, restoredIndex, savedPosition)
+            if (controller !== player || restoredItems.isEmpty()) return@launch
+            val restoredIndex = restoredItems.indexOfFirst { it.mediaId == playingId }.takeIf { it >= 0 } ?: 0
+            player.setMediaItems(restoredItems, restoredIndex, savedPosition)
             player.prepare()
             if (wasPlaying) player.play()
         }
