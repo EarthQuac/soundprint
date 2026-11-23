@@ -857,14 +857,15 @@ class SoundprintPlaybackConnection(
         playlistPreset: PlaylistPlaybackPreset? = null
     ) {
         if (tracks.isEmpty() || closed) return
-        if (playlistPreset != null) applyPlaylistPreset(playlistPreset) else restorePlaylistPreset()
         val presetEntitled = pausePreferences.getBoolean("pro_entitled", false)
+        if (playlistPreset != null && presetEntitled) applyPlaylistPreset(playlistPreset)
+        else restorePlaylistPreset()
         val requestedIndex = startIndex.coerceIn(tracks.indices)
         val ignoreClips = pausePreferences.getBoolean("ignore_short_tracks", false)
         val eligible = tracks.withIndex().filter { !ignoreClips || it.value.durationMs >= 30_000L }
         if (eligible.isEmpty()) return
         val mappedStartIndex = eligible.indexOfFirst { it.index >= requestedIndex }.takeIf { it >= 0 } ?: eligible.lastIndex
-        val effectiveShuffle = if (playlistPreset != null && !presetEntitled) false else shuffle
+        val effectiveShuffle = shuffle
         val selectedTrackId = eligible[mappedStartIndex].value.id
         val playbackTracks = if (effectiveShuffle) eligible.map { it.value }.distinctBy { it.id } else eligible.map { it.value }
         val playbackStartIndex = playbackTracks.indexOfFirst { it.id == selectedTrackId }.coerceAtLeast(0)
@@ -1076,6 +1077,10 @@ class SoundprintPlaybackConnection(
     /** Apply an explicit per-playlist Pro preset before starting that playlist's queue. */
     fun applyPlaylistPreset(preset: PlaylistPlaybackPreset) {
         val entitled = pausePreferences.getBoolean("pro_entitled", false)
+        if (!entitled) {
+            restorePlaylistPreset()
+            return
+        }
         if (!pausePreferences.getBoolean("playlist_preset_active", false)) {
             val player = controller
             val currentRepeat = player?.repeatMode ?: Player.REPEAT_MODE_OFF
