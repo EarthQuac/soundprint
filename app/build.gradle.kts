@@ -1,6 +1,3 @@
-import java.awt.image.BufferedImage
-import javax.imageio.ImageIO
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -48,10 +45,6 @@ android {
         // Standalone debug APKs (Appetize/device testing) include a local fallback.
         // Play releases receive these same files only through the on-demand asset pack.
         getByName("debug").assets.srcDir(rootProject.file("clapmodels/src/main/assets"))
-        // The logo is converted from its clean source asset to a canonical RGBA
-        // drawable before AAPT2 compiles resources. This avoids AAPT2's crash on
-        // the original indexed PNG and never mutates the source file.
-        getByName("main").res.srcDir(layout.buildDirectory.dir("generated/soundprintLogo/res"))
     }
 
     packaging {
@@ -59,46 +52,6 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
-}
-
-// Generate a canonical Android drawable from the source logo without touching
-// the source asset. ImageIO decodes the repaired palette PNG and writes RGBA.
-val generatedSoundprintLogoRes = layout.buildDirectory.dir("generated/soundprintLogo/res")
-val generateSoundprintLogoResource = tasks.register("generateSoundprintLogoResource") {
-    val sourceLogo = file("src/main/assets/soundprint_logo.png")
-    inputs.file(sourceLogo)
-    outputs.dir(generatedSoundprintLogoRes)
-    doLast {
-        if (!sourceLogo.exists()) throw GradleException("Missing Soundprint logo source asset")
-        val decoded = ImageIO.read(sourceLogo)
-            ?: throw GradleException("Could not decode Soundprint logo source asset")
-        val rgba = BufferedImage(
-            decoded.width,
-            decoded.height,
-            BufferedImage.TYPE_INT_ARGB
-        )
-        val graphics = rgba.createGraphics()
-        try {
-            graphics.drawImage(decoded, 0, 0, null)
-        } finally {
-            graphics.dispose()
-        }
-        val output = generatedSoundprintLogoRes.get().file("drawable/soundprint_logo.png").asFile
-        output.parentFile.mkdirs()
-        if (!javax.imageio.ImageIO.write(rgba, "png", output)) {
-            throw GradleException("Could not generate canonical RGBA Soundprint logo")
-        }
-        if (output.length() == 0L) throw GradleException("Generated Soundprint logo is empty")
-    }
-}
-
-tasks.matching {
-    it.name.contains("Debug") || it.name.contains("Release")
-}.configureEach {
-    // The generated res directory is a source-set input consumed by resource,
-    // manifest, navigation/deep-link and variant packaging tasks. Wire the
-    // producer across the variant graph to satisfy Gradle's strict task validation.
-    dependsOn(generateSoundprintLogoResource)
 }
 
 dependencies {
