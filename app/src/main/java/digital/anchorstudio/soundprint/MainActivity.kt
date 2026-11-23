@@ -1233,10 +1233,9 @@ private fun SoundprintApp(
                             scanner = clapScanner,
                             playback = playbackConnection,
                             onBack = {
-                                // Back arrow preserves the original navigation behavior:
-                                // leave Now Playing without creating a floating mini-player.
-                                miniPlayerExpanded = false
-                                miniPlayerVisible = false
+                                // Back from full Now Playing returns to the rectangular mini-player.
+                                miniPlayerVisible = true
+                                miniPlayerExpanded = true
                                 nowPlayingOpen = false
                             },
                             onMinimize = {
