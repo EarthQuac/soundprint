@@ -612,7 +612,16 @@ private fun SmartPlaylistDetailNative(
                 Button(onClick = { playback.playTracks(tracks) }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
                     SoundprintIcon(SoundprintIcons.Play, null); Spacer(Modifier.width(5.dp)); Text("Play")
                 }
-                OutlinedButton(onClick = { playback.playTracks(tracks, shuffle = true) }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
+                Button(
+                    onClick = { playback.playTracks(tracks, shuffle = true) },
+                    enabled = tracks.isNotEmpty(),
+                    modifier = Modifier.weight(1f),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
                     SoundprintIcon(SoundprintIcons.Shuffle, null); Spacer(Modifier.width(5.dp)); Text("Shuffle")
                 }
             }
@@ -694,7 +703,14 @@ private fun SmartPlaylistEditorDialog(
                         }
                     }
                 }
-                OutlinedButton(onClick = { onDraftChange(draft.copy(groups = draft.groups + freshGroup())) }, shape = CircleShape) {
+                Button(
+                    onClick = { onDraftChange(draft.copy(groups = draft.groups + freshGroup())) },
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
                     SoundprintIcon(SoundprintIcons.Plus, null); Text("Add group")
                 }
                 Text("Sort and limit", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
