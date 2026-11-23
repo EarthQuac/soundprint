@@ -1087,6 +1087,7 @@ class SoundprintPlaybackConnection(
             pausePreferences.edit()
                 .putBoolean("playlist_saved_shuffle", player?.shuffleModeEnabled ?: false)
                 .putString("playlist_saved_repeat", repeatName)
+                .putBoolean("playlist_saved_loudness_leveling", pausePreferences.getBoolean("loudness_leveling", false))
                 .putBoolean("playlist_preset_active", true)
                 .apply()
         }
@@ -1111,10 +1112,12 @@ class SoundprintPlaybackConnection(
         val savedRepeat = runCatching {
             PlaylistRepeatPreset.valueOf(pausePreferences.getString("playlist_saved_repeat", "OFF") ?: "OFF")
         }.getOrDefault(PlaylistRepeatPreset.OFF)
+        val savedLoudnessLeveling = pausePreferences.getBoolean("playlist_saved_loudness_leveling", false)
         pausePreferences.edit()
             .putBoolean("playlist_bass_boost_enabled", false)
-            .putBoolean("loudness_leveling", false)
+            .putBoolean("loudness_leveling", savedLoudnessLeveling)
             .putString("playlist_repeat_mode", savedRepeat.name)
+            .remove("playlist_saved_loudness_leveling")
             .putBoolean("playlist_preset_active", false)
             .apply()
         controller?.let { player ->
