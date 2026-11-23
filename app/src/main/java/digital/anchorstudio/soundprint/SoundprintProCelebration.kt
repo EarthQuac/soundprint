@@ -169,7 +169,7 @@ fun SoundprintProCelebration(
     val pieces = remember { makePieces() }
     val phase by rememberInfiniteTransition(label = "bars").animateFloat(
         initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
+        targetValue = if (animationsOff) 0f else (2 * PI).toFloat(),
         animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing)),
         label = "phase"
     )
@@ -196,7 +196,7 @@ fun SoundprintProCelebration(
 
     val t = clock.value
     val glow = (easeOut((t - 0.8f) / 0.6f) * (0.65f + 0.35f * sin(phase))).coerceIn(0f, 1f)
-    val bounceAmp = easeOut((t - 1.0f) / 0.6f)
+    val bounceAmp = if (animationsOff) 0f else easeOut((t - 1.0f) / 0.6f)
     val titleA = easeOut((t - 2.1f) / 0.7f)
     val subA = easeOut((t - 2.5f) / 0.7f)
     val btnA = easeOut((t - 3.2f) / 0.6f)
