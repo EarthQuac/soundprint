@@ -391,7 +391,6 @@ private fun PlaylistDetailNative(
         }
         preset = next
         presetStore.set(playlistId, next)
-        playback.applyPlaylistPreset(next)
     }
     var renameOpen by remember { mutableStateOf(false) }
     var addOpen by remember { mutableStateOf(false) }
@@ -429,17 +428,17 @@ private fun PlaylistDetailNative(
             Text("${tracks.size} songs", Modifier.fillMaxWidth().padding(top = 3.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 Button(onClick = {
-                    playback.applyPlaylistPreset(preset)
-                    playback.playTracks(tracks, shuffle = preset.shuffle, playlistPreset = preset)
+                    if (preset.enabled) {
+                        playback.playTracks(tracks, shuffle = preset.shuffle, playlistPreset = preset)
+                    } else playback.playTracks(tracks)
                 }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
                     SoundprintIcon(SoundprintIcons.Play, null); Spacer(Modifier.width(5.dp)); Text("Play")
                 }
                 OutlinedButton(onClick = {
-                    if (!proAccess.entitled) {
+                    if (!proAccess.entitled || !preset.enabled) {
                         playback.playTracks(tracks, shuffle = true)
                     } else {
                         val shuffledPreset = preset.copy(shuffle = true)
-                        playback.applyPlaylistPreset(shuffledPreset)
                         playback.playTracks(tracks, shuffle = true, playlistPreset = shuffledPreset)
                     }
                 }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f), shape = CircleShape) {
@@ -459,9 +458,10 @@ private fun PlaylistDetailNative(
                     }
                     ProFeatureBadge()
                 }
-                PlaylistPresetSwitch("Extra Bass", "Adds low-end punch", preset.extraBass) { updatePreset(preset.copy(extraBass = it)) }
-                PlaylistPresetSwitch("Shuffle", "Mix this playlist automatically", preset.shuffle) { updatePreset(preset.copy(shuffle = it)) }
-                PlaylistPresetSwitch("Loudness leveling", "Keep track volume more consistent", preset.loudnessLeveling) { updatePreset(preset.copy(loudnessLeveling = it)) }
+                PlaylistPresetSwitch("Use preset", "Automatically apply these settings on Play", preset.enabled) { updatePreset(preset.copy(enabled = it)) }
+                PlaylistPresetSwitch("Extra Bass", "Adds low-end punch", preset.extraBass) { updatePreset(preset.copy(enabled = true, extraBass = it)) }
+                PlaylistPresetSwitch("Shuffle", "Mix this playlist automatically", preset.shuffle) { updatePreset(preset.copy(enabled = true, shuffle = it)) }
+                PlaylistPresetSwitch("Loudness leveling", "Keep track volume more consistent", preset.loudnessLeveling) { updatePreset(preset.copy(enabled = true, loudnessLeveling = it)) }
                 Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Repeat", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
@@ -469,7 +469,7 @@ private fun PlaylistDetailNative(
                     }
                     TextButton(onClick = {
                         if (!proAccess.entitled) proAccess.onOpenPro()
-                        else updatePreset(preset.copy(repeat = when (preset.repeat) {
+                        else updatePreset(preset.copy(enabled = true, repeat = when (preset.repeat) {
                             PlaylistRepeatPreset.OFF -> PlaylistRepeatPreset.ALL
                             PlaylistRepeatPreset.ALL -> PlaylistRepeatPreset.ONE
                             PlaylistRepeatPreset.ONE -> PlaylistRepeatPreset.OFF
@@ -494,7 +494,7 @@ private fun PlaylistDetailNative(
             } else {
                 tracks.forEachIndexed { index, track ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        NativeTrackRow(track, onClick = { playback.applyPlaylistPreset(preset); playback.playTracks(tracks, index, shuffle = preset.shuffle, playlistPreset = preset) }, onRemove = { libraryManager.removeFromPlaylist(selected.id, track.id); refresh++; onChanged() }, modifier = Modifier.weight(1f))
+                        NativeTrackRow(track, onClick = { if (preset.enabled) playback.playTracks(tracks, index, shuffle = preset.shuffle, playlistPreset = preset) else playback.playTracks(tracks, index) }, onRemove = { libraryManager.removeFromPlaylist(selected.id, track.id); refresh++; onChanged() }, modifier = Modifier.weight(1f))
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             SoundprintIcon(SoundprintIcons.ArrowUp, "Move up", Modifier.size(16.dp).clickable(enabled = index > 0) { libraryManager.reorderPlaylist(selected.id, index, index - 1); refresh++ }.padding(1.dp), tint = if (index > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline)
                             SoundprintIcon(SoundprintIcons.ArrowDown, "Move down", Modifier.size(16.dp).clickable(enabled = index < tracks.lastIndex) { libraryManager.reorderPlaylist(selected.id, index, index + 1); refresh++ }.padding(1.dp), tint = if (index < tracks.lastIndex) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline)
