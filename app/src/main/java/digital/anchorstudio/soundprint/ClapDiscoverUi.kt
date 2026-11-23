@@ -123,7 +123,7 @@ class ClapLibraryScanner(context: Context, private val library: MusicLibraryMana
         preferences.edit().remove("saved_moods").apply()
     }
 
-    fun autoScanEnabled(): Boolean = preferences.getBoolean("background_scan_enabled", true)
+    fun autoScanEnabled(): Boolean = preferences.getBoolean("background_scan_enabled", false)
 
     fun setAutoScanEnabled(enabled: Boolean) {
         preferences.edit().putBoolean("background_scan_enabled", enabled).apply()
