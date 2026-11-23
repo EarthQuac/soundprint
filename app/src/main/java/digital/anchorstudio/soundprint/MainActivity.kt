@@ -331,7 +331,18 @@ class MainActivity : ComponentActivity() {
             val folderWatchMutex = remember { Mutex() }
             var importUiProgress by remember { mutableStateOf<SoundprintImportUiProgress?>(null) }
             var pendingArtworkImport by remember { mutableStateOf<PendingArtworkImport?>(null) }
+            var customArtworkOfferOpen by remember { mutableStateOf(false) }
             var linkImportDialogOpen by remember { mutableStateOf(false) }
+            LaunchedEffect(proEntitlementLoaded, proEntitled, libraryTrackCount) {
+                val userId = SoundprintProAccess.currentUserId()
+                if (proEntitlementLoaded && proEntitled && userId != null && libraryTrackCount > 0 &&
+                    !preferences.getBoolean("custom_artwork_enabled", false) &&
+                    preferences.getString("custom_artwork_offer_seen_user", null) != userId
+                ) {
+                    preferences.edit().putString("custom_artwork_offer_seen_user", userId).apply()
+                    customArtworkOfferOpen = true
+                } else if (!SoundprintProAccess.hasSession() || !proEntitled) customArtworkOfferOpen = false
+            }
             var linkImportText by remember { mutableStateOf("") }
             var pendingUrlImport by remember { mutableStateOf<String?>(null) }
             val scope = rememberCoroutineScope()
@@ -350,15 +361,16 @@ class MainActivity : ComponentActivity() {
                     libraryStatus = "$label could not be queued: ${error.message ?: "Check the selected file permissions and try again."}"
                 }
             }
-            fun enqueueAudioLinkImport(url: String): Boolean {
+            fun enqueueAudioLinkImport(url: String, useArtwork: Boolean = false): Boolean {
+                val entitled = SoundprintProAccess.hasSession() && SoundprintProGate.isResolved && SoundprintProGate.hasPro
+                val allowed = useArtwork && entitled
                 val result = runCatching {
-                    SoundprintMusicImportQueue.enqueueUrl(applicationContext, url, proEntitlementLoaded && proEntitled && preferences.getBoolean("custom_artwork_enabled", false))
+                    preferences.edit().putBoolean("custom_artwork_enabled", allowed).apply()
+                    getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit().putBoolean("pro_entitled", entitled).apply()
+                    SoundprintMusicImportQueue.enqueueUrl(applicationContext, url, allowed)
                 }
-                result.onSuccess {
-                    libraryStatus = "Link import queued. SoundPrint will download the audio and add it to your library."
-                }.onFailure {
-                    libraryStatus = it.message ?: "Could not queue this audio link."
-                }
+                result.onSuccess { libraryStatus = "Link import queued. SoundPrint will download the audio and add it to your library." }
+                    .onFailure { libraryStatus = it.message ?: "Could not queue this audio link." }
                 return result.isSuccess
             }
             val legacyStoragePermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -368,19 +380,32 @@ class MainActivity : ComponentActivity() {
                 else if (url != null) libraryStatus = "Storage permission is needed to save linked audio on this Android version."
             }
             fun finishArtworkImportChoice(pending: PendingArtworkImport, useArtwork: Boolean) {
-                val allowed = useArtwork && proEntitlementLoaded && proEntitled
+                val entitled = SoundprintProAccess.hasSession() && SoundprintProGate.isResolved && SoundprintProGate.hasPro
+                val allowed = useArtwork && entitled
                 preferences.edit().putBoolean("custom_artwork_enabled", allowed).apply()
+                getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit().putBoolean("pro_entitled", entitled).apply()
                 pendingArtworkImport = null
                 pending.enqueue(allowed)
-                scope.launch {
-                    withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(allowed) }
-                }
+                scope.launch { withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(allowed) } }
             }
             fun requestArtworkImport(enqueue: (Boolean) -> Unit) {
-                if (proEntitlementLoaded && proEntitled) {
-                    pendingArtworkImport = PendingArtworkImport(enqueue)
-                } else {
-                    enqueue(false)
+                if (!SoundprintProAccess.hasSession()) { enqueue(false); return }
+                if (SoundprintProGate.isResolved) {
+                    if (SoundprintProGate.hasPro) pendingArtworkImport = PendingArtworkImport(enqueue) else enqueue(false)
+                    return
+                }
+                scope.launch {
+                    val status = runCatching { SoundprintProAccess.refresh() }.getOrNull()
+                    if (!SoundprintProAccess.hasSession()) enqueue(false)
+                    else if (status != null) {
+                        SoundprintProGate.updateEntitlement(status.hasPro)
+                        getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit().putBoolean("pro_entitled", status.hasPro).apply()
+                        if (status.hasPro) pendingArtworkImport = PendingArtworkImport(enqueue) else enqueue(false)
+                    } else {
+                        SoundprintProGate.updateEntitlement(false)
+                        enqueue(false)
+                        libraryStatus = "Couldn't verify Pro access, so this import will continue without custom artwork. Try again after reconnecting."
+                    }
                 }
             }
             val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
@@ -829,14 +854,32 @@ class MainActivity : ComponentActivity() {
                                     linkImportDialogOpen = false
                                     linkImportText = ""
                                     legacyStoragePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                                } else if (enqueueAudioLinkImport(url)) {
+                                } else {
                                     linkImportDialogOpen = false
                                     linkImportText = ""
+                                    requestArtworkImport { useArtwork -> enqueueAudioLinkImport(url, useArtwork) }
                                 }
                             }) { Text("Import", fontWeight = FontWeight.SemiBold) }
                         }
                     )
                 }
+                if (customArtworkOfferOpen) AlertDialog(
+                    onDismissRequest = { customArtworkOfferOpen = false },
+                    title = { Text("Custom artwork is now available") },
+                    text = { Text("Your Pro account unlocks Soundprint artwork for songs without embedded covers. Enable it for your existing library now? Original audio files and embedded covers stay untouched.", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            customArtworkOfferOpen = false
+                            preferences.edit().putBoolean("custom_artwork_enabled", true).apply()
+                            getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit().putBoolean("pro_entitled", true).apply()
+                            scope.launch {
+                                val changed = withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(true) }
+                                libraryStatus = "Custom artwork enabled. Updated $changed songs in your library."
+                            }
+                        }) { Text("Enable artwork") }
+                    },
+                    dismissButton = { TextButton(onClick = { customArtworkOfferOpen = false }) { Text("Maybe later") } }
+                )
                 pendingArtworkImport?.let { pending ->
                     Dialog(
                         onDismissRequest = { finishArtworkImportChoice(pending, false) },
