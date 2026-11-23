@@ -513,6 +513,7 @@ class MainActivity : ComponentActivity() {
                 while (true) {
                     delay(30_000L)
                     if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) continue
+                    if (!SoundprintListeningPreferences.backgroundActivityEnabled(applicationContext)) continue
                     val importsRunning = WorkManager.getInstance(applicationContext)
                         .getWorkInfosForUniqueWorkFlow("soundprint_music_import_queue").first()
                         .any { !it.state.isFinished }
@@ -1515,7 +1516,7 @@ private fun HomeScreen(
     var selectedShortcut by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(libraryTrackCount, refreshVersion) {
         val homeData = withContext(Dispatchers.IO) {
-            libraryManager.recentlyPlayed(8) to libraryManager.albums().take(10)
+            (if (SoundprintListeningPreferences.historyEnabled(context)) libraryManager.recentlyPlayed(8) else emptyList<MusicTrack>()) to libraryManager.albums().take(10)
         }
         recentlyPlayedTracks = homeData.first
         homeAlbums = homeData.second
@@ -2607,6 +2608,12 @@ private fun SettingsScreen(
     var seekSeconds by remember { mutableIntStateOf(playbackPrefs.getInt("double_tap_seek_seconds", 10).coerceIn(5, 60)) }
     var replaceQueue by remember { mutableStateOf(playbackPrefs.getBoolean("replace_queue_on_play", false)) }
     var customArtwork by remember { mutableStateOf(artworkPreferences.getBoolean("custom_artwork_enabled", true)) }
+    val listeningPreferences = remember(settingsContext) { SoundprintListeningPreferences.preferences(settingsContext) }
+    var historyEnabled by remember { mutableStateOf(SoundprintListeningPreferences.historyEnabled(settingsContext)) }
+    var musicRecommendationsEnabled by remember { mutableStateOf(SoundprintListeningPreferences.musicRecommendationsEnabled(settingsContext)) }
+    var playlistRecommendationsEnabled by remember { mutableStateOf(SoundprintListeningPreferences.playlistRecommendationsEnabled(settingsContext)) }
+    var automaticPlaylistsEnabled by remember { mutableStateOf(SoundprintListeningPreferences.automaticPlaylistsEnabled(settingsContext)) }
+    var backgroundActivityEnabled by remember { mutableStateOf(SoundprintListeningPreferences.backgroundActivityEnabled(settingsContext)) }
     val scanState by scanner.state.collectAsState()
     var backgroundMoodScan by remember { mutableStateOf(scanner.autoScanEnabled()) }
     LaunchedEffect(scanner) { scanner.refreshSummary() }
@@ -2633,7 +2640,8 @@ private fun SettingsScreen(
         listOf(
             "theme", "palette", "gapless", "fade", "loudness", "equalizer", "crossfade", "mood-scan",
             "resume", "remember-position", "double-tap", "replace-queue", "auto-add",
-            "folder-watch", "custom-artwork", "your-music", "rescan", "tag-editor",
+            "folder-watch", "history-enabled", "music-recommendations", "playlist-recommendations",
+            "automatic-playlists", "background-activity", "custom-artwork", "your-music", "rescan", "tag-editor",
             "history", "backup", "restore", "ignore-clips", "clear-library",
             "replay-tutorial", "help-info", "pro", "version"
         ).associateWith { BringIntoViewRequester() }
@@ -2655,6 +2663,11 @@ private fun SettingsScreen(
         Triple("Equalizer", "equalizer", "audio eq bass treble sound"),
         Triple("Crossfade", "crossfade", "audio transition seconds"),
         Triple("Background mood scan", "mood-scan", "music intelligence background offline CLAP analysis progress"),
+        Triple("Listening history", "history-enabled", "history recently played play count listening stats tracking privacy"),
+        Triple("Music recommendations", "music-recommendations", "discover recommendations personalized music suggestions disable"),
+        Triple("Playlist recommendations", "playlist-recommendations", "smart mixes playlist suggestions disable"),
+        Triple("Automatic playlists", "automatic-playlists", "smart playlist rules automatic refresh updates pause"),
+        Triple("Background activity", "background-activity", "disable background scans folder watch auto add automation"),
         Triple("Resume playback", "resume", "playback startup launch restore last song"),
         Triple("Remember position", "remember-position", "playback continue progress position"),
         Triple("Double-tap to seek", "double-tap", "playback skip seconds now playing"),
@@ -2707,6 +2720,7 @@ private fun SettingsScreen(
                                         "theme", "palette" -> "Appearance"
                                         "gapless", "fade", "loudness", "equalizer", "crossfade" -> "Audio"
                                         "mood-scan" -> "Music intelligence"
+                                        "history-enabled", "music-recommendations", "playlist-recommendations", "automatic-playlists", "background-activity" -> "Listening & personalization"
                                         "resume", "remember-position", "double-tap" -> "Playback"
                                         "replace-queue", "auto-add", "folder-watch" -> "Queue"
                                         "custom-artwork", "your-music", "rescan", "tag-editor", "history", "backup", "restore", "ignore-clips", "clear-library" -> "Library"
@@ -2880,6 +2894,59 @@ private fun SettingsScreen(
                             }
                         }
                         Text("Current: $seekSeconds seconds", modifier = Modifier.padding(top = 8.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            if (matches("listening history recommendations music playlist automatic background activity personalize privacy smart mixes")) {
+                SettingsSection("LISTENING & PERSONALIZATION") {
+                    SettingsToggleRow(
+                        "Listening history",
+                        "Record recently played songs, play counts, listening time and streaks. Turning this off stops new history; it does not erase existing history.",
+                        historyEnabled,
+                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("history-enabled"))
+                    ) { enabled ->
+                        historyEnabled = enabled
+                        listeningPreferences.edit().putBoolean(SoundprintListeningPreferences.KEY_HISTORY_ENABLED, enabled).apply()
+                    }
+                    SettingsToggleRow(
+                        "Music recommendations",
+                        "Turn off personalized music suggestions and mood-based Discover results.",
+                        musicRecommendationsEnabled,
+                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("music-recommendations"))
+                    ) { enabled ->
+                        musicRecommendationsEnabled = enabled
+                        listeningPreferences.edit().putBoolean(SoundprintListeningPreferences.KEY_MUSIC_RECOMMENDATIONS_ENABLED, enabled).apply()
+                        if (!enabled) scanner.pause()
+                        else if (backgroundActivityEnabled && scanner.autoScanEnabled()) scanner.startScan()
+                    }
+                    SettingsToggleRow(
+                        "Playlist recommendations",
+                        "Show or hide Soundprint's automatic smart mixes, such as Recently Played and Recently Added.",
+                        playlistRecommendationsEnabled,
+                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("playlist-recommendations"))
+                    ) { enabled ->
+                        playlistRecommendationsEnabled = enabled
+                        listeningPreferences.edit().putBoolean(SoundprintListeningPreferences.KEY_PLAYLIST_RECOMMENDATIONS_ENABLED, enabled).apply()
+                    }
+                    SettingsToggleRow(
+                        "Automatic playlists",
+                        "Pause rule-based smart playlist updates. Your saved playlists and rules are kept.",
+                        automaticPlaylistsEnabled,
+                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("automatic-playlists"))
+                    ) { enabled ->
+                        automaticPlaylistsEnabled = enabled
+                        listeningPreferences.edit().putBoolean(SoundprintListeningPreferences.KEY_AUTOMATIC_PLAYLISTS_ENABLED, enabled).apply()
+                    }
+                    SettingsToggleRow(
+                        "Background activity",
+                        "Pause background mood scans, folder auto-watch and automatic adding while off. Your saved choices are kept.",
+                        backgroundActivityEnabled,
+                        modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("background-activity"))
+                    ) { enabled ->
+                        backgroundActivityEnabled = enabled
+                        listeningPreferences.edit().putBoolean(SoundprintListeningPreferences.KEY_BACKGROUND_ACTIVITY_ENABLED, enabled).apply()
+                        if (!enabled) scanner.pause()
+                        else if (musicRecommendationsEnabled && scanner.autoScanEnabled()) scanner.startScan()
                     }
                 }
             }
