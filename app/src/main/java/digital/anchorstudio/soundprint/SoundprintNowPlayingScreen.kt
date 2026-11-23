@@ -285,6 +285,7 @@ fun SoundprintNowPlayingScreen(
     var lyricsExpanded by remember { mutableStateOf(false) }
     var aura by remember { mutableStateOf(false) }
     var auraPreset by remember { mutableStateOf("Auto") }
+    var spatialAudio by remember { mutableStateOf(playbackOptionsPrefs.getBoolean("spatial_audio_enabled", false)) }
     var audioLabOpen by remember { mutableStateOf(false) }
     var auraNotice by remember { mutableStateOf(false) }
     var bass by remember { mutableFloatStateOf(0f) }
@@ -310,6 +311,9 @@ fun SoundprintNowPlayingScreen(
     }
     LaunchedEffect(loudness) {
         playbackOptionsPrefs.edit().putBoolean("loudness_leveling", loudness).apply()
+    }
+    LaunchedEffect(spatialAudio) {
+        playbackOptionsPrefs.edit().putBoolean("spatial_audio_enabled", spatialAudio).apply()
     }
     LaunchedEffect(stopAfterCurrent) {
         playbackOptionsPrefs.edit().putBoolean("stop_after_current", stopAfterCurrent).apply()
@@ -638,6 +642,22 @@ fun SoundprintNowPlayingScreen(
                         PlayerQuickAction(displaySleep, if (sleepRemaining > 0L) SoundprintIcons.TimerReset else SoundprintIcons.Moon, Modifier.weight(1f), selected = sleepOpen) {
                             sleepMinutes = if (sleepRemaining > 0L) ((sleepRemaining + 59_999L) / 60_000L).toString() else "30"
                             sleepOpen = true
+                        }
+                    }
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .42f)
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("3D Audio", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Wider, more immersive stereo sound", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(checked = spatialAudio, onCheckedChange = { spatialAudio = it })
                         }
                     }
                 }
