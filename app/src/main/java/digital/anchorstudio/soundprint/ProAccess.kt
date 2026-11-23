@@ -41,7 +41,7 @@ internal fun ProFeatureBadge(modifier: Modifier = Modifier) {
             ) {
                 SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(11.dp), tint = MaterialTheme.colorScheme.primary)
                 Text(
-                    "PRO",
+                    "Pro",
                     fontSize = 9.sp,
                     lineHeight = 10.sp,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
