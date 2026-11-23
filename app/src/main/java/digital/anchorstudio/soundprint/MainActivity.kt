@@ -259,6 +259,19 @@ class MainActivity : ComponentActivity() {
             var showSplash by remember { mutableStateOf(true) }
             Box(Modifier.fillMaxSize()) {
             val preferences = remember { getSharedPreferences("soundprint_native_preferences", MODE_PRIVATE) }
+            var backgroundActivityEnabled by remember {
+                mutableStateOf(SoundprintListeningPreferences.backgroundActivityEnabled(applicationContext))
+            }
+            DisposableEffect(applicationContext) {
+                val listeningPrefs = SoundprintListeningPreferences.preferences(applicationContext)
+                val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                    if (key == SoundprintListeningPreferences.KEY_BACKGROUND_ACTIVITY_ENABLED) {
+                        backgroundActivityEnabled = SoundprintListeningPreferences.backgroundActivityEnabled(applicationContext)
+                    }
+                }
+                listeningPrefs.registerOnSharedPreferenceChangeListener(listener)
+                onDispose { listeningPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
+            }
             var themeMode by remember { mutableStateOf(preferences.getString("theme", "dark") ?: "dark") }
             var selectedPalette by remember { mutableStateOf(preferences.getString("palette", "Lavender") ?: "Lavender") }
             var enteredLibrary by remember { mutableStateOf(preferences.getBoolean("has_seen_launch_landing", false)) }
@@ -499,8 +512,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
             val lifecycleOwner = LocalLifecycleOwner.current
-            LaunchedEffect(watchedFolderUri, folderWatchEnabled, autoAddNewSongs, proEntitlementLoaded, proEntitled) {
+            LaunchedEffect(watchedFolderUri, folderWatchEnabled, autoAddNewSongs, proEntitlementLoaded, proEntitled, backgroundActivityEnabled) {
                 if (!proEntitlementLoaded) return@LaunchedEffect
+                if (!backgroundActivityEnabled) return@LaunchedEffect
                 if (!proEntitled) {
                     if (folderWatchEnabled) {
                         folderWatchEnabled = false
