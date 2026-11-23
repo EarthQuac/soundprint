@@ -903,7 +903,7 @@ class SoundprintPlaybackConnection(
         }, executor)
     }
 
-    fun playTracks(
+    internal fun playTracks(
         tracks: List<MusicTrack>,
         startIndex: Int = 0,
         shuffle: Boolean = false,
@@ -1128,7 +1128,7 @@ class SoundprintPlaybackConnection(
     }
 
     /** Apply an explicit per-playlist Pro preset before starting that playlist's queue. */
-    fun applyPlaylistPreset(preset: PlaylistPlaybackPreset) {
+    internal fun applyPlaylistPreset(preset: PlaylistPlaybackPreset) {
         val entitled = pausePreferences.getBoolean("pro_entitled", false)
         if (!entitled) {
             restorePlaylistPreset()
