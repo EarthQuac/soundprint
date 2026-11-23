@@ -606,7 +606,22 @@ private fun NativeSongLibraryRow(
             .padding(horizontal = 2.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        NativeArtwork(track.artworkUri, track.id, Modifier.size(54.dp), 12)
+        if (SoundprintProGate.isResolved && SoundprintProGate.hasPro) {
+            NativeArtwork(track.artworkUri, track.id, Modifier.size(54.dp), 12)
+        } else {
+            Box(
+                Modifier.size(54.dp).clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                SoundprintIcon(
+                    SoundprintIcons.Music2,
+                    contentDescription = "No artwork",
+                    modifier = Modifier.size(26.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(track.title, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
