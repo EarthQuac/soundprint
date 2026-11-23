@@ -83,6 +83,11 @@ class SoundprintImportNotifications(context: Context) {
     }
 
 
+    fun queued(type: String) {
+        val label = if (type == "folder") "Folder scan queued" else "Music import queued"
+        post(ongoingNotification(label, "Waiting for Soundprint to start importing", 0, 0, true))
+    }
+
     fun update(progress: LibraryScanProgress) {
         val total = progress.total
         val completed = progress.visited.coerceAtLeast(0)

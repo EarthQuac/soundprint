@@ -67,6 +67,8 @@ object SoundprintMusicImportQueue {
         temporary.writeText(payload.toString(), Charsets.UTF_8)
         check(temporary.renameTo(destination)) { "Could not save the music import request." }
 
+        val notifications = SoundprintImportNotifications(app)
+        notifications.queued(type)
         try {
             val request = OneTimeWorkRequestBuilder<SoundprintMusicImportWorker>()
                 .setInputData(workDataOf(INPUT_REQUEST_ID to id.toString()))
