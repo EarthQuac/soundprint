@@ -965,11 +965,21 @@ class MusicLibraryRepository(context:Context) {
         }
     }
 
+    private fun isProArtworkEntitled(): Boolean =
+        app.getSharedPreferences("soundprint_playback_options", Context.MODE_PRIVATE)
+            .getBoolean("pro_entitled", false)
+
     private fun isCustomArtworkEnabled():Boolean =
-        app.getSharedPreferences("soundprint_native_preferences",Context.MODE_PRIVATE)
-            .getBoolean("custom_artwork_enabled",false)
+        isProArtworkEntitled() &&
+            app.getSharedPreferences("soundprint_native_preferences",Context.MODE_PRIVATE)
+                .getBoolean("custom_artwork_enabled",false)
 
     suspend fun setCustomArtworkEnabled(enabled:Boolean):Int = withContext(Dispatchers.IO) {
+        if (enabled && !isProArtworkEntitled()) {
+            app.getSharedPreferences("soundprint_native_preferences", Context.MODE_PRIVATE)
+                .edit().putBoolean("custom_artwork_enabled", false).apply()
+            return@withContext 0
+        }
         var changed=0
         db.tracks().forEach { track ->
             coroutineContext.ensureActive()
