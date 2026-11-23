@@ -159,9 +159,17 @@ fun SoundprintNowPlayingScreen(
         }
 
         val uniqueQueue = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }
-        val anchor = player.currentMediaItemIndex.coerceIn(-1, uniqueQueue.lastIndex)
-        val alreadyPlayedIndices = (0..anchor).filter { it in uniqueQueue.indices }
-        val noRepeatOrder = NoRepeatShuffleOrder.fromOrder(uniqueQueue.size, alreadyPlayedIndices)
+        val currentIndex = player.currentMediaItemIndex
+        if (uniqueQueue.isEmpty() || currentIndex !in uniqueQueue.indices) {
+            shuffle = false
+            playerPrefs.edit().putBoolean("queue-shuffle", false).remove("queue-original-order").apply()
+            originalQueueIds = emptyList()
+            return
+        }
+        // Put the currently selected song first, then visit every other unique track once.
+        // Do not assume queue entries before the current index were already heard: users can
+        // start playback from any track, including deep inside a 1,000+ song library.
+        val noRepeatOrder = NoRepeatShuffleOrder.startingWith(uniqueQueue.size, currentIndex)
         applyQueueOrder(noRepeatOrder.snapshotIndices().map { uniqueQueue[it] })
         shuffle = true
     }
