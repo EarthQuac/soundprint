@@ -561,14 +561,15 @@ fun SoundprintLyricsPanel(
                             if (karaokeLoading) CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.8.dp)
                             else SoundprintIcon(SoundprintIcons.Maximize, null, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text(
-                                if (karaokeLoading) "Finding timed lyrics…" else "Karaoke mode",
-                                fontSize = 12.sp, fontWeight = FontWeight.SemiBold
-                            )
-                            if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) {
-                                SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(12.dp))
-                                Spacer(Modifier.width(3.dp))
-                                Text("Pro", fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = if (karaokeLoading) "Finding timed lyrics…" else "Karaoke mode",
+                                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+                                )
+                                if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) {
+                                    SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(12.dp))
+                                    Text("Pro", fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                                }
                             }
                         }
                     }
