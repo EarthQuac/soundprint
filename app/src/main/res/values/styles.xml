@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Soundprint" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="postSplashScreenTheme">@style/Theme.Soundprint</item>
         <item name="android:fontFamily">sans</item>
         <item name="android:windowBackground">@color/soundprint_window_background</item>
         <item name="android:statusBarColor">@color/soundprint_window_background</item>
