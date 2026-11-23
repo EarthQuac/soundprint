@@ -989,7 +989,7 @@ class MusicLibraryRepository(context:Context) {
                     db.updateTrack(track.copy(artworkUri=null))
                     changed++
                 }
-                continue
+                return@forEach
             }
             val withEmbedded=ensureArtwork(track.id) ?: track
             if (withEmbedded.artworkUri.isNullOrBlank()) {
