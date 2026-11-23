@@ -1361,7 +1361,7 @@ private fun SoundprintApp(
                 }
             }
 
-            if (!nowPlayingOpen && !tagEditorOpen && playbackConnection.controller?.currentMediaItem != null) {
+            if (!nowPlayingOpen && playbackConnection.controller?.currentMediaItem != null) {
                 SoundprintMiniPlayer(
                     controller = playbackConnection.controller,
                     library = libraryManager,
