@@ -337,9 +337,9 @@ class MainActivity : ComponentActivity() {
                 val userId = SoundprintProAccess.currentUserId()
                 if (proEntitlementLoaded && proEntitled && userId != null && libraryTrackCount > 0 &&
                     !preferences.getBoolean("custom_artwork_enabled", false) &&
-                    preferences.getString("custom_artwork_offer_seen_user", null) != userId
+                    !preferences.getBoolean("custom_artwork_offer_seen_$userId", false)
                 ) {
-                    preferences.edit().putString("custom_artwork_offer_seen_user", userId).apply()
+                    preferences.edit().putBoolean("custom_artwork_offer_seen_$userId", true).apply()
                     customArtworkOfferOpen = true
                 } else if (!SoundprintProAccess.hasSession() || !proEntitled) customArtworkOfferOpen = false
             }
@@ -385,7 +385,12 @@ class MainActivity : ComponentActivity() {
             fun requestArtworkImport(enqueue: (Boolean) -> Unit) {
                 if (!SoundprintProAccess.hasSession()) { enqueue(false); return }
                 if (SoundprintProGate.isResolved) {
-                    if (SoundprintProGate.hasPro) pendingArtworkImport = PendingArtworkImport(enqueue) else enqueue(false)
+                    if (SoundprintProGate.hasPro) {
+                        SoundprintProAccess.currentUserId()?.let { userId ->
+                            preferences.edit().putBoolean("custom_artwork_offer_seen_$userId", true).apply()
+                        }
+                        pendingArtworkImport = PendingArtworkImport(enqueue)
+                    } else enqueue(false)
                     return
                 }
                 scope.launch {
@@ -394,7 +399,12 @@ class MainActivity : ComponentActivity() {
                     else if (status != null) {
                         SoundprintProGate.updateEntitlement(status.hasPro)
                         getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit().putBoolean("pro_entitled", status.hasPro).apply()
-                        if (status.hasPro) pendingArtworkImport = PendingArtworkImport(enqueue) else enqueue(false)
+                        if (status.hasPro) {
+                            SoundprintProAccess.currentUserId()?.let { userId ->
+                                preferences.edit().putBoolean("custom_artwork_offer_seen_$userId", true).apply()
+                            }
+                            pendingArtworkImport = PendingArtworkImport(enqueue)
+                        } else enqueue(false)
                     } else {
                         SoundprintProGate.updateEntitlement(false)
                         enqueue(false)
