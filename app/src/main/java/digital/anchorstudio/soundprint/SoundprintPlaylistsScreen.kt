@@ -121,8 +121,22 @@ fun SoundprintPlaylistsScreen(
     clapScanner: ClapLibraryScanner
 ) {
     val proAccess = LocalSoundprintProUiAccess.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val scan by clapScanner.state.collectAsState()
     var refreshVersion by remember { mutableIntStateOf(0) }
+    DisposableEffect(context) {
+        val prefs = SoundprintListeningPreferences.preferences(context)
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key in setOf(
+                    SoundprintListeningPreferences.KEY_HISTORY_ENABLED,
+                    SoundprintListeningPreferences.KEY_PLAYLIST_RECOMMENDATIONS_ENABLED,
+                    SoundprintListeningPreferences.KEY_AUTOMATIC_PLAYLISTS_ENABLED
+                )
+            ) refreshVersion++
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
     var data by remember { mutableStateOf<PlaylistPageData?>(null) }
     var query by remember { mutableStateOf("") }
     var createPlaylistOpen by remember { mutableStateOf(false) }
@@ -146,7 +160,7 @@ fun SoundprintPlaylistsScreen(
             val tracks = libraryManager.allSongs()
             val smart = libraryManager.smartPlaylists()
             val results = smart.associate { it.id to libraryManager.evaluateSmartPlaylist(it.id) }
-            val recent = if (SoundprintListeningPreferences.historyEnabled(androidx.compose.ui.platform.LocalContext.current)) {
+            val recent = if (SoundprintListeningPreferences.historyEnabled(context)) {
                 libraryManager.listeningHistory(500).mapNotNull { it.second }.distinctBy { it.id }.take(30)
             } else emptyList()
             PlaylistPageData(
