@@ -181,8 +181,12 @@ class SoundprintPlaybackService : MediaSessionService() {
     private var crossfadeQueueItems: List<MediaItem> = emptyList()
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var loudnessSessionId = 0
+    private var standbyLoudnessEnhancer: LoudnessEnhancer? = null
+    private var standbyLoudnessSessionId = 0
     private var playlistBassBoost: BassBoost? = null
     private var playlistBassSessionId = 0
+    private var standbyPlaylistBassBoost: BassBoost? = null
+    private var standbyPlaylistBassSessionId = 0
     private var activeTrackId: String? = null
     private var activeOccurrenceKey: String? = null
     private var activeMediaIndex = -1
@@ -342,9 +346,15 @@ class SoundprintPlaybackService : MediaSessionService() {
         runCatching { loudnessEnhancer?.release() }
         loudnessEnhancer = null
         loudnessSessionId = 0
+        runCatching { standbyLoudnessEnhancer?.release() }
+        standbyLoudnessEnhancer = null
+        standbyLoudnessSessionId = 0
         runCatching { playlistBassBoost?.release() }
         playlistBassBoost = null
         playlistBassSessionId = 0
+        runCatching { standbyPlaylistBassBoost?.release() }
+        standbyPlaylistBassBoost = null
+        standbyPlaylistBassSessionId = 0
         drainListeningWrites()
         // Let queued history writes finish, then stop the scope so nothing outlives the service.
         val writesRunning = synchronized(listeningWriteQueue) { listeningWriteInFlight }
@@ -561,43 +571,86 @@ class SoundprintPlaybackService : MediaSessionService() {
         if (!::player.isInitialized) return
         val enabled = playbackOptions.getBoolean("pro_entitled", false) &&
             playbackOptions.getBoolean(KEY_LOUDNESS_LEVELING, false)
-        val sessionId = player.audioSessionId
-        if (sessionId <= 0) return
-        if (loudnessSessionId != sessionId) {
-            runCatching { loudnessEnhancer?.release() }
-            loudnessEnhancer = runCatching {
-                LoudnessEnhancer(sessionId).also { effect ->
-                    effect.setTargetGain(250)
-                    effect.enabled = enabled
-                }
-            }.onFailure { Log.w("SoundprintPlayback", "Loudness leveling could not be attached to the audio session.", it) }
-                .getOrNull()
-            loudnessSessionId = sessionId
-        } else {
-            runCatching { loudnessEnhancer?.enabled = enabled }
+        applyLoudnessToSession(player.audioSessionId, enabled, standby = false)
+        if (::standbyPlayer.isInitialized) {
+            applyLoudnessToSession(standbyPlayer.audioSessionId, enabled, standby = true)
         }
     }
 
-    /** Playlist Intelligence bass is attached to the active Android audio session. */
+    private fun applyLoudnessToSession(sessionId: Int, enabled: Boolean, standby: Boolean) {
+        if (sessionId <= 0) return
+        val currentSessionId = if (standby) standbyLoudnessSessionId else loudnessSessionId
+        if (currentSessionId != sessionId) {
+            if (standby) {
+                runCatching { standbyLoudnessEnhancer?.release() }
+                standbyLoudnessEnhancer = runCatching {
+                    LoudnessEnhancer(sessionId).also { effect ->
+                        effect.setTargetGain(250)
+                        effect.enabled = enabled
+                    }
+                }.onFailure { Log.w("SoundprintPlayback", "Crossfade loudness leveling could not attach.", it) }
+                    .getOrNull()
+                standbyLoudnessSessionId = sessionId
+            } else {
+                runCatching { loudnessEnhancer?.release() }
+                loudnessEnhancer = runCatching {
+                    LoudnessEnhancer(sessionId).also { effect ->
+                        effect.setTargetGain(250)
+                        effect.enabled = enabled
+                    }
+                }.onFailure { Log.w("SoundprintPlayback", "Loudness leveling could not attach.", it) }
+                    .getOrNull()
+                loudnessSessionId = sessionId
+            }
+        } else {
+            runCatching {
+                if (standby) standbyLoudnessEnhancer?.enabled = enabled
+                else loudnessEnhancer?.enabled = enabled
+            }
+        }
+    }
+
+    /** Playlist bass is attached to both player sessions so crossfade keeps the same sound. */
     private fun applyPlaylistBassBoost() {
         if (!::player.isInitialized) return
         val entitled = playbackOptions.getBoolean("pro_entitled", false)
         val enabled = entitled && playbackOptions.getBoolean("playlist_bass_boost_enabled", false)
-        val sessionId = player.audioSessionId
+        applyBassBoostToSession(player.audioSessionId, enabled, standby = false)
+        if (::standbyPlayer.isInitialized) {
+            applyBassBoostToSession(standbyPlayer.audioSessionId, enabled, standby = true)
+        }
+    }
+
+    private fun applyBassBoostToSession(sessionId: Int, enabled: Boolean, standby: Boolean) {
         if (sessionId <= 0) return
-        if (playlistBassSessionId != sessionId) {
-            runCatching { playlistBassBoost?.release() }
-            playlistBassBoost = runCatching {
-                BassBoost(0, sessionId).also { effect ->
-                    effect.setStrength(700.toShort())
-                    effect.enabled = enabled
-                }
-            }.onFailure {
-                Log.w("SoundprintPlayback", "Playlist bass boost is not supported by this audio session.", it)
-            }.getOrNull()
-            playlistBassSessionId = sessionId
+        val currentSessionId = if (standby) standbyPlaylistBassSessionId else playlistBassSessionId
+        if (currentSessionId != sessionId) {
+            if (standby) {
+                runCatching { standbyPlaylistBassBoost?.release() }
+                standbyPlaylistBassBoost = runCatching {
+                    BassBoost(0, sessionId).also { effect ->
+                        effect.setStrength(700.toShort())
+                        effect.enabled = enabled
+                    }
+                }.onFailure { Log.w("SoundprintPlayback", "Crossfade bass boost is not supported by this session.", it) }
+                    .getOrNull()
+                standbyPlaylistBassSessionId = sessionId
+            } else {
+                runCatching { playlistBassBoost?.release() }
+                playlistBassBoost = runCatching {
+                    BassBoost(0, sessionId).also { effect ->
+                        effect.setStrength(700.toShort())
+                        effect.enabled = enabled
+                    }
+                }.onFailure { Log.w("SoundprintPlayback", "Playlist bass boost is not supported by this audio session.", it) }
+                    .getOrNull()
+                playlistBassSessionId = sessionId
+            }
         } else {
-            runCatching { playlistBassBoost?.enabled = enabled }
+            runCatching {
+                if (standby) standbyPlaylistBassBoost?.enabled = enabled
+                else playlistBassBoost?.enabled = enabled
+            }
         }
     }
 
