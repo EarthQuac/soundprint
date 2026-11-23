@@ -43,11 +43,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import digital.anchorstudio.soundprint.R
 import kotlinx.coroutines.delay
-import kotlin.math.exp
-import kotlin.math.floor
-import kotlin.math.pow
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 /*
  * Soundprint app-open animation (Jetpack Compose).
@@ -67,7 +63,6 @@ import kotlin.math.sin
  * wordmark 2.4-3.6, then a short hold and onFinished() at ~5.5s.
  */
 
-private const val STRIP_PX = 4
 private const val TOTAL_SECONDS = 5f
 private const val HOLD_MS = 500L
 
@@ -174,40 +169,29 @@ fun SoundprintSplash(
     }
 }
 
-/** Draws the logo as thin vertical strips that rise from the bottom, equalizer style. */
+/** Reveals the complete logo upward in one draw, avoiding per-strip frame work. */
 @Composable
 private fun LogoBars(image: ImageBitmap, t: Float, modifier: Modifier) {
     Canvas(modifier) { drawBars(image, t) }
 }
 
 private fun DrawScope.drawBars(image: ImageBitmap, t: Float) {
-    val src = image.width
-    val n = src / STRIP_PX
-    val k = size.width / src
-    val yc = size.height / 2f
-    val sweep = (t - 2f) / 0.9f * 1.3f - 0.15f
+    val progress = easeOut((t - 0.2f) / 1.3f)
+    if (progress <= 0f) return
 
-    for (j in 0 until n) {
-        val p = easeOut((t - (0.2f + 0.55f * rnd(j))) / 0.8f)
-        if (p <= 0f) continue
+    val scale = size.width / image.width.toFloat()
+    val sourceTop = ((1f - progress) * image.height).toInt().coerceIn(0, image.height - 1)
+    val sourceHeight = image.height - sourceTop
 
-        val sy = (src * (1f - p)).toInt().coerceIn(0, src - 1)
-        val sh = src - sy
-
-        val xn = (j + 0.5f) / n
-        val bump = exp(-((xn - sweep) / 0.07f).pow(2))
-        val scale = 1f + 0.05f * bump
-
-        val dy = yc + (sy * k - yc) * scale
-        val dh = sh * k * scale
-
-        drawImage(
-            image = image,
-            srcOffset = IntOffset(j * STRIP_PX, sy),
-            srcSize = IntSize(STRIP_PX, sh),
-            dstOffset = IntOffset((j * STRIP_PX * k).roundToInt(), dy.roundToInt()),
-            dstSize = IntSize((STRIP_PX * k).roundToInt() + 1, dh.roundToInt().coerceAtLeast(1)),
-            filterQuality = FilterQuality.Medium
-        )
-    }
+    drawImage(
+        image = image,
+        srcOffset = IntOffset(0, sourceTop),
+        srcSize = IntSize(image.width, sourceHeight),
+        dstOffset = IntOffset(0, (sourceTop * scale).roundToInt()),
+        dstSize = IntSize(
+            size.width.roundToInt(),
+            (sourceHeight * scale).roundToInt().coerceAtLeast(1)
+        ),
+        filterQuality = FilterQuality.High
+    )
 }
