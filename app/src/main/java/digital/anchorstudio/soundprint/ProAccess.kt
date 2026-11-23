@@ -26,12 +26,9 @@ internal data class SoundprintProUiAccess(
 internal val LocalSoundprintProUiAccess = staticCompositionLocalOf { SoundprintProUiAccess() }
 
 @Composable
-internal fun ProFeatureBadge(
-    modifier: Modifier = Modifier,
-    showWhenEntitled: Boolean = false
-) {
+internal fun ProFeatureBadge(modifier: Modifier = Modifier) {
     val access = LocalSoundprintProUiAccess.current
-    if (!access.entitled || showWhenEntitled) {
+    if (!access.entitled) {
         Surface(
             modifier = modifier.clip(CircleShape).clickable(enabled = !access.entitled, onClick = access.onOpenPro),
             shape = CircleShape,
