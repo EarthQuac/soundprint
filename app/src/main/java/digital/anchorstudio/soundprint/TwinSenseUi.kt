@@ -287,11 +287,16 @@ internal fun SongsLibraryScreen(
                                     }
                                     Spacer(Modifier.width(6.dp))
                                     Text(
-                                        if (scanning && advancedScanning) "Scanning…"
-                                        else if (hasTwinSensePro) "Advanced Scan" else "Advanced · Pro",
+                                        if (scanning && advancedScanning) "Scanning…" else "Advanced Scan",
                                         maxLines = 1,
                                         fontSize = 12.sp
                                     )
+                                    if (!hasTwinSensePro) {
+                                        Spacer(Modifier.width(5.dp))
+                                        SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(12.dp))
+                                        Spacer(Modifier.width(3.dp))
+                                        Text("Pro", fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                                    }
                                 }
                             }
                             if (scanning) {
