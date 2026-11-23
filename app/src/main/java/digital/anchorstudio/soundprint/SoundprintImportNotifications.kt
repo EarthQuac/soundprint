@@ -12,6 +12,27 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.ForegroundInfo
 
+/**
+ * Reads the currently selected Soundprint palette whenever a notification is built.
+ * Keep this mapping aligned with the palette primaries in MainActivity.kt.
+ */
+private fun notificationAccentColor(context: Context): Int {
+    val palette = context.applicationContext
+        .getSharedPreferences("soundprint_native_preferences", Context.MODE_PRIVATE)
+        .getString("palette", "Lavender")
+    val color = when (palette) {
+        "Amber" -> 0xFFFC9E47.toInt()
+        "Blue", "Blue & white" -> 0xFF59AAF8.toInt()
+        "Emerald" -> 0xFF5ACA94.toInt()
+        "Mono" -> 0xFFE8E8E8.toInt()
+        "Aurora" -> 0xFF63E0D2.toInt()
+        "Sakura" -> 0xFFF29AB8.toInt()
+        "Vesper" -> 0xFFD9F36A.toInt()
+        else -> 0xFFC4B5FD.toInt()
+    }
+    return color
+}
+
 /** Foreground-service notification for the durable WorkManager music importer. */
 class SoundprintImportNotifications(context: Context) {
     private val app = context.applicationContext
@@ -99,7 +120,7 @@ class SoundprintImportNotifications(context: Context) {
         post(
             NotificationCompat.Builder(app, RESULT_CHANNEL_ID)
                 .setSmallIcon(SoundprintIcons.Download)
-                .setColor(Color.rgb(252, 158, 71))
+                .setColor(notificationAccentColor(app))
                 .setContentTitle("Music ready")
                 .setContentText(message)
                 .setSubText(if (result.skipped > 0) "${result.skipped} files skipped" else "Your library is up to date")
@@ -116,7 +137,7 @@ class SoundprintImportNotifications(context: Context) {
         post(
             NotificationCompat.Builder(app, RESULT_CHANNEL_ID)
                 .setSmallIcon(SoundprintIcons.CircleAlert)
-                .setColor(Color.rgb(252, 158, 71))
+                .setColor(notificationAccentColor(app))
                 .setContentTitle("Music import stopped")
                 .setContentText(message.ifBlank { "Soundprint couldn't finish importing your music." })
                 .setAutoCancel(true)
@@ -139,7 +160,7 @@ class SoundprintImportNotifications(context: Context) {
     ): Notification =
         NotificationCompat.Builder(app, CHANNEL_ID)
             .setSmallIcon(SoundprintIcons.Download)
-            .setColor(Color.rgb(252, 158, 71))
+            .setColor(notificationAccentColor(app))
             .setContentTitle("Adding music")
             .setContentText(title)
             .setSubText(summary)
