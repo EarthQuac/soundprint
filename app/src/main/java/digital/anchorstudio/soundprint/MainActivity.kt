@@ -311,6 +311,10 @@ class MainActivity : ComponentActivity() {
                 getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit()
                     .putBoolean("pro_entitled", proEntitled)
                     .apply()
+                if (!proEntitled) {
+                    preferences.edit().putBoolean("custom_artwork_enabled", false).apply()
+                    withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(false) }
+                }
             }
             LaunchedEffect(proEntitlementLoaded, proEntitled, selectedPalette) {
                 if (proEntitlementLoaded && !proEntitled && selectedPalette != "Amber" && selectedPalette != "Lavender") {
