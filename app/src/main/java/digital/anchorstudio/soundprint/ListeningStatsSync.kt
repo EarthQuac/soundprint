@@ -42,6 +42,7 @@ internal object ListeningStatsSync {
 internal class ListeningStatsSyncWorker(context:Context,params:androidx.work.WorkerParameters):CoroutineWorker(context,params) {
     override suspend fun doWork():Result {
         val userId=inputData.getString(INPUT_USER_ID)?.takeIf { it.isNotBlank() } ?: return Result.failure()
+        if (!SoundprintListeningPreferences.historyEnabled(applicationContext)) return Result.success()
         return try {
             val client=SoundprintSupabase.client
             val signedIn=client.auth.currentUserOrNull() ?: return Result.retry()
