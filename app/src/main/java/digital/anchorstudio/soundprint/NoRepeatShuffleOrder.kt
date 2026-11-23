@@ -48,10 +48,10 @@ internal class NoRepeatShuffleOrder private constructor(
         val result = shuffledIndices.map { index ->
             if (index >= insertionIndex) index + insertionCount else index
         }.toMutableList()
-        repeat(insertionCount) { offset ->
-            val newIndex = insertionIndex + offset
-            result.add(random.nextInt(result.size + 1), newIndex)
-        }
+        // Appended tracks stay after the existing shuffle cycle's remaining order, so queue
+        // additions cannot land behind the current cursor and be skipped until repeat-all wraps.
+        val additions = shuffled(insertionCount, random).map { it + insertionIndex }
+        result.addAll(additions)
         return NoRepeatShuffleOrder(result.toIntArray(), random)
     }
 
