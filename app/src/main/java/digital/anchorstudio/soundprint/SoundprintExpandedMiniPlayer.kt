@@ -70,7 +70,7 @@ fun SoundprintExpandedMiniPlayer(
                 Text(artist, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
             IconButton(onClick = onMaximize) {
-                SoundprintIcon(SoundprintIcons.Expand, "Open full player", modifier = Modifier.size(21.dp))
+                SoundprintIcon(SoundprintIcons.Maximize, "Open full player", modifier = Modifier.size(21.dp))
             }
         }
         Slider(
