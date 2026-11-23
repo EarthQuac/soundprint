@@ -73,6 +73,17 @@ internal class NoRepeatShuffleOrder private constructor(
     fun snapshotIndices(): List<Int> = shuffledIndices.toList()
 
     companion object {
+        fun startingWith(length: Int, firstIndex: Int, seed: Long = System.nanoTime()): NoRepeatShuffleOrder {
+            if (length <= 0 || firstIndex !in 0 until length) return NoRepeatShuffleOrder(length, seed)
+            val remaining = (0 until length).filterNot { it == firstIndex }.toMutableList()
+            shuffleInPlace(remaining, Random(seed))
+            val order = ArrayList<Int>(length).apply {
+                add(firstIndex)
+                addAll(remaining)
+            }
+            return NoRepeatShuffleOrder(order.toIntArray(), Random(seed xor 0x5DEECE66DL))
+        }
+
         fun fromOrder(length: Int, preferredOrder: List<Int>, seed: Long = System.nanoTime()): NoRepeatShuffleOrder {
             require(length >= 0)
             val seen = BooleanArray(length)
