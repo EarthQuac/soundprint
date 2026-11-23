@@ -2849,12 +2849,6 @@ private fun SettingsScreen(
                                 Box(
                                     Modifier.width(31.dp).height(30.dp).clip(RoundedCornerShape(9.dp))
                                         .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-                                        .border(
-                                            1.dp,
-                                            if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.34f)
-                                            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
-                                            RoundedCornerShape(9.dp)
-                                        )
                                         .clickable {
                                             if (seconds == 0) {
                                                 crossfade = 0
@@ -2905,13 +2899,6 @@ private fun SettingsScreen(
                                         Box(
                                             Modifier.weight(1f).height(36.dp).clip(RoundedCornerShape(12.dp))
                                                 .background(if (seekSeconds == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
-                                                .border(
-                                                    1.dp,
-                                                    if (seekSeconds == seconds) MaterialTheme.colorScheme.primary.copy(alpha = 0.34f)
-                                                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
-                                                    RoundedCornerShape(12.dp)
-                                                )
-                                                
                                                 .clickable { seekSeconds = seconds; playbackPrefs.edit().putInt("double_tap_seek_seconds", seconds).apply() },
                                             contentAlignment = Alignment.Center
                                         ) {
