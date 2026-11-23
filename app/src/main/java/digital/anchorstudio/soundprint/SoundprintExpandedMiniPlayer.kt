@@ -35,7 +35,8 @@ import kotlinx.coroutines.Dispatchers
 fun SoundprintExpandedMiniPlayer(
     controller: MediaController?,
     library: MusicLibraryManager,
-    onMaximize: () -> Unit
+    onMaximize: () -> Unit,
+    onCollapse: () -> Unit
 ) {
     var track by remember { mutableStateOf<MusicTrack?>(null) }
     var position by remember { mutableLongStateOf(0L) }
@@ -68,6 +69,9 @@ fun SoundprintExpandedMiniPlayer(
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 Text(title, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
                 Text(artist, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            }
+            IconButton(onClick = onCollapse) {
+                SoundprintIcon(SoundprintIcons.ChevronDown, "Collapse player controls", modifier = Modifier.size(21.dp))
             }
             IconButton(onClick = onMaximize) {
                 SoundprintIcon(SoundprintIcons.Maximize, "Open full player", modifier = Modifier.size(21.dp))
