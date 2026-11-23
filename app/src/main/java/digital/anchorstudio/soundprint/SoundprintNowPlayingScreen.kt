@@ -1232,12 +1232,19 @@ internal fun TrackArtwork(uri: String?, title: String, modifier: Modifier = Modi
     if (loadedBitmap != null) {
         Image(loadedBitmap.asImageBitmap(), title, modifier, contentScale = ContentScale.Crop)
     } else {
-        Image(
-            painter = painterResource(SoundprintArtwork.resourceFor(seed)),
-            contentDescription = title,
-            modifier = modifier,
-            contentScale = ContentScale.Crop
-        )
+        Box(
+            modifier = modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            SoundprintIcon(
+                SoundprintIcons.Music2,
+                contentDescription = "No artwork",
+                modifier = Modifier.size(26.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
