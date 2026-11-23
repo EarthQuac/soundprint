@@ -2619,6 +2619,13 @@ private fun SettingsScreen(
     onOpenTagEditor: () -> Unit
 ) {
     val proAccess = LocalSoundprintProUiAccess.current
+    fun selectPalette(name: String) {
+        if (name == "Amber" || name == "Lavender" || proAccess.entitled) {
+            onPaletteChange(name)
+        } else {
+            proAccess.onOpenPro()
+        }
+    }
     var query by remember { mutableStateOf("") }
     val settingsContext = LocalContext.current
     val settingsScope = rememberCoroutineScope()
@@ -2775,29 +2782,19 @@ private fun SettingsScreen(
                         Spacer(Modifier.height(8.dp))
                         Column(Modifier.bringIntoViewRequester(settingRequesters.getValue("palette")), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PaletteChoice("Lavender", selectedPalette == "Lavender", Modifier.weight(1f)) { onPaletteChange("Lavender") }
-                                PaletteChoice("Amber", selectedPalette == "Amber", Modifier.weight(1f)) { onPaletteChange("Amber") }
+                                PaletteChoice("Lavender", selectedPalette == "Lavender", Modifier.weight(1f)) { selectPalette("Lavender") }
+                                PaletteChoice("Amber", selectedPalette == "Amber", Modifier.weight(1f)) { selectPalette("Amber") }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PaletteChoice("Blue & white", selectedPalette == "Blue", Modifier.weight(1f)) {
-                    if (proAccess.entitled) onPaletteChange("Blue") else proAccess.onOpenPro()
-                }
-                                PaletteChoice("Emerald", selectedPalette == "Emerald", Modifier.weight(1f)) {
-                                    if (!proAccess.entitled) proAccess.onOpenPro() else onPaletteChange("Emerald")
-                                }
+                                PaletteChoice("Blue & white", selectedPalette == "Blue", Modifier.weight(1f)) { selectPalette("Blue") }
+                                PaletteChoice("Emerald", selectedPalette == "Emerald", Modifier.weight(1f)) { selectPalette("Emerald") }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PaletteChoice("Mono", selectedPalette == "Mono", Modifier.weight(1f)) {
-                                    if (!proAccess.entitled) proAccess.onOpenPro() else onPaletteChange("Mono")
-                                }
-                                PaletteChoice("Aurora", selectedPalette == "Aurora", Modifier.weight(1f)) {
-                                    if (proAccess.entitled) onPaletteChange("Aurora") else proAccess.onOpenPro()
-                                }
+                                PaletteChoice("Mono", selectedPalette == "Mono", Modifier.weight(1f)) { selectPalette("Mono") }
+                                PaletteChoice("Aurora", selectedPalette == "Aurora", Modifier.weight(1f)) { selectPalette("Aurora") }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PaletteChoice("Sakura", selectedPalette == "Sakura", Modifier.weight(1f)) {
-                                    if (proAccess.entitled) onPaletteChange("Sakura") else proAccess.onOpenPro()
-                                }
+                                PaletteChoice("Sakura", selectedPalette == "Sakura", Modifier.weight(1f)) { selectPalette("Sakura") }
                                 Spacer(Modifier.weight(1f))
                             }
                         }
