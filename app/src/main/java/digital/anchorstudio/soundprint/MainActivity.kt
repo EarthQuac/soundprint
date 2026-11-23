@@ -2845,16 +2845,17 @@ private fun SettingsScreen(
                     }
                     SettingsActionRow(
                         "Pro Audio Lab",
-                        "Unlock advanced EQ, bass, treble and loudness controls",
-                        "Unlock",
+                        "Advanced EQ, bass, treble and loudness controls are coming in a future update",
+                        "Coming later",
                         modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("equalizer")),
-                        onClick = { SoundprintProGate.require("Pro Audio Lab") }
+                        proFeature = true
                     )
                     SettingsValueRow(
                         "Crossfade",
                         if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro || crossfade == 0) "Off" else "$crossfade seconds",
                         modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("crossfade")),
-                        proFeature = true
+                        proFeature = true,
+                        controlBelow = true
                     ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             listOf(0, 2, 4, 6, 8).forEach { seconds ->
@@ -3348,6 +3349,7 @@ private fun SettingsActionRow(
     action: String,
     destructive: Boolean = false,
     modifier: Modifier = Modifier,
+    proFeature: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
     Column(modifier) {
@@ -3356,7 +3358,10 @@ private fun SettingsActionRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, lineHeight = 18.sp)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, lineHeight = 18.sp)
+                    if (proFeature) ProFeatureBadge()
+                }
                 Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(action, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, maxLines = 1)
