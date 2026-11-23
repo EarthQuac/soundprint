@@ -287,7 +287,6 @@ fun SoundprintNowPlayingScreen(
     var auraPreset by remember { mutableStateOf("Auto") }
     var spatialAudio by remember { mutableStateOf(playbackOptionsPrefs.getBoolean("spatial_audio_enabled", false)) }
     var audioLabOpen by remember { mutableStateOf(false) }
-    var auraNotice by remember { mutableStateOf(false) }
     var bass by remember { mutableFloatStateOf(0f) }
     var treble by remember { mutableFloatStateOf(0f) }
     var eqLevels by remember { mutableStateOf(List(10) { 0f }) }
@@ -354,7 +353,7 @@ fun SoundprintNowPlayingScreen(
         }
     }.value
     val displaySleep = if (sleepRemaining > 0L) "%d:%02d".format(sleepRemaining / 60000L, (sleepRemaining / 1000L) % 60L) else "Sleep"
-    DisposableEffect(controller?.audioSessionId, aura, auraPreset) {
+    DisposableEffect(controller?.audioSessionId, aura, auraPreset, spatialAudio) {
         val sessionId = controller?.audioSessionId ?: 0
         val effects = mutableListOf<android.media.audiofx.AudioEffect>()
         if (aura && sessionId > 0) {
@@ -373,7 +372,7 @@ fun SoundprintNowPlayingScreen(
                     effects += it
                 }
             }
-            runCatching {
+            if (spatialAudio) runCatching {
                 Virtualizer(0, sessionId).also {
                     it.setStrength((if (auraPreset == "Dreamscape") 650 else 350).toShort())
                     it.enabled = true
@@ -633,7 +632,7 @@ fun SoundprintNowPlayingScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PlayerQuickAction("Audio Lab", SoundprintIcons.Gauge, Modifier.weight(1f)) { audioLabOpen = true }
-                        PlayerQuickAction("Aura Mode", SoundprintIcons.Waves, Modifier.weight(1f)) { auraNotice = true }
+                        PlayerQuickAction("Aura Mode", SoundprintIcons.Waves, Modifier.weight(1f)) { aura = true }
                         PlayerQuickAction("Playlist", SoundprintIcons.Plus, Modifier.weight(1f)) { playlists = library.playlists(); playlistOpen = !playlistOpen }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -644,21 +643,6 @@ fun SoundprintNowPlayingScreen(
                             sleepOpen = true
                         }
                     }
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .42f)
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text("3D Audio", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                Text("Wider, more immersive stereo sound", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Switch(checked = spatialAudio, onCheckedChange = { spatialAudio = it })
-                        }
                     }
                 }
                 Spacer(Modifier.height(12.dp))
@@ -996,6 +980,8 @@ fun SoundprintNowPlayingScreen(
     if (aura) AuraListeningStage(
         mood = genre,
         preset = auraPreset,
+        spatialAudio = spatialAudio,
+        onSpatialAudio = { spatialAudio = it },
         onPreset = { auraPreset = it },
         onExit = { aura = false }
     )
@@ -1116,17 +1102,6 @@ fun SoundprintNowPlayingScreen(
                 crossfade = it.removeSuffix("s").toIntOrNull() ?: 0
             }
         }
-    }
-    if (auraNotice) SoundprintFloatingDialog(
-        onDismissRequest = { auraNotice = false },
-        title = "Aura Mode",
-        maxWidth = 340.dp,
-        actions = {
-            Spacer(Modifier.weight(1f))
-            Button(onClick = { auraNotice = false }) { Text("Got it") }
-        }
-    ) {
-        Text("Aura Mode is temporarily paused. The audio effects and Audio Lab remain in Soundprint; the immersive mode will return later.", fontSize = 13.sp, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     if (audioLabOpen) SoundprintFloatingDialog(
         onDismissRequest = { audioLabOpen = false },
@@ -1442,7 +1417,7 @@ private fun formatPlayerTime(ms:Long):String{val seconds=(ms/1000L).coerceAtLeas
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AuraListeningStage(mood:String,preset:String,onPreset:(String)->Unit,onExit:()->Unit){
+private fun AuraListeningStage(mood:String,preset:String,spatialAudio:Boolean,onSpatialAudio:(Boolean)->Unit,onPreset:(String)->Unit,onExit:()->Unit){
     var prompt by remember{mutableIntStateOf(0)}
     val prompts=remember(mood){when(mood){"energetic","workout"->listOf("Feel the first hit land. Let the rhythm move you.","Let the bass give the moment weight.","When the energy rises, let the whole scene level up.");"sad","melancholy"->listOf("Let the song have its honest colour.","Give the feeling room without asking yourself to solve it.","Stay with the sound gently.");else->listOf("Let this song set the atmosphere.","Follow the changes as they happen.","Stay with the feeling the track gives you, exactly as it is.")}}
     LaunchedEffect(Unit){while(true){delay(32000);prompt=(prompt+1)%prompts.size}}
@@ -1452,6 +1427,15 @@ private fun AuraListeningStage(mood:String,preset:String,onPreset:(String)->Unit
             AnimatedContent(prompts[prompt],label="aura-copy"){Text(it,fontSize=22.sp,fontWeight=FontWeight.Light,color=Color.White,textAlign=TextAlign.Center,lineHeight=32.sp)}
             Text("Follow the sound",fontSize=9.sp,letterSpacing=3.sp,color=Color.White.copy(alpha=.4f))
             Text("SOUND ATMOSPHERE",fontSize=9.sp,letterSpacing=2.sp,color=Color.White.copy(alpha=.4f))
+            Surface(shape = RoundedCornerShape(16.dp), color = Color.White.copy(alpha = .08f)) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("3D Audio", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                        Text("Expand the stereo space", fontSize = 10.sp, color = Color.White.copy(alpha = .55f))
+                    }
+                    Switch(checked = spatialAudio, onCheckedChange = onSpatialAudio, colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF17251F), checkedTrackColor = Color(0xFFB7D9C5)))
+                }
+            }
             FlowRow(horizontalArrangement=Arrangement.Center, verticalArrangement=Arrangement.spacedBy(8.dp)){
                 listOf("Auto","Slowed + Reverb","Pulse","Dreamscape","Midnight").forEach { option ->
                     val selected = preset == option
