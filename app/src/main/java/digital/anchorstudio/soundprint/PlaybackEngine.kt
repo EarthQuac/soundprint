@@ -3,6 +3,7 @@ package digital.anchorstudio.soundprint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.media.audiofx.BassBoost
 import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.Handler
@@ -175,6 +176,8 @@ class SoundprintPlaybackService : MediaSessionService() {
     private var crossfadeQueueItems: List<MediaItem> = emptyList()
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var loudnessSessionId = 0
+    private var playlistBassBoost: BassBoost? = null
+    private var playlistBassSessionId = 0
     private var activeTrackId: String? = null
     private var activeOccurrenceKey: String? = null
     private var activeMediaIndex = -1
@@ -318,6 +321,9 @@ class SoundprintPlaybackService : MediaSessionService() {
         runCatching { loudnessEnhancer?.release() }
         loudnessEnhancer = null
         loudnessSessionId = 0
+        runCatching { playlistBassBoost?.release() }
+        playlistBassBoost = null
+        playlistBassSessionId = 0
         drainListeningWrites()
         // Let queued history writes finish, then stop the scope so nothing outlives the service.
         val writesRunning = synchronized(listeningWriteQueue) { listeningWriteInFlight }
@@ -493,6 +499,7 @@ class SoundprintPlaybackService : MediaSessionService() {
         player.pauseAtEndOfMediaItems = stopAfterCurrent || !gaplessEnabled
         if (::standbyPlayer.isInitialized) standbyPlayer.pauseAtEndOfMediaItems = stopAfterCurrent || !gaplessEnabled
         applyLoudnessLeveling()
+        applyPlaylistBassBoost()
 
         val wasCrossfading = crossfadePending || crossfadeActive
         if (!proEntitled && wasCrossfading) cancelCrossfade(restoreVolume = true)
@@ -547,6 +554,29 @@ class SoundprintPlaybackService : MediaSessionService() {
             loudnessSessionId = sessionId
         } else {
             runCatching { loudnessEnhancer?.enabled = enabled }
+        }
+    }
+
+    /** Playlist Intelligence bass is attached to the active Android audio session. */
+    private fun applyPlaylistBassBoost() {
+        if (!::player.isInitialized) return
+        val entitled = playbackOptions.getBoolean("pro_entitled", false)
+        val enabled = entitled && playbackOptions.getBoolean("playlist_bass_boost_enabled", false)
+        val sessionId = player.audioSessionId
+        if (sessionId <= 0) return
+        if (playlistBassSessionId != sessionId) {
+            runCatching { playlistBassBoost?.release() }
+            playlistBassBoost = runCatching {
+                BassBoost(0, sessionId).also { effect ->
+                    effect.setStrength(700.toShort())
+                    effect.enabled = enabled
+                }
+            }.onFailure {
+                Log.w("SoundprintPlayback", "Playlist bass boost is not supported by this audio session.", it)
+            }.getOrNull()
+            playlistBassSessionId = sessionId
+        } else {
+            runCatching { playlistBassBoost?.enabled = enabled }
         }
     }
 
@@ -818,6 +848,14 @@ class SoundprintPlaybackConnection(
     private fun startPlayback(player: MediaController, request: PendingPlay) {
         if (closed || request.tracks.isEmpty()) return
         runCatching {
+            val repeatPreset = runCatching {
+                PlaylistRepeatPreset.valueOf(pausePreferences.getString("playlist_repeat_mode", "OFF") ?: "OFF")
+            }.getOrDefault(PlaylistRepeatPreset.OFF)
+            player.repeatMode = when (repeatPreset) {
+                PlaylistRepeatPreset.ALL -> Player.REPEAT_MODE_ALL
+                PlaylistRepeatPreset.ONE -> Player.REPEAT_MODE_ONE
+                PlaylistRepeatPreset.OFF -> Player.REPEAT_MODE_OFF
+            }
             val mediaItems = request.tracks.map { track ->
                 require(track.uri.isNotBlank()) { "The selected song has no playable file location: ${track.title}" }
                 track.toSoundprintMediaItem()
@@ -958,6 +996,24 @@ class SoundprintPlaybackConnection(
     fun clearQueue() { controller?.clearMediaItems() }
 
     fun setShuffle(enabled: Boolean) { controller?.shuffleModeEnabled = enabled }
+
+    /** Apply an explicit per-playlist Pro preset before starting that playlist's queue. */
+    fun applyPlaylistPreset(preset: PlaylistPlaybackPreset) {
+        val entitled = pausePreferences.getBoolean("pro_entitled", false)
+        pausePreferences.edit()
+            .putBoolean("playlist_bass_boost_enabled", entitled && preset.extraBass)
+            .putBoolean(KEY_LOUDNESS_LEVELING, entitled && preset.loudnessLeveling)
+            .putString("playlist_repeat_mode", if (entitled) preset.repeat.name else PlaylistRepeatPreset.OFF.name)
+            .apply()
+        controller?.let { player ->
+            player.shuffleModeEnabled = preset.shuffle
+            player.repeatMode = if (!entitled) Player.REPEAT_MODE_OFF else when (preset.repeat) {
+                PlaylistRepeatPreset.ALL -> Player.REPEAT_MODE_ALL
+                PlaylistRepeatPreset.ONE -> Player.REPEAT_MODE_ONE
+                PlaylistRepeatPreset.OFF -> Player.REPEAT_MODE_OFF
+            }
+        }
+    }
 
     fun cycleRepeat() {
         val player = controller ?: return
