@@ -16,7 +16,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.ShuffleOrder
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
@@ -26,7 +25,6 @@ import androidx.media3.session.SessionToken
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.util.Random
 import java.util.concurrent.Executor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -274,6 +272,20 @@ class SoundprintPlaybackService : MediaSessionService() {
                     if (crossfadeActive || crossfadePending) cancelCrossfade(restoreVolume = true)
                     flushListeningTime()
                     lastSampleElapsedMs = 0L
+                }
+                persistQueue()
+            }
+
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                if (shuffleModeEnabled && player.mediaItemCount > 0 &&
+                    player.currentMediaItemIndex in 0 until player.mediaItemCount
+                ) {
+                    // Start at the current track so enabling shuffle mid-queue doesn't skip
+                    // the portion of the shuffled permutation that precedes the current item.
+                    player.shuffleOrder = NoRepeatShuffleOrder.startingWith(
+                        player.mediaItemCount,
+                        player.currentMediaItemIndex
+                    )
                 }
                 persistQueue()
             }
@@ -889,22 +901,24 @@ class SoundprintPlaybackConnection(
                 track.toSoundprintMediaItem()
             }
             if (!pausePreferences.getBoolean("replace_queue_on_play", false) && player.mediaItemCount > 0) {
-                if (request.shuffle) deduplicateQueueByMediaId(player)
                 val targetTrackId = request.tracks[request.startIndex.coerceIn(request.tracks.indices)].id
+                player.shuffleModeEnabled = false
+                if (request.shuffle) deduplicateQueueByMediaId(player)
                 val existingIds = if (request.shuffle) {
                     (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }.toSet()
                 } else emptySet()
                 val tracksToAppend = if (request.shuffle) request.tracks.filterNot { it.id in existingIds } else request.tracks
                 if (tracksToAppend.isNotEmpty()) player.addMediaItems(tracksToAppend.map(MusicTrack::toSoundprintMediaItem))
                 if (request.shuffle) {
-                    player.shuffleModeEnabled = true
                     val targetIndex = (0 until player.mediaItemCount).firstOrNull { player.getMediaItemAt(it).mediaId == targetTrackId }
                     if (targetIndex != null) player.seekTo(targetIndex, 0L)
+                    player.shuffleModeEnabled = true
                 } else {
                     val firstAddedIndex = player.mediaItemCount - tracksToAppend.size
                     player.seekTo(firstAddedIndex + request.startIndex.coerceIn(request.tracks.indices), 0L)
                 }
             } else {
+                if (request.shuffle) player.shuffleModeEnabled = false
                 player.setMediaItems(mediaItems, request.startIndex.coerceIn(request.tracks.indices), 0L)
                 player.shuffleModeEnabled = request.shuffle
             }
@@ -1049,8 +1063,14 @@ class SoundprintPlaybackConnection(
 
     fun setShuffle(enabled: Boolean) {
         val player = controller ?: return
-        if (enabled) deduplicateQueueByMediaId(player)
-        player.shuffleModeEnabled = enabled
+        if (enabled) {
+            deduplicateQueueByMediaId(player)
+            // Reset the bag with the current track first; all other queue entries follow once.
+            player.shuffleModeEnabled = false
+            player.shuffleModeEnabled = true
+        } else {
+            player.shuffleModeEnabled = false
+        }
     }
 
     /** Apply an explicit per-playlist Pro preset before starting that playlist's queue. */
