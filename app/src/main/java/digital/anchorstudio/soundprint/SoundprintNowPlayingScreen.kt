@@ -1217,7 +1217,7 @@ private fun SoundprintFloatingDialog(
 }
 
 @Composable
-private fun TrackArtwork(uri: String?, title: String, modifier: Modifier = Modifier, seed: String = title) {
+internal fun TrackArtwork(uri: String?, title: String, modifier: Modifier = Modifier, seed: String = title) {
     val context = LocalContext.current
     var bitmap by remember(uri) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(uri) {
@@ -1247,6 +1247,7 @@ fun SoundprintMiniPlayer(
     controller: MediaController?,
     library: MusicLibraryManager,
     onOpen: () -> Unit,
+    onExpand: () -> Unit,
     onToggle: () -> Unit,
     onNext: () -> Unit,
     onClear: () -> Unit
@@ -1294,7 +1295,12 @@ fun SoundprintMiniPlayer(
                         .padding(end = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TrackArtwork(artworkUri, title, Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)), seed = trackId)
+                    Box(Modifier.size(44.dp).clip(CircleShape).clickable(onClick = onExpand), contentAlignment = Alignment.Center) {
+                        TrackArtwork(artworkUri, title, Modifier.size(44.dp).clip(CircleShape), seed = trackId)
+                        Box(Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface.copy(alpha = .82f)), contentAlignment = Alignment.Center) {
+                            SoundprintIcon(SoundprintIcons.Play, "Expand player controls", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
