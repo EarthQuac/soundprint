@@ -138,22 +138,69 @@ fun SoundprintNowPlayingScreen(
         }
     }
 
+    fun beginNoRepeatShuffle(player: MediaController) {
+        val originalOrder = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }
+        originalQueueIds = originalOrder
+        playerPrefs.edit()
+            .putString("queue-original-order", originalOrder.joinToString(","))
+            .putBoolean("queue-shuffle", true)
+            .apply()
+
+        // Soundprint owns shuffle order in this screen; Media3's independent random mode stays off.
+        player.shuffleModeEnabled = false
+        val currentIndexBeforeRemoval = player.currentMediaItemIndex
+        val currentId = player.currentMediaItem?.mediaId
+        val seen = HashSet<String>()
+        if (!currentId.isNullOrBlank()) seen.add(currentId)
+        for (index in player.mediaItemCount - 1 downTo 0) {
+            if (index == currentIndexBeforeRemoval) continue
+            val id = player.getMediaItemAt(index).mediaId
+            if (id.isBlank() || !seen.add(id)) player.removeMediaItem(index)
+        }
+
+        val uniqueQueue = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }
+        val anchor = player.currentMediaItemIndex.coerceIn(-1, uniqueQueue.lastIndex)
+        val alreadyPlayedIndices = (0..anchor).filter { it in uniqueQueue.indices }
+        val noRepeatOrder = NoRepeatShuffleOrder.fromOrder(uniqueQueue.size, alreadyPlayedIndices)
+        applyQueueOrder(noRepeatOrder.snapshotIndices().map { uniqueQueue[it] })
+        shuffle = true
+    }
+
+    fun endNoRepeatShuffle(player: MediaController) {
+        val savedOriginalOrder = originalQueueIds
+        val playingId = player.currentMediaItem?.mediaId
+        val savedPosition = player.currentPosition.coerceAtLeast(0L)
+        val wasPlaying = player.isPlaying
+        player.shuffleModeEnabled = false
+        shuffle = false
+        originalQueueIds = emptyList()
+        playerPrefs.edit().remove("queue-original-order").putBoolean("queue-shuffle", false).apply()
+
+        // Restore original queue entries (including intentional duplicates) from the local library.
+        // Rebuilding only happens when shuffle is turned off, never during shuffled playback.
+        scope.launch {
+            val restoredTracks = withContext(Dispatchers.IO) {
+                savedOriginalOrder.mapNotNull { id -> library.song(id) }
+            }
+            if (controller !== player || restoredTracks.isEmpty()) return@launch
+            val mediaItems = restoredTracks.map { it.toSoundprintMediaItem() }
+            val restoredIndex = restoredTracks.indexOfFirst { it.id == playingId }.takeIf { it >= 0 } ?: 0
+            player.setMediaItems(mediaItems, restoredIndex, savedPosition)
+            player.prepare()
+            if (wasPlaying) player.play()
+        }
+    }
+
     LaunchedEffect(controller) {
         val connectedPlayer = controller
         if (connectedPlayer != null) {
-            val actualOrder = (0 until connectedPlayer.mediaItemCount).map { connectedPlayer.getMediaItemAt(it).mediaId }
             val storedOrder = playerPrefs.getString("queue-original-order", "").orEmpty().split(',').filter { it.isNotBlank() }
             if (playerPrefs.getBoolean("queue-shuffle", false) && storedOrder.isNotEmpty()) {
                 originalQueueIds = storedOrder
                 shuffle = true
                 connectedPlayer.shuffleModeEnabled = false
-            } else if (connectedPlayer.shuffleModeEnabled && actualOrder.size > 1) {
-                originalQueueIds = actualOrder
-                playerPrefs.edit().putString("queue-original-order", actualOrder.joinToString(",")).putBoolean("queue-shuffle", true).apply()
-                val anchor = connectedPlayer.currentMediaItemIndex.coerceIn(-1, actualOrder.lastIndex)
-                connectedPlayer.shuffleModeEnabled = false
-                applyQueueOrder(actualOrder.take(anchor + 1) + actualOrder.drop(anchor + 1).shuffled())
-                shuffle = true
+            } else if (connectedPlayer.shuffleModeEnabled && connectedPlayer.mediaItemCount > 1) {
+                beginNoRepeatShuffle(connectedPlayer)
             }
         }
         while (controller != null) {
@@ -524,26 +571,8 @@ fun SoundprintNowPlayingScreen(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     IconButton(onClick = {
                         val player = controller ?: return@IconButton
-                        val actualOrder = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }
-                        if (!shuffle) {
-                            originalQueueIds = actualOrder
-                            playerPrefs.edit().putString("queue-original-order", actualOrder.joinToString(",")).putBoolean("queue-shuffle", true).apply()
-                            val anchor = player.currentMediaItemIndex.coerceIn(-1, actualOrder.lastIndex)
-                            player.shuffleModeEnabled = false
-                            applyQueueOrder(actualOrder.take(anchor + 1) + actualOrder.drop(anchor + 1).shuffled())
-                            shuffle = true
-                        } else {
-                            val remaining = actualOrder.toMutableList()
-                            val restored = buildList {
-                                originalQueueIds.forEach { id -> if (remaining.remove(id)) add(id) }
-                                addAll(remaining)
-                            }
-                            player.shuffleModeEnabled = false
-                            applyQueueOrder(restored)
-                            shuffle = false
-                            originalQueueIds = emptyList()
-                            playerPrefs.edit().remove("queue-original-order").putBoolean("queue-shuffle", false).apply()
-                        }
+                        if (!shuffle) beginNoRepeatShuffle(player)
+                        else endNoRepeatShuffle(player)
                     }, modifier = Modifier.size(48.dp)) {
                         SoundprintIcon(SoundprintIcons.Shuffle, "Shuffle", modifier = Modifier.size(20.dp), tint = if (shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
