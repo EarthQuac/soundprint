@@ -59,7 +59,8 @@ internal fun SongsLibraryScreen(
     library: MusicLibraryManager,
     playback: SoundprintPlaybackConnection,
     onImportFiles: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    initialTwinSenseOpen: Boolean = false
 ) {
     val context = LocalContext.current
     val proAccess = LocalSoundprintProUiAccess.current
@@ -72,7 +73,7 @@ internal fun SongsLibraryScreen(
     var sort by remember { mutableStateOf("Title") }
     var descending by remember { mutableStateOf(false) }
     var sortMenu by remember { mutableStateOf(false) }
-    var soundprintOpen by remember { mutableStateOf(false) }
+    var soundprintOpen by remember { mutableStateOf(initialTwinSenseOpen) }
     var recycleOpen by remember { mutableStateOf(false) }
     var scanResult by remember { mutableStateOf<TwinSenseScanResult?>(null) }
     var scanProgress by remember { mutableStateOf(TwinSenseScanProgress(0, 0, "", 0, 0)) }
@@ -186,7 +187,7 @@ internal fun SongsLibraryScreen(
                             onClick = { soundprintOpen = !soundprintOpen; if (soundprintOpen) recycleOpen = false },
                             modifier = Modifier.weight(1f)
                         ) {
-                            SoundprintIcon(SoundprintIcons.AudioWaveform, null, modifier = Modifier.size(16.dp))
+                            SoundprintIcon(SoundprintIcons.ShieldCheck, null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("TwinSense", fontSize = 12.sp)
                             ProFeatureBadge()
@@ -214,7 +215,7 @@ internal fun SongsLibraryScreen(
                         Spacer(Modifier.height(0.dp))
                         Column(Modifier.padding(vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                SoundprintIcon(SoundprintIcons.AudioWaveform, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                                SoundprintIcon(SoundprintIcons.ShieldCheck, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
