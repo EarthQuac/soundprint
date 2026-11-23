@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -152,25 +153,33 @@ internal fun SongsLibraryScreen(
 
 
     Column(Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
-            IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
-                SoundprintIcon(SoundprintIcons.ArrowLeft, contentDescription = "Back")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
+                    SoundprintIcon(SoundprintIcons.ArrowLeft, contentDescription = "Back")
+                }
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(if (initialTwinSenseOpen) "TwinSense" else "Songs", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+                    Text(if (initialTwinSenseOpen) "${songs.size} tracks to compare" else "${songs.size} songs", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            Spacer(Modifier.width(8.dp))
-            Column(Modifier.weight(1f)) {
-                Text(if (initialTwinSenseOpen) "TwinSense" else "Songs", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
-                Text(if (initialTwinSenseOpen) "${songs.size} tracks to compare" else "${songs.size} songs", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            OutlinedButton(onClick = onImportFiles, shape = RoundedCornerShape(50)) {
-                SoundprintIcon(SoundprintIcons.Music2, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Add music", fontSize = 12.sp)
+            Button(
+                onClick = onImportFiles,
+                modifier = Modifier.padding(start = 12.dp, top = 10.dp).height(42.dp),
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                )
+            ) {
+                SoundprintIcon(SoundprintIcons.FolderPlus, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Add music", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
         }
-        Spacer(Modifier.height(0.dp))
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -178,7 +187,7 @@ internal fun SongsLibraryScreen(
         ) {
             item {
                 Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 8.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 8.dp, bottom = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedTextField(
@@ -186,18 +195,21 @@ internal fun SongsLibraryScreen(
                         onValueChange = { query = it },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        placeholder = { Text("Filter songs, artists, albums…", fontSize = 13.sp) },
-                        leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null) },
-                        shape = RoundedCornerShape(14.dp)
-                    ,
+                        placeholder = { Text("Filter songs, artists, albums...", fontSize = 14.sp) },
+                        leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null, modifier = Modifier.size(20.dp)) },
+                        shape = RoundedCornerShape(24.dp),
                         colors = soundprintOutlinedFieldColors()
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(Modifier.weight(1f)) {
-                            OutlinedButton(onClick = { sortMenu = true }, modifier = Modifier.fillMaxWidth()) {
-                                SoundprintIcon(SoundprintIcons.ArrowUpDown, null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Sort: $sort", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 11.sp)
+                            OutlinedButton(
+                                onClick = { sortMenu = true },
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                shape = RoundedCornerShape(24.dp)
+                            ) {
+                                SoundprintIcon(SoundprintIcons.ArrowDownUp, null, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Sort: $sort", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
                             }
                             DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
                                 listOf("Title", "Artist", "Album", "Date added", "Duration").forEach { option ->
@@ -205,31 +217,77 @@ internal fun SongsLibraryScreen(
                                 }
                             }
                         }
-                        OutlinedButton(onClick = { descending = !descending }, modifier = Modifier.weight(1f)) {
-                            Text(if (descending) "Descending" else "Ascending", fontSize = 11.sp)
+                        OutlinedButton(
+                            onClick = { descending = !descending },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(24.dp)
+                        ) {
+                            SoundprintIcon(SoundprintIcons.ArrowDownUp, null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (descending) "Descending" else "Ascending", fontSize = 14.sp, maxLines = 1)
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
+                        Button(
                             onClick = { soundprintOpen = !soundprintOpen; if (soundprintOpen) recycleOpen = false },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
                         ) {
-                            SoundprintIcon(SoundprintIcons.ShieldCheck, null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("TwinSense", fontSize = 12.sp)
+                            SoundprintIcon(SoundprintIcons.CopyCheck, null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("TwinSense", fontSize = 14.sp, maxLines = 1)
                             ProFeatureBadge()
                         }
-                        OutlinedButton(
+                        Button(
                             onClick = {
                                 recycleOpen = !recycleOpen
                                 if (recycleOpen) soundprintOpen = false
                                 scope.launch { recycleItems = withContext(Dispatchers.IO) { library.recycleBin() } }
                             },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
                         ) {
-                            SoundprintIcon(SoundprintIcons.Library, null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Recycle Bin (${recycleItems.size})", fontSize = 12.sp, maxLines = 1)
+                            SoundprintIcon(SoundprintIcons.Trash, null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Recycle Bin", fontSize = 14.sp, maxLines = 1)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { if (filteredSongs.isNotEmpty()) playback.playTracks(filteredSongs) },
+                            enabled = filteredSongs.isNotEmpty(),
+                            modifier = Modifier.weight(1f).height(52.dp),
+                            shape = RoundedCornerShape(28.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
+                            SoundprintIcon(SoundprintIcons.Play, null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Play all", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Button(
+                            onClick = { if (filteredSongs.isNotEmpty()) playback.playTracks(filteredSongs, shuffle = true) },
+                            enabled = filteredSongs.isNotEmpty(),
+                            modifier = Modifier.weight(1f).height(52.dp),
+                            shape = RoundedCornerShape(28.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) {
+                            SoundprintIcon(SoundprintIcons.Shuffle, null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Shuffle", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                     if (query.isNotBlank()) Text("${filteredSongs.size} matches", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -543,19 +601,18 @@ private fun NativeSongLibraryRow(
     val playlists = remember(playlistsOpen) { if (playlistsOpen) library.playlists() else emptyList() }
 
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface).clickable(onClick = onPlay).padding(10.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(12.dp)).clickable(onClick = onPlay)
+            .padding(horizontal = 2.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(42.dp).clip(RoundedCornerShape(9.dp)).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-            SoundprintIcon(SoundprintIcons.Music2, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Spacer(Modifier.width(10.dp))
+        NativeArtwork(track.artworkUri, track.id, Modifier.size(54.dp), 12)
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(track.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("${track.artist} · ${track.album}", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(track.title, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(track.artist.ifBlank { "Unknown artist" }, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text(formatTwinSenseDuration(track.durationMs / 1000.0), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(formatTwinSenseDuration(track.durationMs / 1000.0), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Box {
             androidx.compose.material3.IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(36.dp)) {
                 SoundprintIcon(SoundprintIcons.EllipsisVertical, contentDescription = "Song options", modifier = Modifier.size(19.dp))
