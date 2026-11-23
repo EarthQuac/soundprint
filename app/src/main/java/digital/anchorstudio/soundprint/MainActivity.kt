@@ -1135,6 +1135,11 @@ private fun SoundprintApp(
     }
     var nowPlayingOpen by remember { mutableStateOf(false) }
     var miniPlayerExpanded by remember { mutableStateOf(false) }
+    // Returning from Now Playing must always restore the compact floating circle.
+    // The rectangular controls are opened only by tapping that circle.
+    LaunchedEffect(nowPlayingOpen) {
+        if (!nowPlayingOpen) miniPlayerExpanded = false
+    }
     var tagEditorOpen by remember { mutableStateOf(false) }
     var resumePrompt by remember { mutableStateOf<PlaybackResumePrompt?>(null) }
     val playbackQueueStore = remember { PlaybackQueueStore(appContext) }
@@ -1226,7 +1231,7 @@ private fun SoundprintApp(
                             library = libraryManager,
                             scanner = clapScanner,
                             playback = playbackConnection,
-                            onBack = { nowPlayingOpen = false }
+                            onBack = { miniPlayerExpanded = false; nowPlayingOpen = false }
                         )
                         "tag-editor" -> SoundprintTagEditorScreen(
                             library = libraryManager,
