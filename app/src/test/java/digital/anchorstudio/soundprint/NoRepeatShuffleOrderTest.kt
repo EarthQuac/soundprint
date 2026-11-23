@@ -1,9 +1,11 @@
 package digital.anchorstudio.soundprint
 
+import androidx.media3.common.util.UnstableApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+@UnstableApi
 class NoRepeatShuffleOrderTest {
     @Test
     fun largeLibraryVisitsEveryIndexExactlyOnceBeforeCycleEnds() {
