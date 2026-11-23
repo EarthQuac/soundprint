@@ -283,6 +283,15 @@ class MainActivity : ComponentActivity() {
             }
             val libraryRepository = remember { MusicLibraryRepository.getInstance(applicationContext) }
             val libraryManager = remember { MusicLibraryManager.getInstance(applicationContext) }
+            LaunchedEffect(preferences, libraryManager) {
+                if (!preferences.getBoolean("custom_artwork_pro_migrated_v1", false)) {
+                    preferences.edit()
+                        .putBoolean("custom_artwork_enabled", false)
+                        .putBoolean("custom_artwork_pro_migrated_v1", true)
+                        .apply()
+                    withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(false) }
+                }
+            }
             val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
             var libraryTrackCount by remember { mutableIntStateOf(0) }
             var librarySources by remember { mutableStateOf(emptyList<MusicLibrarySource>()) }
