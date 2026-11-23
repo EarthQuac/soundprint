@@ -2913,13 +2913,6 @@ private fun SettingsScreen(
             }
             if (matches("listening history recommendations music playlist automatic background activity personalize privacy smart mixes free")) {
                 SettingsSection("LISTENING & PERSONALIZATION") {
-                    Text(
-                        "Free for everyone · Control what Soundprint remembers, recommends and does automatically.",
-                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                     SettingsToggleRow(
                         "Listening history",
                         "Record recently played songs, play counts, listening time and streaks. Turning this off stops new history; it does not erase existing history.",
