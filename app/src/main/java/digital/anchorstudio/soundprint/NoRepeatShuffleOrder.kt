@@ -1,13 +1,15 @@
 package digital.anchorstudio.soundprint
 
 import androidx.media3.common.C
-import androidx.media3.common.ShuffleOrder
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.source.ShuffleOrder
 import java.util.Random
 
 /**
  * A stable shuffled permutation for Media3. Each queue index appears exactly once in a cycle;
  * queue edits preserve the existing order and only randomize newly inserted entries.
  */
+@UnstableApi
 internal class NoRepeatShuffleOrder private constructor(
     private val shuffledIndices: IntArray,
     private val random: Random
@@ -67,8 +69,10 @@ internal class NoRepeatShuffleOrder private constructor(
         return NoRepeatShuffleOrder(result, random)
     }
 
-    override fun cloneAndSet(shuffledIndices: IntArray): ShuffleOrder =
-        fromOrder(shuffledIndices.size, shuffledIndices.asList(), random.nextLong())
+    override fun cloneAndClear(): ShuffleOrder = NoRepeatShuffleOrder(0, random.nextLong())
+
+    override fun cloneAndSet(insertionCount: Int, startIndex: Int): ShuffleOrder =
+        startingWith(insertionCount, startIndex, random.nextLong())
 
     fun snapshotIndices(): List<Int> = shuffledIndices.toList()
 
