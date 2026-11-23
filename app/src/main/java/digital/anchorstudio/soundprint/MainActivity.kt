@@ -1463,6 +1463,15 @@ private fun HomeScreen(
     onOpenAlbum: (String) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    var historyPreferenceVersion by remember { mutableIntStateOf(0) }
+    DisposableEffect(context) {
+        val prefs = SoundprintListeningPreferences.preferences(context)
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == SoundprintListeningPreferences.KEY_HISTORY_ENABLED) historyPreferenceVersion++
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
     var editGenreSuggestions by remember { mutableStateOf(emptyList<SoundprintGenreSuggestion>()) }
     var searchOpen by remember { mutableStateOf(false) }
     var refreshVersion by remember { mutableIntStateOf(0) }
@@ -1514,7 +1523,7 @@ private fun HomeScreen(
     var recentlyPlayedTracks by remember { mutableStateOf<List<MusicTrack>>(emptyList()) }
     var homeAlbums by remember { mutableStateOf<List<LibraryAlbum>>(emptyList()) }
     var selectedShortcut by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(libraryTrackCount, refreshVersion) {
+    LaunchedEffect(libraryTrackCount, refreshVersion, historyPreferenceVersion) {
         val homeData = withContext(Dispatchers.IO) {
             (if (SoundprintListeningPreferences.historyEnabled(context)) libraryManager.recentlyPlayed(8) else emptyList<MusicTrack>()) to libraryManager.albums().take(10)
         }
@@ -2907,6 +2916,12 @@ private fun SettingsScreen(
                     ) { enabled ->
                         historyEnabled = enabled
                         listeningPreferences.edit().putBoolean(SoundprintListeningPreferences.KEY_HISTORY_ENABLED, enabled).apply()
+                        if (enabled) {
+                            settingsContext.getSharedPreferences("soundprint_account_security", 0)
+                                .getString("listening_stats_sync_user_id", null)
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { ListeningStatsSync.enqueue(settingsContext, it) }
+                        }
                     }
                     SettingsToggleRow(
                         "Music recommendations",
