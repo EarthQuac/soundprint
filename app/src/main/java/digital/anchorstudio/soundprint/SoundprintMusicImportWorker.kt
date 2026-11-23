@@ -185,7 +185,10 @@ class SoundprintMusicImportWorker(
             }
             val payload = JSONObject(requestFile.readText(Charsets.UTF_8))
             val type = payload.getString("type")
-            val useCustomArtwork = payload.optBoolean("useCustomArtwork", false)
+            val proArtworkEntitled = applicationContext
+                .getSharedPreferences("soundprint_playback_options", Context.MODE_PRIVATE)
+                .getBoolean("pro_entitled", false)
+            val useCustomArtwork = payload.optBoolean("useCustomArtwork", false) && proArtworkEntitled
             val urisJson = payload.getJSONArray("uris")
             val uris = buildList {
                 for (index in 0 until urisJson.length()) add(Uri.parse(urisJson.getString(index)))
