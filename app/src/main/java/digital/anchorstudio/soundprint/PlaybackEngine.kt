@@ -855,13 +855,15 @@ class SoundprintPlaybackConnection(
     private fun startPlayback(player: MediaController, request: PendingPlay) {
         if (closed || request.tracks.isEmpty()) return
         runCatching {
-            val repeatPreset = runCatching {
-                PlaylistRepeatPreset.valueOf(pausePreferences.getString("playlist_repeat_mode", "OFF") ?: "OFF")
-            }.getOrDefault(PlaylistRepeatPreset.OFF)
-            player.repeatMode = when (repeatPreset) {
-                PlaylistRepeatPreset.ALL -> Player.REPEAT_MODE_ALL
-                PlaylistRepeatPreset.ONE -> Player.REPEAT_MODE_ONE
-                PlaylistRepeatPreset.OFF -> Player.REPEAT_MODE_OFF
+            if (pausePreferences.getBoolean("playlist_preset_active", false)) {
+                val repeatPreset = runCatching {
+                    PlaylistRepeatPreset.valueOf(pausePreferences.getString("playlist_repeat_mode", "OFF") ?: "OFF")
+                }.getOrDefault(PlaylistRepeatPreset.OFF)
+                player.repeatMode = when (repeatPreset) {
+                    PlaylistRepeatPreset.ALL -> Player.REPEAT_MODE_ALL
+                    PlaylistRepeatPreset.ONE -> Player.REPEAT_MODE_ONE
+                    PlaylistRepeatPreset.OFF -> Player.REPEAT_MODE_OFF
+                }
             }
             val mediaItems = request.tracks.map { track ->
                 require(track.uri.isNotBlank()) { "The selected song has no playable file location: ${track.title}" }
