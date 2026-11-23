@@ -2122,7 +2122,9 @@ private fun HomeSearchScreen(library: MusicLibraryManager, playback: SoundprintP
                     items(playlists, key = { it.id }) { playlist ->
                         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable {
                             val preset = playlistPresetStore.get(playlist.id)
-                            playback.playTracks(library.playlistTracks(playlist.id), shuffle = preset.shuffle, playlistPreset = preset)
+                            val playlistTracks = library.playlistTracks(playlist.id)
+                            if (preset.enabled) playback.playTracks(playlistTracks, shuffle = preset.shuffle, playlistPreset = preset)
+                            else playback.playTracks(playlistTracks)
                         }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             SoundprintIcon(SoundprintIcons.ListMusic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp))
                             Spacer(Modifier.width(10.dp))
