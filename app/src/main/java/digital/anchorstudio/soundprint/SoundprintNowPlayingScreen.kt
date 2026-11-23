@@ -643,7 +643,6 @@ fun SoundprintNowPlayingScreen(
                             sleepOpen = true
                         }
                     }
-                    }
                 }
                 Spacer(Modifier.height(12.dp))
                 Row(
