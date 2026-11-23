@@ -293,10 +293,10 @@ internal fun SongsLibraryScreen(
                                         fontSize = 12.sp
                                     )
                                 }
-                                if (scanning) {
+                            }
+                            if (scanning) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                                     TextButton(onClick = { scanJob?.cancel() }) { Text("Cancel", fontSize = 11.sp) }
-                                } else if (scanResult != null) {
-                                    Text("${scanResult?.groups?.size ?: 0} groups", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                             if (scanning) {
