@@ -1268,7 +1268,6 @@ fun SoundprintMiniPlayer(
     var playing by remember { mutableStateOf(controller?.isPlaying == true) }
     var position by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
-    var dragOffset by remember { mutableStateOf(Offset.Zero) }
 
     LaunchedEffect(controller) {
         while (controller != null) {
@@ -1339,6 +1338,9 @@ fun SoundprintMiniPlayer(
                         }
                         IconButton(onClick = onCollapse, modifier = Modifier.size(30.dp)) {
                             SoundprintIcon(SoundprintIcons.ChevronDown, "Minimize floating controls", modifier = Modifier.size(16.dp))
+                        }
+                        IconButton(onClick = onClear, modifier = Modifier.size(30.dp)) {
+                            SoundprintIcon(SoundprintIcons.X, "Stop playback", modifier = Modifier.size(15.dp))
                         }
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
