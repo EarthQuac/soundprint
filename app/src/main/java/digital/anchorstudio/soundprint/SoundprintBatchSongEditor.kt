@@ -112,7 +112,11 @@ internal fun SoundprintSongsLibraryScreen(
             if (selectionMode) {
                 TextButton(onClick = { selectedIds = emptySet(); selectionMode = false }) { Text("Cancel") }
             } else {
-                TextButton(onClick = onImport) { Text("Add music") }
+                TextButton(onClick = onImport) {
+                    SoundprintIcon(SoundprintIcons.Plus, contentDescription = null, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Add music")
+                }
             }
         }
         Spacer(Modifier.height(0.dp))
@@ -206,8 +210,8 @@ internal fun SoundprintSongsLibraryScreen(
                             enabled = !saving,
                             shape = CircleShape
                         ) {
-                            SoundprintIcon(SoundprintIcons.Pencil, null, modifier = Modifier.size(15.dp))
-                            Spacer(Modifier.width(5.dp))
+                            SoundprintIcon(SoundprintIcons.Pencil, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
                             Text("Batch edit")
                         }
                     }
