@@ -109,6 +109,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -2019,6 +2020,8 @@ private fun ArtistHomeScreen(
 
 @Composable
 private fun HomeSearchScreen(library: MusicLibraryManager, playback: SoundprintPlaybackConnection, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val playlistPresetStore = remember(context) { PlaylistPlaybackPresetStore(context) }
     var query by remember { mutableStateOf("") }
     var songs by remember { mutableStateOf(emptyList<MusicTrack>()) }
     var albums by remember { mutableStateOf(emptyList<LibraryAlbum>()) }
@@ -2119,7 +2122,8 @@ private fun HomeSearchScreen(library: MusicLibraryManager, playback: SoundprintP
                     item { Text("PLAYLISTS", Modifier.padding(start = 4.dp, top = 12.dp), fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     items(playlists, key = { it.id }) { playlist ->
                         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable {
-                            playback.playTracks(library.playlistTracks(playlist.id))
+                            val preset = playlistPresetStore.get(playlist.id)
+                            playback.playTracks(library.playlistTracks(playlist.id), shuffle = preset.shuffle, playlistPreset = preset)
                         }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             SoundprintIcon(SoundprintIcons.ListMusic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp))
                             Spacer(Modifier.width(10.dp))
