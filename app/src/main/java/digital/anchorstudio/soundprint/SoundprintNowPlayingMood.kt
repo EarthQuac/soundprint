@@ -145,10 +145,17 @@ fun SoundprintNowPlayingMoodSection(
     }
     val recommendationIds = recommendations.map { it.first.id }
 
+    LaunchedEffect(musicRecommendationsEnabled) {
+        if (!musicRecommendationsEnabled) {
+            expanded = false
+            selectedMood = null
+        }
+    }
+
     // Selecting a mood replaces the upcoming queue instead of silently leaving
     // tracks from the previously selected mood mixed in. The current song stays put.
-    LaunchedEffect(selectedMood?.id, recommendationIds) {
-        if (selectedMood != null) {
+    LaunchedEffect(musicRecommendationsEnabled, selectedMood?.id, recommendationIds) {
+        if (musicRecommendationsEnabled && selectedMood != null) {
             // The player service can still be connecting when a mood is tapped.
             // Wait for its MediaController instead of dropping the first queue update.
             var attempts = 0
@@ -229,7 +236,7 @@ fun SoundprintNowPlayingMoodSection(
         }
 
         AnimatedVisibility(
-            visible = expanded,
+            visible = expanded && musicRecommendationsEnabled,
             enter = fadeIn(tween(160)) + expandVertically(),
             exit = fadeOut(tween(120)) + shrinkVertically()
         ) {
