@@ -29,10 +29,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -92,7 +93,11 @@ fun SoundprintSplash(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val image = ImageBitmap.imageResource(R.drawable.soundprint_logo)
+    val image = remember(context) {
+        requireNotNull(context.getDrawable(R.drawable.soundprint_logo))
+            .toBitmap()
+            .asImageBitmap()
+    }
 
     // Respect "remove animations" in system settings: jump straight to the finished logo.
     val animationsOff = remember {
@@ -144,7 +149,7 @@ fun SoundprintSplash(
                     Modifier
                         .matchParentSize()
                         .alpha(glow)
-                        .blur(24.dp, BlurredEdgeTreatment.Unbounded)
+                        .blur(12.dp, BlurredEdgeTreatment.Unbounded)
                 )
                 LogoBars(image, t, Modifier.matchParentSize())
             }
