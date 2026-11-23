@@ -1363,21 +1363,24 @@ private fun SoundprintApp(
                             else -> ClapDiscoverScreen(libraryManager, clapScanner, playbackConnection) { selectedTab = 0 }
                         }
                     }
-                }
-            }
 
-            if (!nowPlayingOpen && playbackConnection.controller?.currentMediaItem != null) {
-                SoundprintMiniPlayer(
-                    controller = playbackConnection.controller,
-                    library = libraryManager,
-                    onOpen = { miniPlayerExpanded = false; nowPlayingOpen = true },
-                    onExpand = { miniPlayerExpanded = !miniPlayerExpanded },
-                    onToggle = { playbackConnection.toggle() },
-                    onNext = { playbackConnection.next() },
-                    onClear = { playbackConnection.clearQueue() },
-                    expanded = miniPlayerExpanded,
-                    onCollapse = { miniPlayerExpanded = false }
-                )
+                }
+                // Float the mini player over the content viewport. Keeping this overlay
+                // inside the weighted screen Box prevents fillMaxSize() from consuming
+                // the parent Column's height and pushing the navigation/content off-screen.
+                if (!nowPlayingOpen && playbackConnection.controller?.currentMediaItem != null) {
+                    SoundprintMiniPlayer(
+                        controller = playbackConnection.controller,
+                        library = libraryManager,
+                        onOpen = { miniPlayerExpanded = false; nowPlayingOpen = true },
+                        onExpand = { miniPlayerExpanded = true },
+                        onToggle = { playbackConnection.toggle() },
+                        onNext = { playbackConnection.next() },
+                        onClear = { playbackConnection.clearQueue() },
+                        expanded = miniPlayerExpanded,
+                        onCollapse = { miniPlayerExpanded = false }
+                    )
+                }
             }
 
             if (!nowPlayingOpen && !tagEditorOpen) Column(
