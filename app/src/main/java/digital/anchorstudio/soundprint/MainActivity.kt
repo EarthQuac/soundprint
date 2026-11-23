@@ -1117,9 +1117,10 @@ private fun SoundprintApp(
                                                 // Celebrate only a newly completed Founder claim, never a retry
                                                 // that reports this account was already entitled.
                                                 if (result.optBoolean("claimed") && !result.optBoolean("already_entitled")) {
-                                                    SoundprintProAccess.currentUserId()?.let(
-                                                        onFounderAccessClaimed
-                                                    )
+                                                    val claimedUserId = SoundprintProAccess.currentUserId()
+                                                    if (claimedUserId != null) {
+                                                        onFounderAccessClaimed(claimedUserId)
+                                                    }
                                                 }
                                             }
                                             runCatching { SoundprintProAccess.refresh() }
