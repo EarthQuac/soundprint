@@ -1,3 +1,6 @@
+import java.awt.image.BufferedImage
+import javax.imageio.ImageIO
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -67,12 +70,12 @@ val generateSoundprintLogoResource = tasks.register("generateSoundprintLogoResou
     outputs.dir(generatedSoundprintLogoRes)
     doLast {
         if (!sourceLogo.exists()) throw GradleException("Missing Soundprint logo source asset")
-        val decoded = javax.imageio.ImageIO.read(sourceLogo)
+        val decoded = ImageIO.read(sourceLogo)
             ?: throw GradleException("Could not decode Soundprint logo source asset")
-        val rgba = java.awt.image.BufferedImage(
+        val rgba = BufferedImage(
             decoded.width,
             decoded.height,
-            java.awt.image.BufferedImage.TYPE_INT_ARGB
+            BufferedImage.TYPE_INT_ARGB
         )
         val graphics = rgba.createGraphics()
         try {
