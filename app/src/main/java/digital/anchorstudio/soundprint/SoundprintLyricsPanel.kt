@@ -567,8 +567,7 @@ fun SoundprintLyricsPanel(
                                     fontSize = 12.sp, fontWeight = FontWeight.SemiBold
                                 )
                                 if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) {
-                                    SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(12.dp))
-                                    Text("Pro", fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                                    ProFeatureBadge()
                                 }
                             }
                         }
