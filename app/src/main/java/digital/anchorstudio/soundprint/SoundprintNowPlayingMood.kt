@@ -29,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -78,6 +79,22 @@ fun SoundprintNowPlayingMoodSection(
     queueCount: Int,
     onOpenQueue: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var musicRecommendationsEnabled by remember { mutableStateOf(SoundprintListeningPreferences.musicRecommendationsEnabled(context)) }
+    var backgroundActivityEnabled by remember { mutableStateOf(SoundprintListeningPreferences.backgroundActivityEnabled(context)) }
+    DisposableEffect(context) {
+        val prefs = SoundprintListeningPreferences.preferences(context)
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            when (key) {
+                SoundprintListeningPreferences.KEY_MUSIC_RECOMMENDATIONS_ENABLED ->
+                    musicRecommendationsEnabled = SoundprintListeningPreferences.musicRecommendationsEnabled(context)
+                SoundprintListeningPreferences.KEY_BACKGROUND_ACTIVITY_ENABLED ->
+                    backgroundActivityEnabled = SoundprintListeningPreferences.backgroundActivityEnabled(context)
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
     val scan by scanner.state.collectAsState()
     var expanded by remember { mutableStateOf(false) }
     var selectedMood by remember { mutableStateOf<PlayerMoodChoice?>(null) }
@@ -113,8 +130,8 @@ fun SoundprintNowPlayingMoodSection(
     val targetMood = selectedMood?.let { choice ->
         SoundprintMood.entries.firstOrNull { it.id == choice.clapMoodId }
     }
-    val recommendations = remember(selectedMood, targetMood, tracks, profiles, corrections, currentTrackId) {
-        if (selectedMood == null || targetMood == null) emptyList()
+    val recommendations = remember(musicRecommendationsEnabled, selectedMood, targetMood, tracks, profiles, corrections, currentTrackId) {
+        if (!musicRecommendationsEnabled || selectedMood == null || targetMood == null) emptyList()
         else tracks.mapNotNull { song ->
             if (song.id == currentTrackId) return@mapNotNull null
             val correction = corrections[song.id]
@@ -189,7 +206,7 @@ fun SoundprintNowPlayingMoodSection(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TextButton(
+            if (musicRecommendationsEnabled) TextButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier.clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
@@ -240,7 +257,7 @@ fun SoundprintNowPlayingMoodSection(
                                         .clickable {
                                             selectedMood = mood
                                             moodStatus = "Finding " + mood.label.lowercase() + " songs in your library…"
-                                            if (!scan.running) scanner.startScan()
+                                            if (!scan.running && backgroundActivityEnabled) scanner.startScan()
                                         }
                                         .padding(horizontal = 12.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically
