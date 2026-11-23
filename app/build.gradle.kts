@@ -100,23 +100,86 @@ dependencies {
 }
 
 
-// Normalize the logo PNG through the JDK image codec before AAPT2 compiles it.
- // This strips problematic ancillary PNG chunks while preserving the decoded artwork.
+// Remove malformed ancillary PNG metadata and repair chunk CRCs before AAPT2
+// parses the app logo. The pixel data (IHDR/PLTE/IDAT) is retained byte-for-byte.
 val normalizeSoundprintLogoPng = tasks.register("normalizeSoundprintLogoPng") {
     doLast {
         val logo = file("src/main/res/drawable/soundprint_logo.png")
-        if (logo.exists()) {
-            val decoded = javax.imageio.ImageIO.read(logo)
-                ?: throw GradleException("Could not decode soundprint_logo.png")
-            val normalized = logo.resolveSibling("soundprint_logo.normalized.png")
-            if (!javax.imageio.ImageIO.write(decoded, "png", normalized)) {
-                throw GradleException("Could not re-encode soundprint_logo.png")
+        if (!logo.exists()) return@doLast
+
+        val input = logo.readBytes()
+        val signature = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+        if (input.size < signature.size || !input.copyOfRange(0, signature.size).contentEquals(signature)) {
+            throw GradleException("soundprint_logo.png has an invalid PNG signature")
+        }
+
+        val output = java.io.ByteArrayOutputStream(input.size)
+        output.write(signature)
+        var offset = signature.size
+        var sawHeader = false
+        var sawImageData = false
+        var sawEnd = false
+
+        while (offset < input.size) {
+            if (input.size - offset < 12) throw GradleException("Truncated PNG chunk in soundprint_logo.png")
+            val chunkLength = java.nio.ByteBuffer.wrap(input, offset, 4).int.toLong() and 0xffffffffL
+            if (chunkLength > Int.MAX_VALUE || chunkLength > input.size - offset - 12L) {
+                throw GradleException("Invalid PNG chunk length in soundprint_logo.png")
             }
-            if (normalized.length() == 0L) {
-                throw GradleException("Normalized Soundprint logo is empty")
+
+            val length = chunkLength.toInt()
+            val typeStart = offset + 4
+            val dataStart = typeStart + 4
+            val dataEnd = dataStart + length
+            val typeBytes = input.copyOfRange(typeStart, dataStart)
+            val type = String(typeBytes, Charsets.US_ASCII)
+            val data = input.copyOfRange(dataStart, dataEnd)
+            val isCritical = type[0] in 'A'..'Z'
+
+            // Ancillary chunks carry metadata (profiles, timestamps, text) and are
+            // intentionally discarded; critical image chunks preserve the artwork.
+            if (isCritical) {
+                if (type == "IHDR") {
+                    if (sawHeader || length != 13) throw GradleException("Invalid PNG IHDR")
+                    sawHeader = true
+                }
+                if (type == "IDAT") sawImageData = true
+                if (type == "IEND") {
+                    if (length != 0) throw GradleException("Invalid PNG IEND")
+                    sawEnd = true
+                }
+
+                val crc = java.util.zip.CRC32().apply {
+                    update(typeBytes)
+                    update(data)
+                }.value
+                output.write(byteArrayOf(
+                    (length ushr 24).toByte(), (length ushr 16).toByte(),
+                    (length ushr 8).toByte(), length.toByte()
+                ))
+                output.write(typeBytes)
+                output.write(data)
+                output.write(byteArrayOf(
+                    (crc ushr 24).toByte(), (crc ushr 16).toByte(),
+                    (crc ushr 8).toByte(), crc.toByte()
+                ))
             }
-            normalized.copyTo(logo, overwrite = true)
-            normalized.delete()
+
+            offset = dataEnd + 4 // skip original CRC; recompute it for retained chunks
+            if (sawEnd) break
+        }
+
+        if (!sawHeader || !sawImageData || !sawEnd) {
+            throw GradleException("soundprint_logo.png is missing required PNG chunks")
+        }
+
+        val normalized = output.toByteArray()
+        val temporary = logo.resolveSibling("soundprint_logo.normalized.png")
+        temporary.writeBytes(normalized)
+        if (temporary.length() == 0L) throw GradleException("Normalized Soundprint logo is empty")
+        if (!temporary.renameTo(logo)) {
+            temporary.copyTo(logo, overwrite = true)
+            temporary.delete()
         }
     }
 }
