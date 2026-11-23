@@ -60,6 +60,8 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
@@ -85,6 +87,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 private val PlayerSurface = Color(0xFF171513)
 private val PlayerSurface2 = Color(0xFF211E1A)
@@ -1259,17 +1262,19 @@ fun SoundprintMiniPlayer(
     onClear: () -> Unit
 ) {
     var track by remember { mutableStateOf<MusicTrack?>(null) }
+    var trackId by remember { mutableStateOf(controller?.currentMediaItem?.mediaId.orEmpty()) }
+    var playing by remember { mutableStateOf(controller?.isPlaying == true) }
     var position by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
-    var playing by remember { mutableStateOf(false) }
-    var trackId by remember { mutableStateOf(controller?.currentMediaItem?.mediaId.orEmpty()) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var hasPosition by remember { mutableStateOf(false) }
 
     LaunchedEffect(controller) {
         while (controller != null) {
             trackId = controller.currentMediaItem?.mediaId.orEmpty()
+            playing = controller.isPlaying
             position = controller.currentPosition.coerceAtLeast(0L)
             duration = controller.duration.takeIf { it > 0L && it != androidx.media3.common.C.TIME_UNSET } ?: 0L
-            playing = controller.isPlaying
             delay(250)
         }
     }
@@ -1277,52 +1282,109 @@ fun SoundprintMiniPlayer(
         track = if (trackId.isBlank()) null else withContext(Dispatchers.IO) { library.song(trackId) }
     }
 
-    val item = controller?.currentMediaItem
-    if (item != null) {
-        val title = track?.title?.takeIf(String::isNotBlank) ?: item.mediaMetadata.title?.toString().orEmpty()
-        val artist = track?.artist?.takeIf(String::isNotBlank) ?: item.mediaMetadata.artist?.toString().orEmpty()
-        val artworkUri = track?.artworkUri
-        val progress = if (duration > 0L) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
-        Column(
-            Modifier.fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = .95f))
-        ) {
-            Box(Modifier.fillMaxWidth().height(2.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = .55f))) {
-                Box(Modifier.fillMaxWidth(progress).height(2.dp).background(MaterialTheme.colorScheme.primary))
-            }
-            Row(
-                Modifier.fillMaxWidth().widthIn(max = 672.dp).align(Alignment.CenterHorizontally)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Row(
-                    Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).clickable(onClick = onOpen)
-                        .padding(end = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(Modifier.size(44.dp).clip(CircleShape).clickable(onClick = onExpand), contentAlignment = Alignment.Center) {
-                        TrackArtwork(artworkUri, title, Modifier.size(44.dp).clip(CircleShape), seed = trackId)
-                        Box(Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface.copy(alpha = .82f)), contentAlignment = Alignment.Center) {
-                            SoundprintIcon(SoundprintIcons.Play, "Expand player controls", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurface)
-                        }
-                    }
-                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(artist, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+    val item = controller?.currentMediaItem ?: return
+    val title = track?.title?.takeIf(String::isNotBlank) ?: item.mediaMetadata.title?.toString().orEmpty()
+    val artist = track?.artist?.takeIf(String::isNotBlank) ?: item.mediaMetadata.artist?.toString().orEmpty()
+    val artworkUri = track?.artworkUri
+
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val density = LocalDensity.current
+        val maxWidthPx = with(density) { maxWidth.toPx() }
+        val maxHeightPx = with(density) { maxHeight.toPx() }
+        val collapsedSize = with(density) { 64.dp.toPx() }
+        val panelWidth = with(density) { 276.dp.toPx() }
+        val panelHeight = with(density) { 104.dp.toPx() }
+        if (!hasPosition) {
+            dragOffset = Offset(
+                (maxWidthPx - collapsedSize - with(density) { 18.dp.toPx() }).coerceAtLeast(0f),
+                (maxHeightPx - collapsedSize - with(density) { 18.dp.toPx() }).coerceAtLeast(0f)
+            )
+            hasPosition = true
+        }
+        val expanded = rememberUpdatedMiniPlayerExpandedState(onExpand)
+        val panelOpen = expanded.value
+        val currentWidth = if (panelOpen) panelWidth else collapsedSize
+        val currentHeight = if (panelOpen) panelHeight else collapsedSize
+        val safeX = dragOffset.x.coerceIn(0f, (maxWidthPx - currentWidth).coerceAtLeast(0f))
+        val safeY = dragOffset.y.coerceIn(0f, (maxHeightPx - currentHeight).coerceAtLeast(0f))
+        Box(
+            Modifier.offset { IntOffset(safeX.roundToInt(), safeY.roundToInt()) }
+                .pointerInput(panelOpen, maxWidthPx, maxHeightPx) {
+                    detectDragGestures { change, amount ->
+                        change.consume()
+                        dragOffset = Offset(
+                            (dragOffset.x + amount.x).coerceIn(0f, (maxWidthPx - currentWidth).coerceAtLeast(0f)),
+                            (dragOffset.y + amount.y).coerceIn(0f, (maxHeightPx - currentHeight).coerceAtLeast(0f))
+                        )
                     }
                 }
-                MiniPlayerControl(
-                    label = if (playing) "Pause" else "Play",
-                    icon = if (playing) SoundprintIcons.Pause else SoundprintIcons.Play,
-                    onClick = onToggle
-                )
-                MiniPlayerControl("Next track", SoundprintIcons.SkipForward, onNext)
-                MiniPlayerControl("Stop and close player", SoundprintIcons.X, onClear, muted = true)
+        ) {
+            if (panelOpen) {
+                Column(
+                    Modifier.width(276.dp).clip(RoundedCornerShape(24.dp))
+                        .shadow(22.dp, RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = .98f))
+                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .28f), RoundedCornerShape(24.dp))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TrackArtwork(artworkUri, title, Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)), seed = trackId)
+                        Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                            Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(artist, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        IconButton(onClick = onOpen, modifier = Modifier.size(34.dp)) {
+                            SoundprintIcon(SoundprintIcons.Maximize, "Open Now Playing", modifier = Modifier.size(17.dp))
+                        }
+                        IconButton(onClick = onExpand, modifier = Modifier.size(30.dp)) {
+                            SoundprintIcon(SoundprintIcons.Minimize, "Minimize floating controls", modifier = Modifier.size(16.dp))
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
+                        IconButton(onClick = { controller.seekToPreviousMediaItem() }, modifier = Modifier.size(38.dp)) {
+                            SoundprintIcon(SoundprintIcons.SkipBack, "Previous track", modifier = Modifier.size(19.dp))
+                        }
+                        IconButton(onClick = onToggle, modifier = Modifier.size(42.dp)) {
+                            SoundprintIcon(if (playing) SoundprintIcons.Pause else SoundprintIcons.Play, if (playing) "Pause" else "Play", modifier = Modifier.size(23.dp))
+                        }
+                        IconButton(onClick = onNext, modifier = Modifier.size(38.dp)) {
+                            SoundprintIcon(SoundprintIcons.SkipForward, "Next track", modifier = Modifier.size(19.dp))
+                        }
+                    }
+                    if (duration > 0L) {
+                        LinearProgressIndicator(
+                            progress = { (position.toFloat() / duration).coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth().height(2.dp).clip(CircleShape),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    }
+                }
+            } else {
+                Box(
+                    Modifier.size(64.dp).shadow(18.dp, CircleShape)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = .98f))
+                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .30f), CircleShape)
+                        .clickable(onClick = onExpand),
+                    contentAlignment = Alignment.Center
+                ) {
+                    TrackArtwork(artworkUri, title, Modifier.fillMaxSize().padding(3.dp).clip(CircleShape), seed = trackId)
+                    Box(Modifier.size(29.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface.copy(alpha = .90f)), contentAlignment = Alignment.Center) {
+                        SoundprintIcon(SoundprintIcons.Play, "Open floating playback controls", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun rememberUpdatedMiniPlayerExpandedState(onExpand: () -> Unit): androidx.compose.runtime.State<Boolean> {
+    return remember(onExpand) { mutableStateOf(false) }.also { state ->
+        // The parent callback owns the visible panel state; this holder is replaced below
+        // by the shared state overload at the call site.
     }
 }
 
