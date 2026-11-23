@@ -103,6 +103,7 @@ fun SoundprintNowPlayingScreen(
     scanner: ClapLibraryScanner,
     playback: SoundprintPlaybackConnection,
     onBack: () -> Unit,
+    onMinimize: () -> Unit = onBack,
     onOpenAudioLab: () -> Unit = {}
 ) {
     val proAccess = LocalSoundprintProUiAccess.current
