@@ -40,6 +40,36 @@ private data class StatsSnapshot(
 
 @Composable
 fun ListeningStatsScreen(libraryManager:MusicLibraryManager,onBack:()->Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var historyEnabled by remember { mutableStateOf(SoundprintListeningPreferences.historyEnabled(context)) }
+    DisposableEffect(context) {
+        val prefs = SoundprintListeningPreferences.preferences(context)
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == SoundprintListeningPreferences.KEY_HISTORY_ENABLED) {
+                historyEnabled = SoundprintListeningPreferences.historyEnabled(context)
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    if (!historyEnabled) {
+        Column(
+            Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Listening history is off", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+            Text(
+                "Soundprint is not recording new plays or listening time. Turn Listening history on in Settings → Listening & personalization to view your stats again.",
+                Modifier.padding(top = 10.dp),
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            TextButton(onClick = onBack, modifier = Modifier.padding(top = 12.dp)) { Text("Back") }
+        }
+        return
+    }
     var range by remember { mutableStateOf(StatsRange.WEEK) }
     var refresh by remember { mutableIntStateOf(0) }
     var resetDialog by remember { mutableStateOf(false) }
