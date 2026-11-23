@@ -2,6 +2,8 @@ package digital.anchorstudio.soundprint
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +47,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun SoundprintSongsLibraryScreen(
     library: MusicLibraryManager,
@@ -59,6 +62,9 @@ internal fun SoundprintSongsLibraryScreen(
     var tracks by remember { mutableStateOf(emptyList<MusicTrack>()) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var selectionMode by remember { mutableStateOf(false) }
+    var sortBy by remember { mutableStateOf("Title") }
+    var descending by remember { mutableStateOf(false) }
+    var sortMenuExpanded by remember { mutableStateOf(false) }
     var editorOpen by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
@@ -69,6 +75,17 @@ internal fun SoundprintSongsLibraryScreen(
 
     LaunchedEffect(query) {
         tracks = withContext(Dispatchers.IO) { library.allSongs(query = query.trim()) }
+    }
+
+    val visibleTracks = remember(tracks, sortBy, descending) {
+        val sorted = when (sortBy) {
+            "Artist" -> tracks.sortedWith(compareBy<MusicTrack> { it.artist.lowercase() }.thenBy { it.title.lowercase() })
+            "Album" -> tracks.sortedWith(compareBy<MusicTrack> { it.album.lowercase() }.thenBy { it.trackNumber })
+            "Date added" -> tracks.sortedBy { it.addedAt }
+            "Duration" -> tracks.sortedBy { it.durationMs }
+            else -> tracks.sortedBy { it.title.lowercase() }
+        }
+        if (descending) sorted.asReversed() else sorted
     }
 
     fun toggleSelection(id: String) {
@@ -95,7 +112,6 @@ internal fun SoundprintSongsLibraryScreen(
             if (selectionMode) {
                 TextButton(onClick = { selectedIds = emptySet(); selectionMode = false }) { Text("Cancel") }
             } else {
-                TextButton(onClick = { selectionMode = true }) { Text("Select") }
                 TextButton(onClick = onImport) { Text("Add music") }
             }
         }
@@ -112,13 +128,54 @@ internal fun SoundprintSongsLibraryScreen(
             ,
                 colors = soundprintOutlinedFieldColors()
             )
-            OutlinedButton(
-                onClick = { if (proAccess.entitled) onOpenTwinSense() else proAccess.onOpenPro() },
-                modifier = Modifier.fillMaxWidth().padding(top = 9.dp),
-                shape = RoundedCornerShape(14.dp)
+            Row(
+                Modifier.fillMaxWidth().padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("TwinSense duplicate finder", modifier = Modifier.weight(1f))
-                ProFeatureBadge()
+                OutlinedButton(
+                    onClick = { if (proAccess.entitled) onOpenTwinSense() else proAccess.onOpenPro() },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    SoundprintIcon(SoundprintIcons.ShieldCheck, null, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("TwinSense", maxLines = 1)
+                    ProFeatureBadge()
+                }
+                Box(Modifier.weight(1f)) {
+                    OutlinedButton(
+                        onClick = { sortMenuExpanded = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        SoundprintIcon(SoundprintIcons.ArrowUpDown, null, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Sort", maxLines = 1)
+                    }
+                    SoundprintDropdownMenu(
+                        expanded = sortMenuExpanded,
+                        onDismissRequest = { sortMenuExpanded = false },
+                        width = 210.dp
+                    ) {
+                        listOf("Title", "Artist", "Album", "Date added", "Duration").forEach { option ->
+                            SoundprintMenuItem(
+                                if (sortBy == option) "✓ $option" else option,
+                                SoundprintIcons.ArrowUpDown
+                            ) {
+                                sortBy = option
+                                sortMenuExpanded = false
+                            }
+                        }
+                    }
+                }
+                androidx.compose.material3.IconButton(onClick = { descending = !descending }) {
+                    SoundprintIcon(
+                        if (descending) SoundprintIcons.ArrowDown else SoundprintIcons.ArrowUp,
+                        contentDescription = if (descending) "Descending order" else "Ascending order",
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
             }
             if (selectedIds.isNotEmpty()) {
                 Surface(
@@ -155,13 +212,6 @@ internal fun SoundprintSongsLibraryScreen(
                         }
                     }
                 }
-            } else if (tracks.isNotEmpty()) {
-                Text(
-                    "Select songs to edit their information together.",
-                    Modifier.padding(start = 3.dp, top = 9.dp),
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
             if (status.isNotBlank()) {
                 Text(status, Modifier.padding(start = 3.dp, top = 7.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
@@ -186,16 +236,22 @@ internal fun SoundprintSongsLibraryScreen(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                items(tracks, key = { it.id }) { track ->
+                items(visibleTracks, key = { it.id }) { track ->
                     val selected = track.id in selectedIds
                     var menuExpanded by remember(track.id) { mutableStateOf(false) }
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                             .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else androidx.compose.ui.graphics.Color.Transparent)
-                            .clickable {
-                                if (selectionMode) toggleSelection(track.id)
-                                else playback.playTracks(tracks, tracks.indexOfFirst { it.id == track.id })
-                            }
+                            .combinedClickable(
+                                onClick = {
+                                    if (selectionMode) toggleSelection(track.id)
+                                    else playback.playTracks(visibleTracks, visibleTracks.indexOfFirst { it.id == track.id })
+                                },
+                                onLongClick = {
+                                    if (!selectionMode) selectionMode = true
+                                    toggleSelection(track.id)
+                                }
+                            )
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
