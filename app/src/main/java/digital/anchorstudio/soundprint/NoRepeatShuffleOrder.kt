@@ -75,11 +75,15 @@ internal class NoRepeatShuffleOrder private constructor(
     companion object {
         fun fromOrder(length: Int, preferredOrder: List<Int>, seed: Long = System.nanoTime()): NoRepeatShuffleOrder {
             require(length >= 0)
-            val valid = preferredOrder.asSequence()
-                .filter { it in 0 until length }
-                .distinct()
-                .toMutableList()
-            val missing = (0 until length).filterNot(valid::contains).toMutableList()
+            val seen = BooleanArray(length)
+            val valid = ArrayList<Int>(length)
+            preferredOrder.forEach { index ->
+                if (index in 0 until length && !seen[index]) {
+                    seen[index] = true
+                    valid += index
+                }
+            }
+            val missing = (0 until length).filterNot { seen[it] }.toMutableList()
             shuffleInPlace(missing, Random(seed))
             valid.addAll(missing)
             return NoRepeatShuffleOrder(valid.toIntArray(), Random(seed xor 0x5DEECE66DL))
