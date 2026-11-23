@@ -365,7 +365,7 @@ class MainActivity : ComponentActivity() {
                 val entitled = SoundprintProAccess.hasSession() && SoundprintProGate.isResolved && SoundprintProGate.hasPro
                 val allowed = useArtwork && entitled
                 val result = runCatching {
-                    preferences.edit().putBoolean("custom_artwork_enabled", allowed).apply()
+                    if (allowed) preferences.edit().putBoolean("custom_artwork_enabled", true).apply()
                     getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit().putBoolean("pro_entitled", entitled).apply()
                     SoundprintMusicImportQueue.enqueueUrl(applicationContext, url, allowed)
                 }
@@ -373,20 +373,14 @@ class MainActivity : ComponentActivity() {
                     .onFailure { libraryStatus = it.message ?: "Could not queue this audio link." }
                 return result.isSuccess
             }
-            val legacyStoragePermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-                val url = pendingUrlImport
-                pendingUrlImport = null
-                if (granted && url != null) enqueueAudioLinkImport(url)
-                else if (url != null) libraryStatus = "Storage permission is needed to save linked audio on this Android version."
-            }
             fun finishArtworkImportChoice(pending: PendingArtworkImport, useArtwork: Boolean) {
                 val entitled = SoundprintProAccess.hasSession() && SoundprintProGate.isResolved && SoundprintProGate.hasPro
                 val allowed = useArtwork && entitled
-                preferences.edit().putBoolean("custom_artwork_enabled", allowed).apply()
+                if (allowed) preferences.edit().putBoolean("custom_artwork_enabled", true).apply()
                 getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit().putBoolean("pro_entitled", entitled).apply()
                 pendingArtworkImport = null
                 pending.enqueue(allowed)
-                scope.launch { withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(allowed) } }
+                if (allowed) scope.launch { withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(true) } }
             }
             fun requestArtworkImport(enqueue: (Boolean) -> Unit) {
                 if (!SoundprintProAccess.hasSession()) { enqueue(false); return }
@@ -407,6 +401,12 @@ class MainActivity : ComponentActivity() {
                         libraryStatus = "Couldn't verify Pro access, so this import will continue without custom artwork. Try again after reconnecting."
                     }
                 }
+            }
+            val legacyStoragePermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+                val url = pendingUrlImport
+                pendingUrlImport = null
+                if (granted && url != null) requestArtworkImport { useArtwork -> enqueueAudioLinkImport(url, useArtwork) }
+                else if (url != null) libraryStatus = "Storage permission is needed to save linked audio on this Android version."
             }
             val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
                 if (uri != null) requestArtworkImport { useArtwork ->
