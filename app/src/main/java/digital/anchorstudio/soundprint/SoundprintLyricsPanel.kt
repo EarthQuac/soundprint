@@ -563,10 +563,14 @@ fun SoundprintLyricsPanel(
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 if (karaokeLoading) "Finding timed lyrics…"
-                                else if (SoundprintProGate.isResolved && SoundprintProGate.hasPro) "Karaoke mode"
-                                else "Karaoke mode · Pro",
+                                "Karaoke mode",
                                 fontSize = 12.sp, fontWeight = FontWeight.SemiBold
                             )
+                            if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) {
+                                SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(12.dp))
+                                Spacer(Modifier.width(3.dp))
+                                Text("Pro", fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                            }
                         }
                     }
                 } else {
@@ -578,7 +582,7 @@ fun SoundprintLyricsPanel(
                     )
                     if (lines.isNotEmpty()) {
                         Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Synced lyrics · Pro", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Synced lyrics", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             ProFeatureBadge()
                         }
                     }
@@ -665,12 +669,12 @@ fun SoundprintLyricsPanel(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text("Synced lyrics & karaoke · Pro", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Synced lyrics & karaoke", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                ProFeatureBadge()
+                            }
                             Text("Follow lyrics in time with the song, align timing and open the karaoke view.", modifier = Modifier.padding(top = 4.dp),
                                 fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Button(onClick = { SoundprintProGate.require("Synced lyrics & karaoke") }, modifier = Modifier.padding(start = 10.dp)) {
-                            SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(15.dp))
                         }
                     }
                 }
