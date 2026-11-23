@@ -880,7 +880,7 @@ class MainActivity : ComponentActivity() {
                 if (customArtworkOfferOpen) AlertDialog(
                     onDismissRequest = { customArtworkOfferOpen = false },
                     title = { Text("Custom artwork is now available") },
-                    text = { Text("Your Pro account unlocks Soundprint artwork for songs without embedded covers. Enable it for your existing library now? Original audio files and embedded covers stay untouched.", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    text = { Text("Your Pro account includes Soundprint artwork for songs without embedded covers. Enable it for your existing library now? Original audio files and embedded covers stay untouched.", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     confirmButton = {
                         TextButton(onClick = {
                             customArtworkOfferOpen = false
@@ -1460,7 +1460,7 @@ private fun SoundprintApp(
                         Text("$feature is a Pro feature")
                     }
                 },
-                text = { Text("Unlock Soundprint Pro to use $feature. Your music library and basic playback stay free.") },
+                text = { Text("Explore Soundprint Pro to use $feature. Your music library and basic playback stay free.") },
                 confirmButton = {
                     TextButton(onClick = {
                         SoundprintProGate.lockedFeature = null
@@ -3157,10 +3157,11 @@ private fun SettingsScreen(
                         )
                     } else {
                         SettingsActionRow(
-                            "Mood discovery · Pro",
+                            "Mood discovery",
                             "Analyze your library and discover songs by mood and activity",
-                            "Unlock",
+                            "",
                             modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("mood-scan")),
+                            proFeature = true,
                             onClick = { SoundprintProGate.require("Discover music for your mood") }
                         )
                     }
@@ -3613,7 +3614,7 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
             }
             Text(
                 when {
-                    locked && !proAccess.entitled -> "Unlock with Pro"
+                    locked && !proAccess.entitled -> "Included with Pro"
                     name == "Amber" -> "Original warm dark theme"
                     name == "Lavender" -> "Charcoal with soft lavender accents"
                     name == "Blue & white" -> "Cool blue on clean white"
