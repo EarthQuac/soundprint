@@ -29,7 +29,7 @@ object SoundprintMusicImportQueue {
     private const val UNIQUE_WORK = "soundprint_music_import_queue"
     private const val INPUT_REQUEST_ID = "request_id"
 
-    fun enqueueFolder(context: Context, treeUri: Uri, useCustomArtwork: Boolean = true): UUID =
+    fun enqueueFolder(context: Context, treeUri: Uri, useCustomArtwork: Boolean = false): UUID =
         enqueue(context, "folder", listOf(treeUri), useCustomArtwork)
 
     fun enqueueFiles(context: Context, uris: List<Uri>, useCustomArtwork: Boolean = true): UUID {
@@ -185,7 +185,7 @@ class SoundprintMusicImportWorker(
             }
             val payload = JSONObject(requestFile.readText(Charsets.UTF_8))
             val type = payload.getString("type")
-            val useCustomArtwork = payload.optBoolean("useCustomArtwork", true)
+            val useCustomArtwork = payload.optBoolean("useCustomArtwork", false)
             val urisJson = payload.getJSONArray("uris")
             val uris = buildList {
                 for (index in 0 until urisJson.length()) add(Uri.parse(urisJson.getString(index)))
