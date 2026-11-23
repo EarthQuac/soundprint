@@ -126,11 +126,19 @@ class ClapLibraryScanner(context: Context, private val library: MusicLibraryMana
 
     fun setAutoScanEnabled(enabled: Boolean) {
         preferences.edit().putBoolean("background_scan_enabled", enabled).apply()
-        if (enabled) startScan() else pause()
+        if (
+            enabled &&
+            SoundprintListeningPreferences.musicRecommendationsEnabled(app) &&
+            SoundprintListeningPreferences.backgroundActivityEnabled(app)
+        ) startScan() else pause()
     }
 
     @Synchronized
     fun startScan(retryFailedOnly: Boolean = false, allowModelDownload: Boolean = false) {
+        if (!SoundprintListeningPreferences.musicRecommendationsEnabled(app)) {
+            mutableState.value = mutableState.value.copy(message = "Music recommendations are disabled in Settings.")
+            return
+        }
         if (scanJob?.isCompleted == false) {
             pendingScanMode = pendingScanMode?.let { it && retryFailedOnly } ?: retryFailedOnly
             return
@@ -390,6 +398,20 @@ fun ClapDiscoverScreen(
     playback: SoundprintPlaybackConnection,
     onBack: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    if (!SoundprintListeningPreferences.musicRecommendationsEnabled(context)) {
+        Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
+            Text("Music recommendations are off", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                "Turn them on in Settings → Listening & personalization to use Discover. Soundprint will not scan your library for mood recommendations while this is off.",
+                Modifier.padding(top = 10.dp),
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        return
+    }
     if (!SoundprintProGate.hasPro) {
         ProFeatureLockedScreen("Discover music for your mood", "Explore your library through personalized mood and activity matching.")
         return
@@ -422,12 +444,12 @@ fun ClapDiscoverScreen(
                     }.toMap()
                 }
                 profiles = profiles.filterKeys { it in currentIds } + newProfiles
-                // Newly imported songs join the same sequential scan; the scanner
-                // queues a follow-up pass if another song is currently being analysed.
-                if (currentIds != knownTrackIds) scanner.startScan()
+                // Newly imported songs join the same sequential scan only while background
+                // activity is allowed; manual scans remain available from Discover.
+                if (currentIds != knownTrackIds && SoundprintListeningPreferences.backgroundActivityEnabled(context)) scanner.startScan()
             } else {
                 profiles = profiles.filterKeys { it in currentIds }
-                if (currentIds != knownTrackIds) scanner.startScan()
+                if (currentIds != knownTrackIds && SoundprintListeningPreferences.backgroundActivityEnabled(context)) scanner.startScan()
             }
             tracks = refreshedTracks
             knownTrackIds = currentIds
@@ -444,7 +466,9 @@ fun ClapDiscoverScreen(
     androidx.compose.runtime.LaunchedEffect(libraryLoaded, tracks.size, scan.running, scan.pending, scan.stage) {
         // Resume only genuinely pending work. Failed tracks stay available for manual
         // correction or an explicit retry instead of causing an automatic retry loop.
-        if (libraryLoaded && tracks.isNotEmpty() && scan.pending > 0 && !scan.running && scan.stage != "Error" && !scan.modelDownloadRequired) {
+        if (libraryLoaded && tracks.isNotEmpty() && scan.pending > 0 && !scan.running && scan.stage != "Error" && !scan.modelDownloadRequired &&
+            SoundprintListeningPreferences.backgroundActivityEnabled(context)
+        ) {
             scanner.startScan()
         }
     }
