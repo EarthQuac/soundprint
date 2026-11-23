@@ -100,6 +100,31 @@ dependencies {
 }
 
 
+// Normalize the logo PNG through the JDK image codec before AAPT2 compiles it.
+ // This strips problematic ancillary PNG chunks while preserving the decoded artwork.
+val normalizeSoundprintLogoPng = tasks.register("normalizeSoundprintLogoPng") {
+    doLast {
+        val logo = file("src/main/res/drawable/soundprint_logo.png")
+        if (logo.exists()) {
+            val decoded = javax.imageio.ImageIO.read(logo)
+                ?: throw GradleException("Could not decode soundprint_logo.png")
+            val normalized = logo.resolveSibling("soundprint_logo.normalized.png")
+            if (!javax.imageio.ImageIO.write(decoded, "png", normalized)) {
+                throw GradleException("Could not re-encode soundprint_logo.png")
+            }
+            if (normalized.length() == 0L) {
+                throw GradleException("Normalized Soundprint logo is empty")
+            }
+            normalized.copyTo(logo, overwrite = true)
+            normalized.delete()
+        }
+    }
+}
+
+tasks.matching { it.name == "mergeDebugResources" || it.name == "mergeReleaseResources" }.configureEach {
+    dependsOn(normalizeSoundprintLogoPng)
+}
+
 tasks.matching { it.name == "mergeDebugAssets" || (it.name.startsWith("assetPack") && it.name.endsWith("PreBundleTask")) || it.name == "bundleRelease" }.configureEach {
     dependsOn(rootProject.tasks.named("prepareClapModelAssets"))
 }
