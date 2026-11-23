@@ -959,7 +959,7 @@ internal fun SoundprintAccountScreen(
                         },
                         enabled = !busy && (otpIsRecovery || otpIsSignup || otpCooldownRemaining == 0),
                         modifier = Modifier.fillMaxWidth(),
-                        colors = TextButtonDefaults.textButtonColors(
+                        colors = ButtonDefaults.textButtonColors(
                             disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .42f)
                         )
                     ) {
@@ -1065,7 +1065,7 @@ internal fun SoundprintAccountScreen(
                     },
                     enabled = !busy && email.isNotBlank() && otpCooldownRemaining == 0,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = TextButtonDefaults.textButtonColors(
+                    colors = ButtonDefaults.textButtonColors(
                         disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .42f)
                     )
                 ) {
