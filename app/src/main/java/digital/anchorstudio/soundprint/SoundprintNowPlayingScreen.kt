@@ -1269,7 +1269,6 @@ fun SoundprintMiniPlayer(
     var position by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
-    var hasPosition by remember { mutableStateOf(false) }
 
     LaunchedEffect(controller) {
         while (controller != null) {
@@ -1296,13 +1295,13 @@ fun SoundprintMiniPlayer(
         val collapsedSize = with(density) { 64.dp.toPx() }
         val panelWidth = with(density) { 276.dp.toPx() }
         val panelHeight = with(density) { 136.dp.toPx() }
-        if (!hasPosition) {
-            dragOffset = Offset(
-                (maxWidthPx - collapsedSize - with(density) { 18.dp.toPx() }).coerceAtLeast(0f),
-                (maxHeightPx - collapsedSize - with(density) { 18.dp.toPx() }).coerceAtLeast(0f)
-            )
-            hasPosition = true
-        }
+        val initialPosition = Offset(
+            (maxWidthPx - collapsedSize - with(density) { 18.dp.toPx() }).coerceAtLeast(0f),
+            (maxHeightPx - collapsedSize - with(density) { 18.dp.toPx() }).coerceAtLeast(0f)
+        )
+        val initialX = initialPosition.x
+        val initialY = initialPosition.y
+        var dragOffset by remember(maxWidthPx, maxHeightPx) { mutableStateOf(Offset(initialX, initialY)) }
         val panelOpen = expanded
         val currentWidth = if (panelOpen) panelWidth else collapsedSize
         val currentHeight = if (panelOpen) panelHeight else collapsedSize
