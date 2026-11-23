@@ -1,7 +1,6 @@
 package digital.anchorstudio.soundprint
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -21,6 +20,16 @@ class NoRepeatShuffleOrderTest {
         assertEquals(1_200, visited.distinct().size)
         assertEquals(-1, order.getPreviousIndex(order.firstIndex))
         assertEquals(-1, order.getNextIndex(order.lastIndex))
+    }
+
+    @Test
+    fun startingShuffleAtCurrentTrackKeepsEveryUpcomingIndexInTheCycle() {
+        val order = NoRepeatShuffleOrder.startingWith(1_200, firstIndex = 633, seed = 123L)
+        val indices = order.snapshotIndices()
+        assertEquals(633, order.firstIndex)
+        assertEquals(1_200, indices.size)
+        assertEquals(1_200, indices.distinct().size)
+        assertEquals((0 until 1_200).toSet(), indices.toSet())
     }
 
     @Test
@@ -50,6 +59,6 @@ class NoRepeatShuffleOrderTest {
         assertEquals(104, expanded.size)
         assertEquals(104, expanded.distinct().size)
         assertTrue(expanded.take(100).containsAll(saved))
-        assertNotEquals(saved, expanded)
+        assertTrue(saved != expanded)
     }
 }
