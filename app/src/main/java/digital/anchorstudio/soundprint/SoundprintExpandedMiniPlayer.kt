@@ -43,7 +43,7 @@ fun SoundprintExpandedMiniPlayer(
     var dragging by remember { mutableStateOf(false) }
     LaunchedEffect(controller) {
         while (controller != null) {
-            position = controller.currentPosition.coerceAtLeast(0L)
+            if (!dragging) position = controller.currentPosition.coerceAtLeast(0L)
             duration = controller.duration.takeIf { it > 0L && it != androidx.media3.common.C.TIME_UNSET } ?: 0L
             delay(250)
         }
@@ -90,6 +90,9 @@ fun SoundprintExpandedMiniPlayer(
                 }
                 IconButton(onClick = { controller?.seekToNextMediaItem() }, modifier = Modifier.size(40.dp)) {
                     SoundprintIcon(SoundprintIcons.SkipForward, "Next track", modifier = Modifier.size(21.dp))
+                }
+                IconButton(onClick = { controller?.stop() }, modifier = Modifier.size(36.dp)) {
+                    SoundprintIcon(SoundprintIcons.X, "Stop playback", modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Text(formatMiniTime(duration), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
