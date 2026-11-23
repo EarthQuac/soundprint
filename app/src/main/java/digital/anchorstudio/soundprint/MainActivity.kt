@@ -273,7 +273,6 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         val activityWindow = window
         setContent {
-            var showSplash by remember { mutableStateOf(true) }
             Box(Modifier.fillMaxSize()) {
             val preferences = remember { getSharedPreferences("soundprint_native_preferences", MODE_PRIVATE) }
             var backgroundActivityEnabled by remember {
@@ -958,7 +957,6 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize()
                 )
             }
-            if (showSplash) SoundprintSplash(onFinished = { showSplash = false })
             }
         }
     }
