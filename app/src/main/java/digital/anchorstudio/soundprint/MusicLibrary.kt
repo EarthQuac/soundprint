@@ -404,7 +404,11 @@ class MusicLibraryDatabase(context: Context) :
         val db=writableDatabase; db.beginTransaction()
         try {
             db.delete("tracks",null,null);db.delete("playlist_tracks",null,null);db.delete("playlists",null,null)
-            db.delete("soundprint_trash",null,null);db.delete("soundprint_fingerprints",null,null);db.delete("library_sources",null,null);db.delete("library_file_sources",null,null);db.delete("track_sources",null,null);db.delete("library_scan_errors",null,null);db.delete("audio_analysis_cache",null,null);db.setTransactionSuccessful()
+            db.delete("soundprint_trash",null,null);db.delete("soundprint_fingerprints",null,null)
+            // Keep library_sources and library_file_sources as recovery bookmarks.
+            // Their persisted Android URI grants are intentionally retained by the repository.
+            db.delete("track_sources",null,null);db.delete("library_scan_errors",null,null)
+            db.delete("audio_analysis_cache",null,null);db.setTransactionSuccessful()
         } finally { db.endTransaction() }
     }
     fun removeTrackRecord(id:String) {
@@ -1043,13 +1047,8 @@ class MusicLibraryRepository(context:Context) {
     }
     fun scanErrors(limit:Int=100)=db.scanErrors(limit)
     fun clearLibrary() {
-        (db.sources().map { it.uri } + db.fileSources().map { it.first }).distinct().forEach { raw ->
-            val uri=Uri.parse(raw)
-            runCatching {
-                val permission=app.contentResolver.persistedUriPermissions.firstOrNull { it.uri==uri && it.isReadPermission }
-                if(permission!=null) app.contentResolver.releasePersistableUriPermission(uri,android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-        }
+        // Clearing the library must not discard the user's saved source locations or
+        // release SAF read grants: Rescan folders uses these to rebuild the index.
         db.clearLibrary()
     }
     fun writeBackup(output:OutputStream, managementTables:JSONObject? = null)=db.writeBackup(output, managementTables)

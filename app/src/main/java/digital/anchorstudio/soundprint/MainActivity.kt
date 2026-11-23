@@ -735,10 +735,25 @@ class MainActivity : ComponentActivity() {
                     onImportLink = { linkImportDialogOpen = true },
                     onRescan = {
                         scope.launch {
+                            val savedSources = withContext(Dispatchers.IO) { libraryRepository.allSources() }
+                            if (savedSources.isEmpty()) {
+                                libraryStatus = "No saved music locations yet. Choose a folder to scan, or import audio files."
+                                // Rescan is also a recovery entry point for a brand-new library.
+                                folderPicker.launch(null)
+                                return@launch
+                            }
                             val result = runScanWithoutSwallowingCancellation { withContext(Dispatchers.IO) { libraryRepository.rescanAllSavedSources() } }
                             refreshLibraryState()
                             libraryStatus = result.fold(
-                                { "Rescan complete: ${it.imported} added, ${it.updated} updated, ${it.unavailable} unavailable, ${it.errors.size} errors." },
+                                {
+                                    if (it.unavailable > 0) {
+                                        "Rescan finished: ${it.imported} added, ${it.updated} updated. ${it.unavailable} saved location(s) need access; re-select affected folders or files using Add folder / Import audio files."
+                                    } else if (it.visited == 0 && it.imported == 0 && it.updated == 0) {
+                                        "No audio files were found in your saved locations. Check that the folders still contain supported music files."
+                                    } else {
+                                        "Rescan complete: ${it.imported} added, ${it.updated} updated, ${it.unavailable} unavailable, ${it.errors.size} errors."
+                                    }
+                                },
                                 { "Rescan failed: ${it.message ?: "Unknown error"}" }
                             )
                         }
@@ -754,9 +769,13 @@ class MainActivity : ComponentActivity() {
                     onRestore = { backupOpener.launch(arrayOf("application/json")) },
                     onClearLibrary = {
                         scope.launch {
+                            // Keep the saved folder/file locations and Android read grants so
+                            // Rescan folders can rebuild the library after a clear.
+                            folderWatchEnabled = false
+                            preferences.edit().putBoolean("folder_watch_enabled", false).apply()
                             withContext(Dispatchers.IO) { libraryManager.clearAllLibraryData() }
                             refreshLibraryState()
-                            libraryStatus = "Library cleared. Your original audio files are still on your device and can be imported again."
+                            libraryStatus = "Library cleared. Your saved music locations are kept, so use Rescan folders to rebuild your library. Original audio files are untouched."
                         }
                     }
                 )
@@ -3173,7 +3192,7 @@ private fun SettingsScreen(
     if (clearDialog) AlertDialog(
         onDismissRequest = { clearDialog = false },
         title = { Text("Clear your library?") },
-        text = { Text("This removes imported song entries, saved folder and file locations, playlists, favourites, listening history, and library analysis data from Soundprint. It does not delete or move your actual audio files. You can import them again afterwards.") },
+        text = { Text("This removes imported song entries, playlists, favourites, listening history, and library analysis data. Your saved folder and file locations and their Android access grants are kept, so you can use Rescan folders to rebuild the library. Your original audio files are never deleted or moved. Folder auto-watch is paused.") },
         confirmButton = { TextButton(onClick = { clearDialog = false; onClearLibrary() }) { Text("Clear everything", color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = { clearDialog = false }) { Text("Cancel") } }
     )

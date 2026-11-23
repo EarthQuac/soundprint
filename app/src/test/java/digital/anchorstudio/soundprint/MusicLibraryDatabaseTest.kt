@@ -83,6 +83,23 @@ class MusicLibraryDatabaseTest {
         db.close()
     }
 
+    @Test fun clearingLibraryKeepsSavedLocationsForRescanRecovery() {
+        val db = MusicLibraryDatabase(context)
+        val item = track("content://music/clear-recovery", "folder-recovery")
+        db.upsert(item, "scan-recovery")
+        db.saveSource("folder-recovery", "My Music", "scan-recovery")
+        db.saveFileSource("content://media/external/audio/media/42", "Single song.mp3")
+        db.createPlaylist("Keep out of cleared library")
+
+        db.clearLibrary()
+
+        assertEquals(0, db.count())
+        assertTrue("Folder source remains available as a rescan bookmark.", db.sources().any { it.uri == "folder-recovery" })
+        assertTrue("Individual file source remains available as a rescan bookmark.", db.fileSources().any { it.first == "content://media/external/audio/media/42" })
+        assertTrue("Playlists are cleared with the library.", db.playlists().isEmpty())
+        db.close()
+    }
+
     @Test fun incompleteFolderScanNeverMarksUnseenTracksMissing() {
         val db = MusicLibraryDatabase(context)
         val item = track("content://music/interrupted", "folder-interrupted")
