@@ -199,7 +199,27 @@ fun SoundprintNowPlayingScreen(
         }
     }
 
-    LaunchedEffect(controller) {
+    fun reconcileNoRepeatQueue(player: MediaController) {
+        if (!shuffle || player.mediaItemCount == 0) return
+        val currentId = player.currentMediaItem?.mediaId
+        val seen = HashSet<String>()
+        if (!currentId.isNullOrBlank()) seen.add(currentId)
+        for (index in player.mediaItemCount - 1 downTo 0) {
+            if (index == player.currentMediaItemIndex) continue
+            val id = player.getMediaItemAt(index).mediaId
+            if (id.isBlank() || !seen.add(id)) player.removeMediaItem(index)
+        }
+
+        val liveIds = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }.toSet()
+        val reconciled = originalQueueIds.filter { it in liveIds }.toMutableList()
+        liveIds.forEach { id -> if (id !in reconciled) reconciled += id }
+        if (reconciled != originalQueueIds) {
+            originalQueueIds = reconciled
+            playerPrefs.edit().putString("queue-original-order", reconciled.joinToString(",")).apply()
+        }
+    }
+
+    LaunchedEffect(controller, shuffle) {
         val connectedPlayer = controller
         if (connectedPlayer != null) {
             val storedOrder = playerPrefs.getString("queue-original-order", "").orEmpty().split(',').filter { it.isNotBlank() }
@@ -213,6 +233,7 @@ fun SoundprintNowPlayingScreen(
         }
         while (controller != null) {
             val player = controller
+            if (shuffle) reconcileNoRepeatQueue(player)
             trackId = player.currentMediaItem?.mediaId.orEmpty()
             position = player.currentPosition.coerceAtLeast(0L)
             duration = player.duration.takeIf { it > 0L && it != androidx.media3.common.C.TIME_UNSET } ?: 0L
