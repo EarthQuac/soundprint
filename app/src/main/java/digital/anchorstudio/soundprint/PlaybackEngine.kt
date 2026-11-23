@@ -823,8 +823,14 @@ class SoundprintPlaybackConnection(
         }, executor)
     }
 
-    fun playTracks(tracks: List<MusicTrack>, startIndex: Int = 0, shuffle: Boolean = false) {
+    fun playTracks(
+        tracks: List<MusicTrack>,
+        startIndex: Int = 0,
+        shuffle: Boolean = false,
+        playlistPreset: PlaylistPlaybackPreset? = null
+    ) {
         if (tracks.isEmpty() || closed) return
+        if (playlistPreset != null) applyPlaylistPreset(playlistPreset) else restorePlaylistPreset()
         val requestedIndex = startIndex.coerceIn(tracks.indices)
         val ignoreClips = pausePreferences.getBoolean("ignore_short_tracks", false)
         val eligible = tracks.withIndex().filter { !ignoreClips || it.value.durationMs >= 30_000L }
@@ -1000,14 +1006,50 @@ class SoundprintPlaybackConnection(
     /** Apply an explicit per-playlist Pro preset before starting that playlist's queue. */
     fun applyPlaylistPreset(preset: PlaylistPlaybackPreset) {
         val entitled = pausePreferences.getBoolean("pro_entitled", false)
+        if (!pausePreferences.getBoolean("playlist_preset_active", false)) {
+            val player = controller
+            val currentRepeat = player?.repeatMode ?: Player.REPEAT_MODE_OFF
+            val repeatName = when (currentRepeat) {
+                Player.REPEAT_MODE_ALL -> PlaylistRepeatPreset.ALL.name
+                Player.REPEAT_MODE_ONE -> PlaylistRepeatPreset.ONE.name
+                else -> PlaylistRepeatPreset.OFF.name
+            }
+            pausePreferences.edit()
+                .putBoolean("playlist_saved_shuffle", player?.shuffleModeEnabled ?: false)
+                .putString("playlist_saved_repeat", repeatName)
+                .putBoolean("playlist_preset_active", true)
+                .apply()
+        }
         pausePreferences.edit()
             .putBoolean("playlist_bass_boost_enabled", entitled && preset.extraBass)
-            .putBoolean(KEY_LOUDNESS_LEVELING, entitled && preset.loudnessLeveling)
+            .putBoolean("loudness_leveling", entitled && preset.loudnessLeveling)
             .putString("playlist_repeat_mode", if (entitled) preset.repeat.name else PlaylistRepeatPreset.OFF.name)
             .apply()
         controller?.let { player ->
             player.shuffleModeEnabled = preset.shuffle
             player.repeatMode = if (!entitled) Player.REPEAT_MODE_OFF else when (preset.repeat) {
+                PlaylistRepeatPreset.ALL -> Player.REPEAT_MODE_ALL
+                PlaylistRepeatPreset.ONE -> Player.REPEAT_MODE_ONE
+                PlaylistRepeatPreset.OFF -> Player.REPEAT_MODE_OFF
+            }
+        }
+    }
+
+    private fun restorePlaylistPreset() {
+        if (!pausePreferences.getBoolean("playlist_preset_active", false)) return
+        val savedShuffle = pausePreferences.getBoolean("playlist_saved_shuffle", false)
+        val savedRepeat = runCatching {
+            PlaylistRepeatPreset.valueOf(pausePreferences.getString("playlist_saved_repeat", "OFF") ?: "OFF")
+        }.getOrDefault(PlaylistRepeatPreset.OFF)
+        pausePreferences.edit()
+            .putBoolean("playlist_bass_boost_enabled", false)
+            .putBoolean("loudness_leveling", false)
+            .putString("playlist_repeat_mode", savedRepeat.name)
+            .putBoolean("playlist_preset_active", false)
+            .apply()
+        controller?.let { player ->
+            player.shuffleModeEnabled = savedShuffle
+            player.repeatMode = when (savedRepeat) {
                 PlaylistRepeatPreset.ALL -> Player.REPEAT_MODE_ALL
                 PlaylistRepeatPreset.ONE -> Player.REPEAT_MODE_ONE
                 PlaylistRepeatPreset.OFF -> Player.REPEAT_MODE_OFF
