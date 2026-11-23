@@ -67,11 +67,6 @@ object SoundprintMusicImportQueue {
         temporary.writeText(payload.toString(), Charsets.UTF_8)
         check(temporary.renameTo(destination)) { "Could not save the music import request." }
 
-        // Show feedback immediately. WorkManager may take time to start a foreground
-        // worker (especially when another import is already running or the device is idle).
-        val notifications = SoundprintImportNotifications(app)
-        notifications.queued(type)
-
         try {
             val request = OneTimeWorkRequestBuilder<SoundprintMusicImportWorker>()
                 .setInputData(workDataOf(INPUT_REQUEST_ID to id.toString()))
