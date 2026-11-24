@@ -3434,18 +3434,20 @@ private fun SettingsSearchBox(value: String, onValueChange: (String) -> Unit) {
 
 @Composable
 private fun SettingsToggleRow(label: String, description: String, checked: Boolean, modifier: Modifier = Modifier, proFeature: Boolean = false, onCheckedChange: (Boolean) -> Unit) {
-    Column(modifier) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f).padding(end = 10.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, lineHeight = 18.sp)
-                    if (proFeature) ProFeatureBadge()
+    ProFeatureGate(modifier = modifier, enabled = proFeature) {
+        Column(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(end = 10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, lineHeight = 18.sp)
+                        if (proFeature) ProFeatureBadge()
+                    }
+                    Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Switch(checked = checked, onCheckedChange = { onCheckedChange(it) })
             }
-            Switch(checked = checked, onCheckedChange = { onCheckedChange(it) })
+            SettingsDivider()
         }
-        SettingsDivider()
     }
 }
 
@@ -3460,28 +3462,21 @@ private fun FolderAutoWatchSettingsRow(
     onForget: () -> Unit,
     onScan: () -> Unit
 ) {
-    Column(modifier) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Folder auto-watch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
-                    ProFeatureBadge()
-                }
-                val detail = if (folderName.isNullOrBlank()) {
-                    "Choose a folder to check every 30 seconds while Soundprint is open."
-                } else {
-                    "${folderName} · ${if (enabled) "Watching" else "Paused"}" +
+    ProFeatureGate(modifier = modifier) {
+        Column(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(end = 8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Folder auto-watch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                        ProFeatureBadge()
+                    }
+                    val detail = if (folderName.isNullOrBlank()) "Choose a folder to check every 30 seconds while Soundprint is open."
+                    else "${folderName} · ${if (enabled) "Watching" else "Paused"}" +
                         if (lastScan > 0L) " · Last scan ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(lastScan))}" else " · Not scanned yet"
+                    Text(detail, modifier = Modifier.padding(top = 4.dp), fontSize = 11.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
-                Text(detail, modifier = Modifier.padding(top = 4.dp), fontSize = 11.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-            if (folderName.isNullOrBlank()) {
-                TextButton(onClick = onChoose) { Text("Choose", fontSize = 12.sp) }
-            } else {
-                Column(horizontalAlignment = Alignment.End) {
+                if (folderName.isNullOrBlank()) TextButton(onClick = onChoose) { Text("Choose", fontSize = 12.sp) }
+                else Column(horizontalAlignment = Alignment.End) {
                     Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
                         TextButton(onClick = onScan) { Text("Scan", fontSize = 10.sp) }
                         TextButton(onClick = { onToggle(!enabled) }) { Text(if (enabled) "Pause" else "Resume", fontSize = 10.sp) }
@@ -3489,8 +3484,8 @@ private fun FolderAutoWatchSettingsRow(
                     TextButton(onClick = onForget) { Text("Forget folder", fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
                 }
             }
+            SettingsDivider()
         }
-        SettingsDivider()
     }
 }
 
@@ -3504,23 +3499,20 @@ private fun SettingsActionRow(
     proFeature: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
-    Column(modifier) {
-        Row(
-            Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, lineHeight = 18.sp)
-                    if (proFeature) ProFeatureBadge()
+    ProFeatureGate(modifier = modifier, enabled = proFeature) {
+        Column(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(end = 8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, lineHeight = 18.sp)
+                        if (proFeature) ProFeatureBadge()
+                    }
+                    Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (action.isNotBlank()) Text(action, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, maxLines = 1)
             }
-            if (action.isNotBlank()) {
-                Text(action, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, maxLines = 1)
-            }
+            SettingsDivider()
         }
-        SettingsDivider()
     }
 }
 
@@ -3533,30 +3525,32 @@ private fun SettingsValueRow(
     controlBelow: Boolean = false,
     control: @Composable () -> Unit
 ) {
-    Column(modifier) {
-        if (controlBelow) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
-                    if (proFeature) ProFeatureBadge()
-                }
-                Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(12.dp))
-                control()
-            }
-        } else {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f).padding(end = 6.dp)) {
+    ProFeatureGate(modifier = modifier, enabled = proFeature) {
+        Column(Modifier.fillMaxWidth()) {
+            if (controlBelow) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                         if (proFeature) ProFeatureBadge()
                     }
                     Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(12.dp))
+                    control()
                 }
-                control()
+            } else {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f).padding(end = 6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                            if (proFeature) ProFeatureBadge()
+                        }
+                        Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    control()
+                }
             }
+            SettingsDivider()
         }
-        SettingsDivider()
     }
 }
 
@@ -3623,8 +3617,9 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
         "Vesper" -> listOf(Color(0xFF241D28), Color(0xFFD9F36A))
         else -> listOf(Color(0xFF24211E), Color(0xFFE6A15D))
     }
+    ProFeatureGate(modifier = modifier, enabled = locked && !proAccess.entitled) {
     Row(
-        modifier = modifier.height(76.dp).clip(RoundedCornerShape(16.dp))
+        modifier = Modifier.fillMaxWidth().height(76.dp).clip(RoundedCornerShape(16.dp))
             .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
