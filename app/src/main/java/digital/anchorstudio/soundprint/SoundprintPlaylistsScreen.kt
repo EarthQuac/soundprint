@@ -205,7 +205,19 @@ fun SoundprintPlaylistsScreen(
     }
 
     val playlists = current?.playlists.orEmpty()
-    val filtered = playlists.filter { it.name.contains(query.trim(), ignoreCase = true) }
+    val searchTerm = query.trim()
+    val filtered = playlists.filter { it.name.contains(searchTerm, ignoreCase = true) }
+    val playlistSongMatches = if (searchTerm.isBlank() || current == null) emptyList() else {
+        playlists.mapNotNull { playlist ->
+            val playlistTracks = playlist.trackIds.mapNotNull { id -> current.tracks.firstOrNull { it.id == id } }
+            val matchingTracks = playlistTracks.filter { track ->
+                "${track.title} ${track.artist} ${track.album}".contains(searchTerm, ignoreCase = true)
+            }
+            if (matchingTracks.isNotEmpty() || playlist.name.contains(searchTerm, ignoreCase = true)) {
+                playlist to if (matchingTracks.isNotEmpty()) matchingTracks else playlistTracks
+            } else null
+        }
+    }
     val showPlaylistRecommendations = SoundprintListeningPreferences.playlistRecommendationsEnabled(androidx.compose.ui.platform.LocalContext.current)
     val mixes = current?.let {
         listOf(
@@ -256,18 +268,44 @@ fun SoundprintPlaylistsScreen(
                         .then(if (hasPro) Modifier else Modifier.clip(RoundedCornerShape(18.dp))),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                                Text("Smart playlists", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                                ProFeatureBadge(sparkleSize = 23.dp)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Column(Modifier.weight(1f, fill = true)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    "Smart playlists",
+                                    modifier = Modifier.weight(1f, fill = false),
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                ProFeatureBadge(sparkleSize = 32.dp)
                             }
-                            Text(if (SoundprintListeningPreferences.automaticPlaylistsEnabled(androidx.compose.ui.platform.LocalContext.current)) "Automatically updated from your listening and library" else "Updates paused in Settings · your saved rules are kept", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                if (SoundprintListeningPreferences.automaticPlaylistsEnabled(androidx.compose.ui.platform.LocalContext.current)) "Automatically updated from your listening and library" else "Updates paused in Settings · your saved rules are kept",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
-                        Button(onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true }, shape = CircleShape, contentPadding = ButtonDefaults.ContentPadding) {
+                        Button(
+                            onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true },
+                            shape = CircleShape,
+                            contentPadding = ButtonDefaults.ContentPadding
+                        ) {
                             SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("New smart playlist", fontSize = 11.sp, maxLines = 1)
+                            Text("New playlist", fontSize = 11.sp, maxLines = 1, softWrap = false)
                         }
                     }
                     current?.smartPlaylists.orEmpty().forEach { rule ->
@@ -327,10 +365,77 @@ fun SoundprintPlaylistsScreen(
             }
             if (current == null) {
                 Text("Loading your playlists…", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else if (searchTerm.isNotBlank()) {
+                // Search results stay expanded beneath the search field as the user types.
+                if (playlistSongMatches.isEmpty()) {
+                    Text(
+                        "No playlists or songs match this search.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surface).padding(20.dp)
+                    )
+                } else {
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surface).padding(9.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        playlistSongMatches.forEach { (playlist, matchedTracks) ->
+                            Column(Modifier.fillMaxWidth()) {
+                                val cover = playlist.trackIds.firstNotNullOfOrNull { id ->
+                                    current?.tracks?.firstOrNull { it.id == id }?.artworkUri
+                                }
+                                Row(
+                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
+                                        .clickable { selectedPlaylistId = playlist.id }
+                                        .padding(horizontal = 4.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    NativeArtwork(cover, playlist.id, Modifier.size(42.dp), 9)
+                                    Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                                        Text(
+                                            playlist.name,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            "${matchedTracks.size} matching ${if (matchedTracks.size == 1) "song" else "songs"}",
+                                            fontSize = 10.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    SoundprintIcon(
+                                        SoundprintIcons.ChevronRight,
+                                        null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                matchedTracks.forEach { track ->
+                                    NativeTrackRow(
+                                        track = track,
+                                        onClick = {
+                                            val allPlaylistTracks = playlist.trackIds.mapNotNull { id ->
+                                                current?.tracks?.firstOrNull { it.id == id }
+                                            }
+                                            val index = allPlaylistTracks.indexOfFirst { it.id == track.id }
+                                            if (index >= 0) playback.playTracks(allPlaylistTracks, index)
+                                        },
+                                        modifier = Modifier.padding(start = 18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             } else if (filtered.isEmpty()) {
-                Text(if (query.isBlank()) "No playlists yet" else "No playlists match your search.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text("No playlists yet", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface).padding(20.dp))
-                if (query.isBlank()) Text("Create a playlist to collect songs, or build a smart playlist that updates automatically.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Create a playlist to collect songs, or build a smart playlist that updates automatically.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     filtered.forEach { playlist ->
