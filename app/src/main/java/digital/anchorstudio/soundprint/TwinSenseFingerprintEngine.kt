@@ -63,7 +63,7 @@ data class TwinSenseFingerprint(
     val version: Int = TWINSENSE_VERSION
 )
 
-enum class TwinSenseMatchKind { EXACT_AUDIO, ACOUSTIC, METADATA }
+enum class TwinSenseMatchKind { EXACT_AUDIO, ACOUSTIC, METADATA, ALTERNATIVE }
 
 data class TwinSenseMatch(
     val first: MusicTrack,
@@ -595,7 +595,11 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
     private fun normalizedTitle(track: MusicTrack): String {
         val title = track.title.takeIf { it.isNotBlank() && !it.equals("Unknown title", true) }
             ?: Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }.orEmpty()
-        return TwinSenseText.normalize(title)
+        val baseTitle = title.replace(
+            Regex("""(?i)\s*(?:\(\s*(?:copy|duplicate|duplicated|dup|\d+)\s*\)|\[\s*(?:copy|duplicate|duplicated|dup|\d+)\s*\]|[-_ ]+(?:copy|duplicate|duplicated|dup)(?:[-_ ]*\d+)?|[-_ ]+\(\d+\)|[-_ ]+\d+)\s*$"""),
+            ""
+        )
+        return TwinSenseText.normalize(baseTitle)
     }
 
     private fun compareMetadata(first: MusicTrack, second: MusicTrack): TwinSenseMatch? {
@@ -626,32 +630,48 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
         } else if (versionWarning) {
             reasons += "Different duration — could be an intro, edit or alternate version"
         }
-        if (first.sizeBytes > 0L && first.sizeBytes == second.sizeBytes) {
-            score += 4
-            reasons += "Same file size"
+        if (first.sizeBytes > 0L && second.sizeBytes > 0L) {
+            if (first.sizeBytes == second.sizeBytes) {
+                score += 4
+                reasons += "Same file size (${first.sizeBytes} bytes)"
+            } else reasons += "Different file sizes (${formatBytes(first.sizeBytes)} vs ${formatBytes(second.sizeBytes)})"
         }
-        if (first.sampleRate > 0 && second.sampleRate > 0 && first.sampleRate == second.sampleRate) {
-            score += 2
-            reasons += "Same sample rate (${first.sampleRate} Hz)"
+        if (first.sampleRate > 0 && second.sampleRate > 0) {
+            if (first.sampleRate == second.sampleRate) {
+                score += 2
+                reasons += "Same sample rate (${first.sampleRate} Hz)"
+            } else reasons += "Different sample rates (${first.sampleRate} Hz vs ${second.sampleRate} Hz)"
         }
-        if (first.channelCount > 0 && second.channelCount > 0 && first.channelCount == second.channelCount) {
-            score += 2
-            reasons += "Same channel count (${first.channelCount})"
+        if (first.channelCount > 0 && second.channelCount > 0) {
+            if (first.channelCount == second.channelCount) {
+                score += 2
+                reasons += "Same channel count (${first.channelCount})"
+            } else reasons += "Different channel counts (${first.channelCount} vs ${second.channelCount})"
         }
         val bitrateA = first.bitrate / 1000
         val bitrateB = second.bitrate / 1000
-        if (bitrateA > 0 && bitrateA == bitrateB) {
-            score += 2
-            reasons += "Same bitrate (${bitrateA} kbps)"
+        if (bitrateA > 0 && bitrateB > 0) {
+            if (bitrateA == bitrateB) {
+                score += 2
+                reasons += "Same bitrate (${bitrateA} kbps)"
+            } else reasons += "Different bitrates (${bitrateA} vs ${bitrateB} kbps)"
         }
-        if (first.mimeType.isNotBlank() && second.mimeType.isNotBlank() &&
-            TwinSenseText.normalize(first.mimeType) == TwinSenseText.normalize(second.mimeType)
-        ) {
-            score += 2
-            reasons += "Matching encoding (${first.mimeType})"
+        val codecA = first.encoding.ifBlank { first.mimeType }
+        val codecB = second.encoding.ifBlank { second.mimeType }
+        if (codecA.isNotBlank() && codecB.isNotBlank()) {
+            if (TwinSenseText.normalize(codecA) == TwinSenseText.normalize(codecB)) {
+                score += 2
+                reasons += "Matching audio encoding ($codecA)"
+            } else reasons += "Different audio encodings ($codecA vs $codecB)"
+        }
+        if (first.year > 0 && second.year > 0 && first.year != second.year) reasons += "Different release years (${first.year} vs ${second.year})"
+        if (first.trackNumber > 0 && second.trackNumber > 0 && first.trackNumber != second.trackNumber) reasons += "Different track numbers (${first.trackNumber} vs ${second.trackNumber})"
+        if (TwinSenseCleanupPlanner.hasCopyMarker(first) || TwinSenseCleanupPlanner.hasCopyMarker(second)) {
+            reasons += "Copy-style filename marker detected; treated only as supporting evidence"
+            score += 5
         }
         if (versionWarning) {
-            return if (score >= 65) TwinSenseMatch(first, second, TwinSenseMatchKind.METADATA, min(score, 94), reasons, true) else null
+            return if (score >= 65) TwinSenseMatch(first, second, TwinSenseMatchKind.ALTERNATIVE, min(score, 94), reasons, true) else null
         }
         if (score < 65) return null
         return TwinSenseMatch(first, second, TwinSenseMatchKind.METADATA, min(score, 98), reasons, false)
@@ -852,10 +872,18 @@ object TwinSenseCleanupPlanner {
      * Acoustic similarity, metadata matches, and alternate versions are never auto-removed.
      */
     fun tracksToRemove(result: TwinSenseScanResult): List<MusicTrack> {
-        val exactMatches = result.groups.flatMap { it.matches }.filter {
-            it.kind == TwinSenseMatchKind.EXACT_AUDIO &&
-                !it.versionWarning &&
-                it.reasons.any { reason -> reason.contains("SHA-256 signature of sampled beginning, middle and ending bytes") }
+        val exactMatches = result.groups.flatMap { it.matches }.filter { match ->
+            val byteIdentical = match.kind == TwinSenseMatchKind.EXACT_AUDIO &&
+                !match.versionWarning &&
+                match.reasons.any { reason -> reason.contains("SHA-256 signature of sampled beginning, middle and ending bytes") }
+            val corroboratedCopy = match.kind == TwinSenseMatchKind.METADATA &&
+                !match.versionWarning &&
+                match.confidence >= 75 &&
+                (hasCopyMarker(match.first) || hasCopyMarker(match.second)) &&
+                match.reasons.any { it == "Matching artist" } &&
+                match.first.durationMs > 0L && match.second.durationMs > 0L &&
+                kotlin.math.abs(match.first.durationMs - match.second.durationMs) <= 3_000L
+            byteIdentical || corroboratedCopy
         }
         val adjacency = linkedMapOf<String, MutableSet<String>>()
         val byId = linkedMapOf<String, MusicTrack>()
@@ -893,14 +921,22 @@ object TwinSenseCleanupPlanner {
     private fun fileName(track: MusicTrack): String =
         runCatching { Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }.orEmpty() }.getOrDefault("")
 
-    /** Copy markers only decide which byte-identical file to keep; they never prove duplication. */
-    private fun copyTitlePenalty(track: MusicTrack): Int {
+    /** Name markers help select a likely copy, but never establish duplication by themselves. */
+    fun hasCopyMarker(track: MusicTrack): Boolean {
         val value = "${track.title} ${fileName(track)}".lowercase(Locale.ROOT)
         val copySuffix = Regex(
-            """(?:\s*\(\s*(?:copy|duplicate|\d+|copy\s*\d+)\s*\)\s*$|\s*\[\s*(?:copy|duplicate|\d+|copy\s*\d+)\s*\]\s*$|\s*[-_]\s*(?:copy|duplicate|\d+|copy\s*\d+)\s*$|\s+(?:copy|duplicate)\s*\d*\s*$|\s+\d+\s*$)""",
+            """(?:\s*\(\s*(?:copy|duplicate|duplicated|dup|\d+)\s*\)\s*$|\s*\[\s*(?:copy|duplicate|duplicated|dup|\d+)\s*\]\s*$|\s*[-_]\s*(?:copy|duplicate|duplicated|dup)(?:[-_ ]*\d+)?\s*$|\s+(?:copy|duplicate|duplicated|dup)\s*\d*\s*$|\s+\(\d+\)\s*$|\s+\d+\s*$)""",
             RegexOption.IGNORE_CASE
         )
-        return if (copySuffix.containsMatchIn(value)) 100 else 0
+        return copySuffix.containsMatchIn(value)
+    }
+
+    private fun copyTitlePenalty(track: MusicTrack): Int = if (hasCopyMarker(track)) 100 else 0
+
+    private fun formatBytes(bytes: Long): String = when {
+        bytes >= 1024L * 1024L -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MB"
+        bytes >= 1024L -> "${"%.1f".format(bytes / 1024.0)} KB"
+        else -> "$bytes B"
     }
 
     private fun quality(track: MusicTrack): Double =
