@@ -5,6 +5,9 @@ create table if not exists public.password_reset_rate_limits (
     request_count integer not null default 0 check (request_count between 0 and 5)
 );
 
+create index if not exists password_reset_rate_limits_last_requested_idx
+    on public.password_reset_rate_limits (last_requested_at);
+
 alter table public.password_reset_rate_limits enable row level security;
 revoke all on public.password_reset_rate_limits from public, anon, authenticated;
 grant all on public.password_reset_rate_limits to service_role;
