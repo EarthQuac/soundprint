@@ -424,7 +424,7 @@ class MusicLibraryDatabase(context: Context) :
         db.delete("track_sources","track_id=?",arrayOf(id))
         db.delete("soundprint_trash","track_id=?",arrayOf(id))
         db.delete("soundprint_fingerprints","track_id=?",arrayOf(id))
-        db.delete("audio_analysis_cache","fingerprint LIKE ?",arrayOf("clap:"+id+":%"))
+        db.delete("audio_analysis_cache","fingerprint LIKE ? OR fingerprint LIKE ?",arrayOf("clap:"+id+":%","twinsense:"+id+":%"))
         db.delete("tracks","id=?",arrayOf(id))
     }
     fun removeTrackRecord(id:String) {
@@ -529,6 +529,9 @@ class MusicLibraryDatabase(context: Context) :
         readableDatabase.rawQuery("SELECT profile_json FROM audio_analysis_cache WHERE fingerprint=?",arrayOf(fingerprint)).use { if(it.moveToFirst()) it.getString(0) else null }
     fun deleteAnalysisForTrack(trackId:String) {
         writableDatabase.delete("audio_analysis_cache","fingerprint LIKE ?",arrayOf("clap:"+trackId+":%"))
+    }
+    fun deleteTwinSenseAudioAnalysis(trackId:String) {
+        writableDatabase.delete("audio_analysis_cache","fingerprint LIKE ?",arrayOf("twinsense:"+trackId+":%"))
     }
 
     private val backupTables=listOf("tracks","library_sources","library_file_sources","track_sources","playlists","playlist_tracks","soundprint_trash","soundprint_fingerprints","audio_analysis_cache","library_scan_errors")
@@ -1202,8 +1205,15 @@ class MusicLibraryRepository(context:Context) {
     fun saveAnalysis(fingerprint:String,profileJson:String,size:Long,mime:String)=db.saveAnalysis(fingerprint,profileJson,size,mime)
     fun saveTwinSenseFingerprint(fingerprint:TwinSenseFingerprint)=db.saveTwinSenseFingerprint(fingerprint)
     fun twinSenseFingerprint(trackId:String,size:Long,modifiedAt:Long)=db.twinSenseFingerprint(trackId,size,modifiedAt)
-    fun deleteTwinSenseFingerprint(trackId:String)=db.deleteTwinSenseFingerprint(trackId)
+    fun deleteTwinSenseFingerprint(trackId:String) {
+        db.deleteTwinSenseFingerprint(trackId)
+        db.deleteTwinSenseAudioAnalysis(trackId)
+    }
     fun cachedAnalysis(fingerprint:String)=db.analysis(fingerprint)
+    fun saveTwinSenseAudioAnalysis(trackId:String,fingerprint:String,profileJson:String,size:Long,mime:String) {
+        db.deleteTwinSenseAudioAnalysis(trackId)
+        db.saveAnalysis(fingerprint,profileJson,size,mime)
+    }
     fun saveClapMoodProfile(track:MusicTrack,modelVersion:String,scores:Map<String,Float>) {
         require(scores.isNotEmpty() && scores.values.all { it.isFinite() && it in 0f..1f }) { "CLAP returned invalid mood scores." }
         val contentHash=track.contentHash.orEmpty()
