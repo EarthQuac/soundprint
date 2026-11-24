@@ -86,9 +86,10 @@ data class TwinSenseScanProgress(
     val total: Int,
     val currentTitle: String,
     val fingerprintsReused: Int,
-    val failed: Int
+    val failed: Int,
+    val percentOverride: Int? = null
 ) {
-    val percent: Int get() = if (total == 0) 100 else (completed * 100 / total).coerceIn(0, 100)
+    val percent: Int get() = percentOverride ?: if (total == 0) 100 else (completed * 100 / total).coerceIn(0, 100)
 }
 
 data class TwinSenseScanResult(
@@ -523,6 +524,7 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                             val read = channel.read(buffer)
                             if (read <= 0) break
                         }
+                        check(buffer.position() == byteCount) { "The audio provider returned an incomplete sample." }
                         digest.update(buffer.array(), 0, buffer.position())
                     }
                 }
@@ -560,6 +562,7 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                         if (read <= 0) break
                         count += read
                     }
+                    check(count == byteCount) { "The audio provider returned an incomplete sample." }
                     digest.update(buffer, 0, count)
                     position += count
                 }
@@ -663,7 +666,8 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                 failedIds.add(track.id)
             } finally {
                 val done = completed.incrementAndGet()
-                onProgress(TwinSenseScanProgress(done, tracks.size, track.title, reused.get(), failedIds.size))
+                val stagePercent = if (advanced && tracks.isNotEmpty()) done * 35 / tracks.size else null
+                onProgress(TwinSenseScanProgress(done, tracks.size, track.title, reused.get(), failedIds.size, stagePercent))
                 if (!advanced) delay(150L)
             }
         }
@@ -704,7 +708,8 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                     failedIds.add(track.id)
                 } finally {
                     val done = completed.incrementAndGet()
-                    onProgress(TwinSenseScanProgress(done, tracks.size, track.title, reused.get(), failedIds.size))
+                    val stagePercent = if (tracks.isNotEmpty()) 35 + done * 65 / tracks.size else 100
+                    onProgress(TwinSenseScanProgress(done, tracks.size, track.title, reused.get(), failedIds.size, stagePercent))
                 }
             }
             coroutineScope {
