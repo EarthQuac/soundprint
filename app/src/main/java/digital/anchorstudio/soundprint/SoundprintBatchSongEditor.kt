@@ -192,9 +192,10 @@ internal fun SoundprintSongsLibraryScreen(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ProFeatureGate(Modifier.weight(1f)) {
                 Button(
                     onClick = { if (proAccess.entitled) onOpenTwinSense() else proAccess.onOpenPro() },
-                    modifier = Modifier.weight(1f).height(46.dp), shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.fillMaxWidth().height(46.dp), shape = RoundedCornerShape(24.dp),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface)
                 ) {
@@ -202,6 +203,7 @@ internal fun SoundprintSongsLibraryScreen(
                     Spacer(Modifier.width(5.dp))
                     Text("TwinSense", modifier = Modifier.weight(1f, fill = false), fontSize = 12.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                     ProFeatureBadge()
+                }
                 }
                 Button(
                     onClick = { recycleOpen = true; scope.launch { recycleItems = withContext(Dispatchers.IO) { library.recycleBin() } } },
