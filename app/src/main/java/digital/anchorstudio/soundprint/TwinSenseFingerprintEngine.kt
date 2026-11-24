@@ -620,6 +620,15 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
             score += 8
             reasons += "Matching album"
         }
+        val albumArtistA = TwinSenseText.normalize(first.albumArtist)
+        val albumArtistB = TwinSenseText.normalize(second.albumArtist)
+        if (albumArtistA.isNotBlank() && albumArtistA == albumArtistB) reasons += "Matching album artist"
+        val genreA = TwinSenseText.normalize(first.genre)
+        val genreB = TwinSenseText.normalize(second.genre)
+        if (genreA.isNotBlank() && genreB.isNotBlank()) {
+            if (genreA == genreB) reasons += "Matching genre (${first.genre})"
+            else reasons += "Different genres (${first.genre} vs ${second.genre})"
+        }
         val validDurations = first.durationMs > 0L && second.durationMs > 0L
         val durationDifference = if (validDurations) kotlin.math.abs(first.durationMs - second.durationMs) else 0L
         val durationRatio = if (validDurations) durationDifference.toDouble() / max(first.durationMs, second.durationMs) else 0.0
@@ -664,8 +673,16 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                 reasons += "Matching audio encoding ($codecA)"
             } else reasons += "Different audio encodings ($codecA vs $codecB)"
         }
-        if (first.year > 0 && second.year > 0 && first.year != second.year) reasons += "Different release years (${first.year} vs ${second.year})"
+        if (first.year > 0 && second.year > 0) {
+            if (first.year == second.year) reasons += "Same release year (${first.year})"
+            else reasons += "Different release years (${first.year} vs ${second.year})"
+        }
         if (first.trackNumber > 0 && second.trackNumber > 0 && first.trackNumber != second.trackNumber) reasons += "Different track numbers (${first.trackNumber} vs ${second.trackNumber})"
+        if (first.discNumber > 0 && second.discNumber > 0 && first.discNumber != second.discNumber) reasons += "Different disc numbers (${first.discNumber} vs ${second.discNumber})"
+        if (first.mimeType.isNotBlank() && second.mimeType.isNotBlank()) {
+            if (first.mimeType.equals(second.mimeType, true)) reasons += "Same container format (${first.mimeType})"
+            else reasons += "Different container formats (${first.mimeType} vs ${second.mimeType})"
+        }
         if (TwinSenseCleanupPlanner.hasCopyMarker(first) || TwinSenseCleanupPlanner.hasCopyMarker(second)) {
             reasons += "Copy-style filename marker detected; treated only as supporting evidence"
             score += 5
@@ -919,7 +936,10 @@ object TwinSenseCleanupPlanner {
     }
 
     private fun fileName(track: MusicTrack): String =
-        runCatching { Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }.orEmpty() }.getOrDefault("")
+        runCatching {
+            Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }
+                ?.replace(Regex("""\\.[^.]+$"""), "").orEmpty()
+        }.getOrDefault("")
 
     /** Name markers help select a likely copy, but never establish duplication by themselves. */
     fun hasCopyMarker(track: MusicTrack): Boolean {
