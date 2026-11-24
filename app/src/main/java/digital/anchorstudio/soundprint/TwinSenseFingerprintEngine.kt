@@ -799,6 +799,16 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
         fingerprintGroups.values.forEach { group ->
             for (i in group.indices) for (j in i + 1 until group.size) add(group[i], group[j])
         }
+        val contentHashGroups = tracks.filter { !it.contentHash.isNullOrBlank() }
+            .groupBy { it.contentHash!!.lowercase(Locale.ROOT) }
+        contentHashGroups.values.forEach { group ->
+            for (i in group.indices) for (j in i + 1 until group.size) add(group[i], group[j])
+        }
+        val tracksById = tracks.associateBy { it.id }
+        tracks.forEach { track ->
+            track.duplicateOf?.let(tracksById::get)?.let { canonical -> add(track, canonical) }
+        }
+
         val titleGroups = tracks.map { it to normalizedTitle(it) }
             .filter { it.second.isNotBlank() }
             .groupBy { it.second }
@@ -809,6 +819,24 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
         val matches = mutableListOf<TwinSenseMatch>()
         for ((first, second) in candidates.values) {
             coroutineContext.ensureActive()
+            val firstHash = first.contentHash?.takeIf { it.isNotBlank() }
+            val secondHash = second.contentHash?.takeIf { it.isNotBlank() }
+            if (firstHash != null && firstHash.equals(secondHash, ignoreCase = true)) {
+                matches += TwinSenseMatch(
+                    first, second, TwinSenseMatchKind.EXACT_AUDIO, 100,
+                    listOf("Matching full-file SHA-256 content hash", "The complete audio files are byte-identical"),
+                    false
+                )
+                continue
+            }
+            if (first.duplicateOf == second.id || second.duplicateOf == first.id) {
+                matches += TwinSenseMatch(
+                    first, second, TwinSenseMatchKind.EXACT_AUDIO, 100,
+                    listOf("Library import already verified matching full-file SHA-256 content hash", "The complete audio files are byte-identical"),
+                    false
+                )
+                continue
+            }
             val firstSignature = sampled[first.id]
             val secondSignature = sampled[second.id]
             if (first.sizeBytes > 0L && first.sizeBytes == second.sizeBytes &&
