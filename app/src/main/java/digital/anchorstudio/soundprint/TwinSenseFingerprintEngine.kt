@@ -499,32 +499,75 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
             preferences.getLong("${cacheKey}_modified", -1L) == track.modifiedAt
         ) return@withContext cached
 
-        val digest = MessageDigest.getInstance("SHA-256")
-        digest.update("${track.sizeBytes}\u0000${track.mimeType.lowercase(Locale.ROOT)}".toByteArray(Charsets.UTF_8))
         val chunkSize = 48 * 1024
         val offsets = listOf(
             0L,
             max(0L, track.sizeBytes / 2L - chunkSize / 2L),
             max(0L, track.sizeBytes - chunkSize)
         ).distinct()
-        val descriptor = appContext.contentResolver.openFileDescriptor(Uri.parse(track.uri), "r")
-            ?: error("Android could not open this audio file.")
-        ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { input ->
-            val channel = input.channel
-            offsets.forEach { offset ->
-                channel.position(offset)
-                val byteCount = min(chunkSize.toLong(), (track.sizeBytes - offset).coerceAtLeast(0L)).toInt()
-                if (byteCount > 0) {
-                    val buffer = ByteBuffer.allocate(byteCount)
-                    while (buffer.hasRemaining()) {
-                        val read = channel.read(buffer)
-                        if (read <= 0) break
+        val header = "${track.sizeBytes}\u0000${track.mimeType.lowercase(Locale.ROOT)}".toByteArray(Charsets.UTF_8)
+
+        fun newDigest() = MessageDigest.getInstance("SHA-256").apply { update(header) }
+        val randomAccessDigest = runCatching {
+            val digest = newDigest()
+            val descriptor = appContext.contentResolver.openFileDescriptor(Uri.parse(track.uri), "r")
+                ?: error("Android could not open this audio file.")
+            ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { input ->
+                val channel = input.channel
+                offsets.forEach { offset ->
+                    channel.position(offset)
+                    val byteCount = min(chunkSize.toLong(), (track.sizeBytes - offset).coerceAtLeast(0L)).toInt()
+                    if (byteCount > 0) {
+                        val buffer = ByteBuffer.allocate(byteCount)
+                        while (buffer.hasRemaining()) {
+                            val read = channel.read(buffer)
+                            if (read <= 0) break
+                        }
+                        digest.update(buffer.array(), 0, buffer.position())
                     }
-                    digest.update(buffer.array(), 0, buffer.position())
                 }
             }
+            digest.digest()
+        }.getOrNull()
+
+        val signatureBytes = randomAccessDigest ?: run {
+            // Some Storage Access Framework providers expose a non-seekable pipe.
+            // Read the same three windows in one forward pass rather than failing the scan.
+            val digest = newDigest()
+            val input = appContext.contentResolver.openInputStream(Uri.parse(track.uri))
+                ?: error("Android could not open this audio file.")
+            input.use { stream ->
+                var position = 0L
+                val discard = ByteArray(64 * 1024)
+                offsets.sorted().forEach { offset ->
+                    var remaining = (offset - position).coerceAtLeast(0L)
+                    while (remaining > 0L) {
+                        val skipped = stream.skip(remaining)
+                        if (skipped > 0L) {
+                            remaining -= skipped
+                        } else {
+                            val read = stream.read(discard, 0, min(discard.size.toLong(), remaining).toInt())
+                            if (read < 0) break
+                            remaining -= read
+                        }
+                    }
+                    position = offset
+                    val byteCount = min(chunkSize.toLong(), (track.sizeBytes - offset).coerceAtLeast(0L)).toInt()
+                    val buffer = ByteArray(byteCount)
+                    var count = 0
+                    while (count < byteCount) {
+                        val read = stream.read(buffer, count, byteCount - count)
+                        if (read <= 0) break
+                        count += read
+                    }
+                    digest.update(buffer, 0, count)
+                    position += count
+                }
+            }
+            digest.digest()
         }
-        val signature = digest.digest().joinToString("") { "%02x".format(it) }
+
+        val signature = signatureBytes.joinToString("") { "%02x".format(it) }
         preferences.edit()
             .putString(cacheKey, signature)
             .putLong("${cacheKey}_size", track.sizeBytes)
