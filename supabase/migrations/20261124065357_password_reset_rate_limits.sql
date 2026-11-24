@@ -19,7 +19,7 @@ security definer
 set search_path = ''
 as $$
 declare
-    current_time timestamptz := clock_timestamp();
+    v_now timestamptz := clock_timestamp();
     rate_limit_row public.password_reset_rate_limits%rowtype;
 begin
     if p_email_hash !~ '^[0-9a-f]{64}$' then
@@ -27,10 +27,10 @@ begin
     end if;
 
     delete from public.password_reset_rate_limits
-    where last_requested_at < current_time - interval '30 days';
+    where last_requested_at < v_now - interval '30 days';
 
     insert into public.password_reset_rate_limits (email_hash, window_started_at)
-    values (p_email_hash, current_time)
+    values (p_email_hash, v_now)
     on conflict (email_hash) do nothing;
 
     select * into rate_limit_row
@@ -39,14 +39,14 @@ begin
     for update;
 
     if rate_limit_row.last_requested_at is not null
-       and rate_limit_row.last_requested_at > current_time - interval '60 seconds' then
+       and rate_limit_row.last_requested_at > v_now - interval '60 seconds' then
         return false;
     end if;
 
-    if rate_limit_row.window_started_at <= current_time - interval '24 hours' then
+    if rate_limit_row.window_started_at <= v_now - interval '24 hours' then
         update public.password_reset_rate_limits
-        set window_started_at = current_time,
-            last_requested_at = current_time,
+        set window_started_at = v_now,
+            last_requested_at = v_now,
             request_count = 1
         where email_hash = p_email_hash;
         return true;
@@ -57,7 +57,7 @@ begin
     end if;
 
     update public.password_reset_rate_limits
-    set last_requested_at = current_time,
+    set last_requested_at = v_now,
         request_count = request_count + 1
     where email_hash = p_email_hash;
 
