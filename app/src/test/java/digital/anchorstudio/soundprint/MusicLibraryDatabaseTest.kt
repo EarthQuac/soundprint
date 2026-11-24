@@ -217,12 +217,17 @@ class MusicLibraryDatabaseTest {
 
         val migrated = MusicLibraryDatabase(context)
         assertEquals("Version one track", migrated.findById("v1")!!.title)
-        assertEquals(5, migrated.readableDatabase.version)
+        assertEquals(7, migrated.readableDatabase.version)
         val sourceColumns = mutableSetOf<String>()
         migrated.readableDatabase.rawQuery("PRAGMA table_info(library_sources)", null).use { cursor ->
             while (cursor.moveToNext()) sourceColumns += cursor.getString(cursor.getColumnIndexOrThrow("name"))
         }
         assertTrue(sourceColumns.contains("last_scan_id"))
+        val trackColumns = mutableSetOf<String>()
+        migrated.readableDatabase.rawQuery("PRAGMA table_info(tracks)", null).use { cursor ->
+            while (cursor.moveToNext()) trackColumns += cursor.getString(cursor.getColumnIndexOrThrow("name"))
+        }
+        assertTrue(trackColumns.contains("file_name"))
         migrated.close()
     }
 
