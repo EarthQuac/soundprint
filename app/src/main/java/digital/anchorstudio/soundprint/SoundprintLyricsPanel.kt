@@ -662,18 +662,20 @@ fun SoundprintLyricsPanel(
                         }
                     }
                 } else if (lines.isNotEmpty()) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .72f)).padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("Synced lyrics & karaoke", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                                ProFeatureBadge()
+                    ProFeatureGate(Modifier.fillMaxWidth()) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(16.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .72f)).padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text("Synced lyrics & karaoke", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                    ProFeatureBadge()
+                                }
+                                Text("Follow lyrics in time with the song, align timing and open the karaoke view.", modifier = Modifier.padding(top = 4.dp),
+                                    fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Text("Follow lyrics in time with the song, align timing and open the karaoke view.", modifier = Modifier.padding(top = 4.dp),
-                                fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -741,10 +743,18 @@ fun SoundprintLyricsPanel(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(match.title, Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    if (index == 0) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                        Text("Strongest match", fontSize = 10.sp, color = Color(0xFF16865B), fontWeight = FontWeight.SemiBold)
-                                        Text("Auto-fill", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        ProFeatureBadge()
+                                    if (index == 0) {
+                                        val proUi = LocalSoundprintProUiAccess.current
+                                        Row(
+                                            Modifier.graphicsLayer(alpha = if (proUi.entitled) 1f else 0.42f)
+                                                .clickable(enabled = !proUi.entitled, onClick = proUi.onOpenPro),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                        ) {
+                                            Text("Strongest match", fontSize = 10.sp, color = Color(0xFF16865B), fontWeight = FontWeight.SemiBold)
+                                            Text("Auto-fill", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            ProFeatureBadge()
+                                        }
                                     }
                                 }
                                 Text(
