@@ -938,7 +938,7 @@ object TwinSenseCleanupPlanner {
     private fun fileName(track: MusicTrack): String =
         runCatching {
             Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }
-                ?.replace(Regex("""\\.[^.]+$"""), "").orEmpty()
+                ?.replace(Regex("""\.[^.]+$"""), "").orEmpty()
         }.getOrDefault("")
 
     /** Name markers help select a likely copy, but never establish duplication by themselves. */
