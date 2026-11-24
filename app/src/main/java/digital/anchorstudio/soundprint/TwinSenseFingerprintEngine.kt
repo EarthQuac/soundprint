@@ -600,7 +600,7 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                 ""
             )
         val baseRecording = baseTitle.replace(
-            Regex("""(?i)\\s*[-(\\[]?\\s*(?:live|remix|acoustic|instrumental|extended|radio\\s+edit|edit|demo|remaster(?:ed)?|version)(?:\\s+\\w+)?\\s*[)\\]]?\\s*$"""),
+            Regex("""(?i)\s*[-(\[]?\s*(?:live|remix|acoustic|instrumental|extended|radio\s+edit|edit|demo|remaster(?:ed)?|version)(?:\s+\w+)?\s*[)\]]?\s*$"""),
             ""
         )
         return TwinSenseText.normalize(baseRecording)
