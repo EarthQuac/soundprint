@@ -31,7 +31,7 @@ data class MusicTrack(
     val modifiedAt: Long, val folder: String, val artworkUri: String?, val addedAt: Long,
     val isFavorite: Boolean, val playCount: Int, val lastPlayedAt: Long?,
     val bitrate: Int = 0, val sampleRate: Int = 0, val channelCount: Int = 0,
-    val discNumber: Int = 0, val contentHash: String? = null, val duplicateOf: String? = null,
+    val encoding: String = "", val discNumber: Int = 0, val contentHash: String? = null, val duplicateOf: String? = null,
     val sourceUri: String? = null, val isAvailable: Boolean = true
 )
 data class MusicPlaylist(val id: String, val name: String, val trackIds: List<String>)
@@ -55,7 +55,7 @@ enum class TrackSort { TITLE, ARTIST, ALBUM, DATE_ADDED, DURATION, YEAR, PLAY_CO
 
 /** SQLite is the source of truth. Schema upgrades are additive and preserve existing user data. */
 class MusicLibraryDatabase(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "soundprint_music_library.db", null, 5) {
+    SQLiteOpenHelper(context.applicationContext, "soundprint_music_library.db", null, 6) {
 
     init { setWriteAheadLoggingEnabled(true) }
 
@@ -70,6 +70,7 @@ class MusicLibraryDatabase(context: Context) :
         if (oldVersion < 3) migrateToV3(db)
         if (oldVersion < 4) migrateToV4(db)
         if (oldVersion < 5) createSoundprintSchema(db)
+        if (oldVersion < 6) migrateToV6(db)
         // Idempotent safety net: databases upgraded from older versions must always have these tables,
         // otherwise every library query that filters out trashed songs would fail.
         ensureCoreTables(db)
@@ -88,7 +89,7 @@ class MusicLibraryDatabase(context: Context) :
             modified_at INTEGER NOT NULL, folder TEXT NOT NULL, artwork_uri TEXT, added_at INTEGER NOT NULL,
             is_favorite INTEGER NOT NULL DEFAULT 0, play_count INTEGER NOT NULL DEFAULT 0, last_played_at INTEGER,
             bitrate INTEGER NOT NULL DEFAULT 0, sample_rate INTEGER NOT NULL DEFAULT 0,
-            channel_count INTEGER NOT NULL DEFAULT 0, disc_number INTEGER NOT NULL DEFAULT 0,
+            channel_count INTEGER NOT NULL DEFAULT 0, encoding TEXT NOT NULL DEFAULT '', disc_number INTEGER NOT NULL DEFAULT 0,
             content_hash TEXT, duplicate_of TEXT, source_uri TEXT, is_available INTEGER NOT NULL DEFAULT 1,
             last_seen_scan_id TEXT)""")
         createIndexes(db)
@@ -131,6 +132,13 @@ class MusicLibraryDatabase(context: Context) :
         db.execSQL("CREATE TABLE IF NOT EXISTS library_file_sources(uri TEXT PRIMARY KEY,display_name TEXT NOT NULL,last_scanned_at INTEGER NOT NULL)")
     }
     private fun migrateToV4(db:SQLiteDatabase) { createFileSourceSchema(db) }
+    private fun migrateToV6(db:SQLiteDatabase) {
+        val columns = mutableSetOf<String>()
+        db.rawQuery("PRAGMA table_info(tracks)", null).use { c ->
+            while (c.moveToNext()) columns += c.getString(c.getColumnIndexOrThrow("name"))
+        }
+        if ("encoding" !in columns) db.execSQL("ALTER TABLE tracks ADD COLUMN encoding TEXT NOT NULL DEFAULT ''")
+    }
 
     private fun createIndexes(db: SQLiteDatabase) {
         db.execSQL("CREATE INDEX IF NOT EXISTS tracks_title_idx ON tracks(title COLLATE NOCASE)")
@@ -198,7 +206,7 @@ class MusicLibraryDatabase(context: Context) :
         put("folder",t.folder); put("artwork_uri",t.artworkUri); put("added_at",t.addedAt)
         put("is_favorite",if(t.isFavorite) 1 else 0); put("play_count",t.playCount); put("last_played_at",t.lastPlayedAt)
         put("bitrate",t.bitrate); put("sample_rate",t.sampleRate); put("channel_count",t.channelCount)
-        put("disc_number",t.discNumber); put("content_hash",t.contentHash); put("duplicate_of",t.duplicateOf)
+        put("encoding",t.encoding); put("disc_number",t.discNumber); put("content_hash",t.contentHash); put("duplicate_of",t.duplicateOf)
         put("source_uri",t.sourceUri); put("is_available",if(t.isAvailable) 1 else 0)
     }
 
@@ -612,7 +620,7 @@ class MusicLibraryDatabase(context: Context) :
             mimeType=s("mime_type"),sizeBytes=n("size_bytes"),modifiedAt=n("modified_at"),folder=s("folder"),
             artworkUri=s("artwork_uri"),addedAt=n("added_at"),isFavorite=n("is_favorite")==1L,playCount=n("play_count").toInt(),
             lastPlayedAt=if(isNull(last)) null else getLong(last),bitrate=n("bitrate").toInt(),sampleRate=n("sample_rate").toInt(),
-            channelCount=n("channel_count").toInt(),discNumber=n("disc_number").toInt(),contentHash=s("content_hash"),
+            channelCount=n("channel_count").toInt(),encoding=s("encoding"),discNumber=n("disc_number").toInt(),contentHash=s("content_hash"),
             duplicateOf=s("duplicate_of"),sourceUri=s("source_uri"),isAvailable=n("is_available")==1L
         )
     }
@@ -975,7 +983,7 @@ class MusicLibraryRepository(context:Context) {
         var albumArtist=old?.albumArtist ?: "";var genre=old?.genre ?: ""
         var duration=old?.durationMs ?: 0L;var trackNumber=old?.trackNumber ?: 0
         var discNumber=old?.discNumber ?: 0;var year=old?.year ?: 0;var bitrate=old?.bitrate ?: 0
-        var embeddedArt:ByteArray?=null;var sampleRate=0;var channels=0
+        var embeddedArt:ByteArray?=null;var sampleRate=0;var channels=0;var encoding=old?.encoding.orEmpty()
         try {
             retriever.setDataSource(app,uri)
             fun value(key:Int)=retriever.extractMetadata(key)
@@ -1002,6 +1010,7 @@ class MusicLibraryRepository(context:Context) {
             for(index in 0 until extractor.trackCount) {
                 val format=extractor.getTrackFormat(index)
                 if(format.getString(MediaFormat.KEY_MIME).orEmpty().startsWith("audio/")) {
+                    encoding=format.getString(MediaFormat.KEY_MIME).orEmpty()
                     if(format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) sampleRate=format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
                     if(format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) channels=format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
                     if(format.containsKey(MediaFormat.KEY_BIT_RATE) && bitrate==0) bitrate=format.getInteger(MediaFormat.KEY_BIT_RATE)
@@ -1030,7 +1039,7 @@ class MusicLibraryRepository(context:Context) {
             folder=file.parentFile?.name.orEmpty(),artworkUri=artwork,addedAt=old?.addedAt ?: System.currentTimeMillis(),
             isFavorite=old?.isFavorite ?: false,playCount=old?.playCount ?: 0,lastPlayedAt=old?.lastPlayedAt,
             bitrate=bitrate.coerceAtLeast(0),sampleRate=sampleRate.coerceAtLeast(0),channelCount=channels.coerceAtLeast(0),
-            discNumber=discNumber.coerceAtLeast(0),contentHash=hash,sourceUri=sourceUri ?: old?.sourceUri,isAvailable=true
+            encoding=encoding,discNumber=discNumber.coerceAtLeast(0),contentHash=hash,sourceUri=sourceUri ?: old?.sourceUri,isAvailable=true
         )
     }
 
