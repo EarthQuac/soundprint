@@ -61,7 +61,8 @@ internal fun SongsLibraryScreen(
     playback: SoundprintPlaybackConnection,
     onImportFiles: () -> Unit,
     onBack: () -> Unit,
-    initialTwinSenseOpen: Boolean = false
+    initialTwinSenseOpen: Boolean = false,
+    initialRecycleBinOpen: Boolean = false
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -73,8 +74,8 @@ internal fun SongsLibraryScreen(
     var sort by remember { mutableStateOf("Title") }
     var descending by remember { mutableStateOf(false) }
     var sortMenu by remember { mutableStateOf(false) }
-    var soundprintOpen by remember { mutableStateOf(initialTwinSenseOpen) }
-    var recycleOpen by remember { mutableStateOf(false) }
+    var soundprintOpen by remember(initialTwinSenseOpen, initialRecycleBinOpen) { mutableStateOf(initialTwinSenseOpen && !initialRecycleBinOpen) }
+    var recycleOpen by remember(initialRecycleBinOpen) { mutableStateOf(initialRecycleBinOpen) }
     var scanResult by remember { mutableStateOf<TwinSenseScanResult?>(null) }
     var scanProgress by remember { mutableStateOf(TwinSenseScanProgress(0, 0, "", 0, 0)) }
     var scanning by remember { mutableStateOf(false) }
