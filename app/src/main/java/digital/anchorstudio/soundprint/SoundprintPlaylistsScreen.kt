@@ -260,7 +260,7 @@ fun SoundprintPlaylistsScreen(
                         Column(Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                                 Text("Smart playlists", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                                ProFeatureBadge()
+                                ProFeatureBadge(sparkleSize = 23.dp)
                             }
                             Text(if (SoundprintListeningPreferences.automaticPlaylistsEnabled(androidx.compose.ui.platform.LocalContext.current)) "Automatically updated from your listening and library" else "Updates paused in Settings · your saved rules are kept", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
