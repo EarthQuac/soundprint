@@ -78,6 +78,7 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
@@ -3442,7 +3443,24 @@ private fun SettingsToggleRow(label: String, description: String, checked: Boole
                     }
                     Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Switch(checked = checked, onCheckedChange = { onCheckedChange(it) })
+                Switch(
+                    checked = checked,
+                    onCheckedChange = onCheckedChange,
+                    modifier = Modifier.shadow(
+                        elevation = if (checked) 9.dp else 0.dp,
+                        shape = RoundedCornerShape(50),
+                        ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.58f),
+                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+                    ),
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                        checkedBorderColor = MaterialTheme.colorScheme.primary,
+                        uncheckedThumbColor = MaterialTheme.colorScheme.surface,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        uncheckedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
+                    )
+                )
             }
             SettingsDivider()
         }
