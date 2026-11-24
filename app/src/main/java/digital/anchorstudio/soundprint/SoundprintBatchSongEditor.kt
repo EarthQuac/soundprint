@@ -116,7 +116,14 @@ internal fun SoundprintSongsLibraryScreen(
         editorOpen = true
     }
 
-    Column(Modifier.fillMaxSize()) {
+    if (recycleOpen) {
+        SoundprintRecycleBinPage(
+            items = recycleItems,
+            onBack = { recycleOpen = false },
+            onRestore = { entry -> scope.launch { withContext(Dispatchers.IO) { library.restoreFromRecycleBin(entry.track.id) }; refreshLibrary() } },
+            onEmpty = { confirmEmptyBin = true }
+        )
+    } else Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 androidx.compose.material3.IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
@@ -183,7 +190,7 @@ internal fun SoundprintSongsLibraryScreen(
                     ProFeatureBadge()
                 }
                 Button(
-                    onClick = { recycleOpen = !recycleOpen; if (recycleOpen) scope.launch { recycleItems = withContext(Dispatchers.IO) { library.recycleBin() } } },
+                    onClick = { recycleOpen = true; scope.launch { recycleItems = withContext(Dispatchers.IO) { library.recycleBin() } } },
                     modifier = Modifier.weight(1f).height(46.dp), shape = RoundedCornerShape(24.dp),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface)
@@ -333,6 +340,89 @@ internal fun SoundprintSongsLibraryScreen(
             }
         }
     }
+
+@Composable
+private fun SoundprintRecycleBinPage(
+    items: List<RecycleBinEntry>,
+    onBack: () -> Unit,
+    onRestore: (RecycleBinEntry) -> Unit,
+    onEmpty: () -> Unit
+) {
+    val sortedItems = remember(items) { items.sortedByDescending { it.removedAt } }
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
+                    SoundprintIcon(SoundprintIcons.ArrowLeft, "Back")
+                }
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Recycle Bin", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+                    Text("${sortedItems.size} ${if (sortedItems.size == 1) "song" else "songs"} · kept for 30 days",
+                        fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        Surface(
+            Modifier.padding(horizontal = 16.dp).fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Row(Modifier.padding(15.dp), verticalAlignment = Alignment.Top) {
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)), contentAlignment = Alignment.Center) {
+                    SoundprintIcon(SoundprintIcons.Trash, null, Modifier.size(20.dp), MaterialTheme.colorScheme.primary)
+                }
+                Column(Modifier.weight(1f).padding(start = 12.dp, end = 4.dp)) {
+                    Text("Your deleted songs", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Restore songs to your library within 30 days. Original audio files on your device are never deleted.",
+                        Modifier.padding(top = 4.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (sortedItems.isNotEmpty()) TextButton(onClick = onEmpty) {
+                    Text("Empty bin", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+        if (sortedItems.isEmpty()) {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 44.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SoundprintIcon(SoundprintIcons.Trash, null, Modifier.size(32.dp), MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
+                Text("Recycle Bin is empty", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text("Songs you remove from your library will show up here.",
+                    fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(sortedItems, key = { it.track.id }) { entry ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface).padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        NativeArtwork(entry.track.artworkUri, entry.track.id, Modifier.size(48.dp), 10)
+                        Column(Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
+                            Text(entry.track.title, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("${entry.track.artist} · ${formatBatchDuration(entry.track.durationMs)}",
+                                fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("${entry.reason} · ${batchDaysRemaining(entry.removedAt)} days left",
+                                Modifier.padding(top = 3.dp), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
+                        TextButton(onClick = { onRestore(entry) }) {
+                            SoundprintIcon(SoundprintIcons.ArchiveRestore, null, Modifier.size(15.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Restore", fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
     if (editorOpen) {
         AlertDialog(
