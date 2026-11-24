@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 internal data class SoundprintProUiAccess(
@@ -22,11 +23,11 @@ internal data class SoundprintProUiAccess(
 internal val LocalSoundprintProUiAccess = staticCompositionLocalOf { SoundprintProUiAccess() }
 
 @Composable
-internal fun ProFeatureBadge(modifier: Modifier = Modifier) {
+internal fun ProFeatureBadge(modifier: Modifier = Modifier, sparkleSize: Dp = 16.dp) {
     val access = LocalSoundprintProUiAccess.current
     if (!access.entitled) {
         SoundprintProSparkle(
-            modifier = modifier.size(16.dp),
+            modifier = modifier.size(sparkleSize),
             contentDescription = "Pro feature"
         )
     }
