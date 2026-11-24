@@ -594,9 +594,9 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
 
     private fun normalizeCandidateName(value: String): String {
         val baseTitle = value
-            .replace(Regex("""(?i)^\\s*(?:copy|duplicate|duplicated|dup|backup|clone)(?:\\s+of)?\\s+"""), "")
+            .replace(Regex("""(?i)^\s*(?:copy|duplicate|duplicated|dup|backup|clone)(?:\s+of)?\s+"""), "")
             .replace(
-                Regex("""(?i)\\s*(?:\\(\\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\\d+)?|\\d+)\\s*\\)|\\[\\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\\d+)?|\\d+)\\s*\\]|[-_ ]+(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\\d+)?|[-_ ]+\\(\\d+\\)|[-_ ]+\\d+)\\s*$"""),
+                Regex("""(?i)\s*(?:\(\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|\d+)\s*\)|\[\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|\d+)\s*\]|[-_ ]+(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|[-_ ]+\(\d+\)|[-_ ]+\d+)\s*$"""),
                 ""
             )
         return TwinSenseText.normalize(baseTitle)
@@ -612,7 +612,7 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
     private fun normalizedFileName(track: MusicTrack): String {
         val raw = track.fileName.takeIf { it.isNotBlank() }
             ?: Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }.orEmpty()
-        return normalizeCandidateName(raw.substringAfterLast('/').replace(Regex("""\\.[^.]+$"""), ""))
+        return normalizeCandidateName(raw.substringAfterLast('/').replace(Regex("""\.[^.]+$"""), ""))
     }
 
     private fun sameCandidateName(first: MusicTrack, second: MusicTrack): Boolean {
