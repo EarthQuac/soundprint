@@ -737,10 +737,8 @@ class MainActivity : ComponentActivity() {
                     folderWatchLastScan = folderWatchLastScan,
                     autoAddNewSongs = autoAddNewSongs,
                     onAutoAddNewSongsChange = { enabled ->
-                        if (proEntitlementLoaded && proEntitled) {
-                            autoAddNewSongs = enabled
-                            preferences.edit().putBoolean("auto_add_new_songs", enabled).apply()
-                        }
+                        autoAddNewSongs = enabled
+                        preferences.edit().putBoolean("auto_add_new_songs", enabled).apply()
                     },
                     onChooseWatchedFolder = {
                         if (proEntitlementLoaded && proEntitled) watchedFolderPicker.launch(null)
@@ -3145,8 +3143,8 @@ private fun SettingsScreen(
                         replaceQueue = it
                         playbackPrefs.edit().putBoolean("replace_queue_on_play", it).apply()
                     }
-                    SettingsToggleRow("Auto-add newly discovered songs", "Automatically add new audio found by your watched folder", proAccess.entitled && autoAddNewSongs, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("auto-add")), proFeature = true) {
-                        if (!proAccess.entitled) proAccess.onOpenPro() else onAutoAddNewSongsChange(it)
+                    SettingsToggleRow("Auto-add newly discovered songs", "Automatically add new audio found by your watched folder", autoAddNewSongs, modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("auto-add"))) {
+                        onAutoAddNewSongsChange(it)
                     }
                     FolderAutoWatchSettingsRow(
                         folderName = watchedFolderName,
