@@ -83,6 +83,7 @@ internal fun SoundprintSongsLibraryScreen(
     var artist by remember { mutableStateOf("") }
     var album by remember { mutableStateOf("") }
     var genre by remember { mutableStateOf("") }
+    var informationTrack by remember { mutableStateOf<MusicTrack?>(null) }
 
     suspend fun refreshLibrary() {
         val loaded = withContext(Dispatchers.IO) {
@@ -339,6 +340,10 @@ internal fun SoundprintSongsLibraryScreen(
                                     SoundprintIcon(SoundprintIcons.EllipsisVertical, "Song options", Modifier.size(19.dp), MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                    DropdownMenuItem(text = { Text("Song information") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Info, null) }, onClick = {
+                                        menuExpanded = false
+                                        informationTrack = track
+                                    })
                                     DropdownMenuItem(text = { Text("Play next") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Play, null) }, onClick = { menuExpanded = false; playback.enqueue(listOf(track), next = true) })
                                     DropdownMenuItem(text = { Text("Add to queue") }, leadingIcon = { SoundprintIcon(SoundprintIcons.ListMusic, null) }, onClick = { menuExpanded = false; playback.enqueue(listOf(track)) })
                                     DropdownMenuItem(text = { Text(if (track.isFavorite) "Remove from favorites" else "Add to favorites") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Heart, null) }, onClick = {
@@ -421,6 +426,10 @@ internal fun SoundprintSongsLibraryScreen(
                 TextButton(enabled = !saving, onClick = { editorOpen = false }) { Text("Cancel") }
             }
         )
+    }
+
+    informationTrack?.let { track ->
+        SoundprintTrackInformationDialog(track = track, onDismiss = { informationTrack = null })
     }
 
     if (confirmEmptyBin) {
