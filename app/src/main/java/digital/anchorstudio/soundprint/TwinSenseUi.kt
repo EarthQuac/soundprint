@@ -237,7 +237,7 @@ internal fun TwinSenseScreen(
             title = { Text("Run Smart Cleanup?") },
             text = {
                 Text(
-                    "Move ${cleanupTracks.size} byte-identical duplicate tracks to Recycle Bin? TwinSense keeps the best-quality copy in each group. Copy-style filename markers only help choose which identical copy to keep; similar audio and alternate versions are never auto-removed. Original audio files are never deleted."
+                    "Move ${cleanupTracks.size} likely duplicate tracks to Recycle Bin? TwinSense keeps the best-quality original. It can include byte-identical copies and copy-named tracks only when the base title, artist and duration support the match. Possible alternatives and duration-mismatched versions are never auto-removed. The original audio files on your device are never deleted."
                 )
             },
             confirmButton = {
@@ -408,10 +408,12 @@ private fun TwinSenseScannerSection(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("${matches.size} possible duplicate ${if (matches.size == 1) "pair" else "pairs"}", fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        Text("Review each pair before removing anything.", Modifier.padding(top = 2.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val duplicateCount = matches.count { it.kind != TwinSenseMatchKind.ALTERNATIVE && !it.versionWarning }
+                        val alternativeCount = matches.size - duplicateCount
+                        Text("TwinSense findings", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("$duplicateCount possible duplicates · $alternativeCount possible alternatives", Modifier.padding(top = 2.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    if (cleanupCount > 10) {
+                    if (cleanupCount > 0) {
                         Button(
                             onClick = onSmartCleanup,
                             enabled = !cleaning && !scanning,
@@ -444,7 +446,7 @@ private fun TwinSenseScannerSection(
 
 @Composable
 private fun TwinSenseMatchRow(match: TwinSenseMatch, onRemove: (MusicTrack) -> Unit) {
-    var reasonsExpanded by remember(match.first.id, match.second.id) { mutableStateOf(false) }
+    var reasonsExpanded by remember(match.first.id, match.second.id) { mutableStateOf(true) }
     Column(Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
         Row(
             Modifier.fillMaxWidth().padding(bottom = 12.dp),
@@ -452,13 +454,17 @@ private fun TwinSenseMatchRow(match: TwinSenseMatch, onRemove: (MusicTrack) -> U
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                if (match.kind == TwinSenseMatchKind.EXACT_AUDIO) "Exact file match" else "Possible match",
+                when {
+                    match.kind == TwinSenseMatchKind.EXACT_AUDIO -> "Exact audio match"
+                    match.kind == TwinSenseMatchKind.ALTERNATIVE || match.versionWarning -> "Possible alternative"
+                    else -> "Possible duplicate"
+                },
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 color = if (match.kind == TwinSenseMatchKind.EXACT_AUDIO) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text("${match.confidence}% confidence", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (match.versionWarning) Text("Possible alternate version", fontSize = 11.sp, color = MaterialTheme.colorScheme.tertiary)
+            if (match.kind == TwinSenseMatchKind.ALTERNATIVE || match.versionWarning) Text("Keep both · review version", fontSize = 11.sp, color = MaterialTheme.colorScheme.tertiary)
         }
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             TwinSenseComparedTrack(track = match.first, index = 0, onRemove = onRemove)
@@ -466,7 +472,7 @@ private fun TwinSenseMatchRow(match: TwinSenseMatch, onRemove: (MusicTrack) -> U
         }
         if (match.reasons.isNotEmpty()) {
             Text(
-                if (reasonsExpanded) "Hide match details" else "Why these tracks matched",
+                if (reasonsExpanded) "Why TwinSense reached this conclusion · Hide" else "Why TwinSense reached this conclusion",
                 Modifier.padding(top = 12.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
                     .padding(horizontal = 8.dp, vertical = 5.dp)
                     .clickable { reasonsExpanded = !reasonsExpanded },
@@ -507,7 +513,10 @@ private fun TwinSenseComparedTrack(track: MusicTrack, index: Int, onRemove: (Mus
             Text(formatTwinSenseDuration(track.durationMs / 1000.0), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(if (track.sizeBytes > 0L) "${"%.1f".format(track.sizeBytes / (1024.0 * 1024.0))} MB" else "Size unknown", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (track.bitrate > 0) Text("${track.bitrate / 1000} kbps", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (track.mimeType.isNotBlank()) Text(track.mimeType, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (track.sampleRate > 0) Text("${track.sampleRate} Hz", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (track.channelCount > 0) Text("${track.channelCount} ch", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val codec = track.encoding.ifBlank { track.mimeType }
+            if (codec.isNotBlank()) Text(codec, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         TextButton(
             onClick = { onRemove(track) },
