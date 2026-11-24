@@ -345,7 +345,7 @@ class MusicLibraryDatabaseTest {
         val restoredFile = java.io.File(java.net.URI(restored.uri))
         assertTrue(restoredFile.isFile)
         assertEquals(4096L, restoredFile.length())
-        database.removeTrackRecord(item.id)
+        repository.removeTrackRecord(item.id)
         restoredFile.delete()
         database.close()
     }
