@@ -121,8 +121,11 @@ internal fun SongsLibraryScreen(
         if (descending) sorted.reversed() else sorted
     }
 
-    val cleanupTracks = remember(scanResult) {
-        scanResult?.let { TwinSenseCleanupPlanner.tracksToRemove(it) }.orEmpty()
+    val filenameDuplicateGroups = remember(songs) { TwinSenseCleanupPlanner.nameBasedDuplicateGroups(songs) }
+    val cleanupTracks = remember(scanResult, songs) {
+        (scanResult?.let { TwinSenseCleanupPlanner.tracksToRemove(it) }.orEmpty() +
+            filenameDuplicateGroups.flatMap { group -> TwinSenseCleanupPlanner.tracksToRemoveByName(group) })
+            .distinctBy { it.id }
     }
 
     val hasTwinSensePro = SoundprintProGate.isResolved && SoundprintProGate.hasPro
@@ -376,15 +379,19 @@ internal fun SongsLibraryScreen(
                                 )
                                 if (cleanupTracks.isNotEmpty()) {
                                     ProFeatureGate {
-                                        OutlinedButton(onClick = { if (SoundprintProGate.require("TwinSense")) confirmSmartCleanup = true }) {
+                                        OutlinedButton(
+                                            onClick = { if (SoundprintProGate.require("TwinSense Smart Clean")) confirmSmartCleanup = true },
+                                            contentPadding = ButtonDefaults.ContentPadding
+                                        ) {
                                             SoundprintIcon(SoundprintIcons.Trash2, null, modifier = Modifier.size(16.dp))
                                             Spacer(Modifier.width(7.dp))
-                                            Text("Smart Cleanup · ${cleanupTracks.size}")
+                                            Text("TwinSense Smart Clean · ${cleanupTracks.size}", maxLines = 1)
+                                            ProFeatureBadge(sparkleSize = 16.dp)
                                         }
                                     }
                                 }
-                                if (result.groups.isEmpty()) {
-                                    Text("No duplicate audio found in your library.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (result.groups.isEmpty() && filenameDuplicateGroups.isEmpty()) {
+                                    Text("No duplicate audio or copied-name tracks found in your library.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 } else {
                                     result.groups.forEachIndexed { index, group ->
                                         Card(
@@ -418,6 +425,30 @@ internal fun SongsLibraryScreen(
                                                         fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
                                                     match.reasons.forEach { reason ->
                                                         Text("• $reason", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    filenameDuplicateGroups.forEachIndexed { index, group ->
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                            shape = RoundedCornerShape(16.dp)
+                                        ) {
+                                            Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text("Copied-name group ${index + 1}", modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                                    Text("${group.size} tracks", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                }
+                                                group.forEach { track ->
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Column(Modifier.weight(1f)) {
+                                                            Text(track.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                            Text("${track.artist} · ${formatTwinSenseDuration(track.durationMs / 1000.0)} · ${track.sizeBytes / (1024 * 1024)} MB",
+                                                                fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                        }
+                                                        TextButton(onClick = { pendingRemoval = track }) { Text("Remove", color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
                                                     }
                                                 }
                                             }
