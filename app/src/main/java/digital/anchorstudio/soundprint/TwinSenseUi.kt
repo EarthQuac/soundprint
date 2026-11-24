@@ -101,7 +101,7 @@ internal fun TwinSenseScreen(
 
     val hasTwinSensePro = SoundprintProGate.isResolved && SoundprintProGate.hasPro
     val cleanupTracks = remember(scanResult) {
-        scanResult?.let(TwinSenseCleanupPlanner::tracksToRemove).orEmpty()
+        scanResult?.let { TwinSenseCleanupPlanner.tracksToRemove(it) }.orEmpty()
     }
     val matches = remember(scanResult) { scanResult?.groups?.flatMap { it.matches }.orEmpty() }
 
@@ -295,42 +295,6 @@ internal fun TwinSenseScreen(
 }
 
 @Composable
-private fun TwinSensePageHeader(
-    title: String,
-    subtitle: String,
-    onBack: () -> Unit,
-    actionLabel: String,
-    actionIcon: Int,
-    onAction: () -> Unit
-) {
-    Column {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                Modifier.size(36.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(0.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                androidx.compose.foundation.clickable(onClick = onBack)
-                SoundprintIcon(SoundprintIcons.ArrowLeft, "Back", modifier = Modifier.size(18.dp))
-            }
-            Spacer(Modifier.width(8.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.3).sp, color = MaterialTheme.colorScheme.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (subtitle.isNotBlank()) Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
-                SoundprintIcon(actionIcon, null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(5.dp))
-                Text(actionLabel, fontSize = 11.sp, maxLines = 1)
-            }
-        }
-    }
-}
-
-@Composable
 private fun TwinSenseScannerSection(
     songsCount: Int,
     hasPro: Boolean,
@@ -427,9 +391,7 @@ private fun TwinSenseScannerSection(
             if (result != null && !scanning && matches.isEmpty()) {
                 Text(
                     "No duplicate tracks found.",
-                    Modifier.fillMaxWidth().padding(top = 16.dp).border(
-                        BorderStroke(0.dp, MaterialTheme.colorScheme.outlineVariant)
-                    ).padding(top = 12.dp),
+                    Modifier.fillMaxWidth().padding(top = 16.dp),
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
