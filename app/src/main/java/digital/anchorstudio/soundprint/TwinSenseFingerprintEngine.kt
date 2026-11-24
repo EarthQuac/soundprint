@@ -133,7 +133,7 @@ class TwinSenseFingerprintEngine(private val context: Context) {
     suspend fun create(track: MusicTrack, onProgress: (Int) -> Unit = {}): TwinSenseFingerprint =
         createWithProfile(track, onProgress).fingerprint
 
-    suspend fun createWithProfile(
+    internal suspend fun createWithProfile(
         track: MusicTrack,
         onProgress: (Int) -> Unit = {}
     ): TwinSenseFingerprintAnalysis = withContext(Dispatchers.IO) {
