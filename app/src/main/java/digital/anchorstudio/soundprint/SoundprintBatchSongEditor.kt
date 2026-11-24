@@ -162,12 +162,39 @@ internal fun SoundprintSongsLibraryScreen(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 8.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            OutlinedTextField(
-                value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth().height(56.dp),
-                singleLine = true, placeholder = { Text("Search songs, artists, albums", fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null, Modifier.size(18.dp)) },
-                shape = RoundedCornerShape(24.dp), colors = soundprintOutlinedFieldColors()
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(24.dp))
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SoundprintIcon(SoundprintIcons.Search, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(10.dp))
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+                    if (query.isEmpty()) {
+                        Text(
+                            "Search songs, artists, albums",
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    BasicTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary)
+                    )
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.weight(1f)) {
                     OutlinedButton(onClick = { sortMenuExpanded = true }, modifier = Modifier.fillMaxWidth().height(44.dp), shape = RoundedCornerShape(24.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 4.dp)) {
