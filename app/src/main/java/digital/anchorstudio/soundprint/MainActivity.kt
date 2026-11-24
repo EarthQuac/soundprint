@@ -1171,7 +1171,7 @@ private fun SoundprintApp(
                 settingsOpen = true
             }
             proOpen -> proOpen = false
-            twinSenseOpen -> twinSenseOpen = false
+            twinSenseOpen -> { twinSenseOpen = false; openTwinSenseRecycleBin = false }
             statsOpen -> statsOpen = false
             settingsOpen -> settingsOpen = false
             accountOpen -> accountOpen = false
