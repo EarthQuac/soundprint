@@ -1018,8 +1018,19 @@ private fun SoundprintApp(
     onProArtworkAvailable: () -> Unit
 ) {
     val appContext = LocalContext.current
+    var nowPlayingOpen by remember { mutableStateOf(false) }
+    var miniPlayerVisible by remember { mutableStateOf(false) }
+    var miniPlayerExpanded by remember { mutableStateOf(false) }
     val clapScanner = remember { ClapLibraryScanner(appContext, libraryManager) }
-    val playbackConnection = remember { SoundprintPlaybackConnection(appContext) }
+    val playbackConnection = remember {
+        SoundprintPlaybackConnection(
+            appContext,
+            onPlayRequested = {
+                miniPlayerExpanded = false
+                nowPlayingOpen = true
+            }
+        )
+    }
     val screenScope = rememberCoroutineScope()
     DisposableEffect(clapScanner, playbackConnection) {
         onDispose {
@@ -1133,9 +1144,6 @@ private fun SoundprintApp(
             }
         }
     }
-    var nowPlayingOpen by remember { mutableStateOf(false) }
-    var miniPlayerVisible by remember { mutableStateOf(false) }
-    var miniPlayerExpanded by remember { mutableStateOf(false) }
     // Each Now Playing exit action sets the intended mini-player presentation explicitly.
     var tagEditorOpen by remember { mutableStateOf(false) }
     var resumePrompt by remember { mutableStateOf<PlaybackResumePrompt?>(null) }

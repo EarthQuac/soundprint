@@ -869,7 +869,8 @@ class SoundprintPlaybackService : MediaSessionService() {
 /** Activity-side connection to the service. Screens can share one connection and observe its Player. */
 class SoundprintPlaybackConnection(
     context: Context,
-    private val onConnected: (MediaController) -> Unit = {}
+    private val onConnected: (MediaController) -> Unit = {},
+    private val onPlayRequested: () -> Unit = {}
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val executor = Executor { command -> mainHandler.post(command) }
@@ -978,6 +979,10 @@ class SoundprintPlaybackConnection(
             }
             player.prepare()
             player.play()
+        }.onSuccess {
+            mainHandler.post {
+                if (!closed) onPlayRequested()
+            }
         }.onFailure { error ->
             Log.e("SoundprintPlayback", "Could not start the requested music queue.", error)
         }
