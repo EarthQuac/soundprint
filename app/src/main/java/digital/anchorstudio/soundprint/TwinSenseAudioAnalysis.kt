@@ -54,7 +54,7 @@ internal data class TwinSenseAudioAnalysisProfile(
         .put("lowBandRatio", lowBandRatio)
         .put("midBandRatio", midBandRatio)
         .put("highBandRatio", highBandRatio)
-        .put("chroma", JSONArray().apply { chroma.forEach(::put) })
+        .put("chroma", JSONArray().apply { chroma.forEach { put(it) } })
         .toString()
 
     companion object {
@@ -80,7 +80,7 @@ internal data class TwinSenseAudioAnalysisProfile(
                 highBandRatio = json.getDouble("highBandRatio"),
                 chroma = chroma
             )
-            if (chroma.size != 12 || !profile.numericValues().all(Double::isFinite)) null else profile
+            if (chroma.size != 12 || !profile.numericValues().all { it.isFinite() }) null else profile
         }.getOrNull()
     }
 
@@ -215,7 +215,7 @@ internal object TwinSenseAudioAnalysis {
 
         val bandsA = listOf(firstProfile.lowBandRatio, firstProfile.midBandRatio, firstProfile.highBandRatio)
         val bandsB = listOf(secondProfile.lowBandRatio, secondProfile.midBandRatio, secondProfile.highBandRatio)
-        if ((bandsA + bandsB).all(Double::isFinite)) {
+        if ((bandsA + bandsB).all { it.isFinite() }) {
             val distance = bandsA.indices.sumOf { abs(bandsA[it] - bandsB[it]) }
             signals += Signal("Similar low/mid/high energy balance", max(0.0, 1.0 - distance / 2.0), 0.25)
         }
