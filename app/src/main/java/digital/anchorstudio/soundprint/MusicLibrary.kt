@@ -443,6 +443,17 @@ class MusicLibraryDatabase(context: Context) :
         readableDatabase.rawQuery("SELECT track_id,removed_at,reason FROM soundprint_trash ORDER BY removed_at DESC",null).use { c ->
             buildList { while(c.moveToNext()) add(Triple(c.getString(0),c.getLong(1),c.getString(2))) }
         }
+    fun updateTrackUriForRestore(id:String,uri:String) {
+        val db=writableDatabase;db.beginTransaction()
+        try {
+            val changed=db.update("tracks",ContentValues().apply {
+                put("uri",uri);putNull("source_uri");put("is_available",1)
+            },"id=?",arrayOf(id))
+            check(changed==1) { "The track is no longer in Soundprint's library." }
+            db.delete("track_sources","track_id=?",arrayOf(id))
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
     fun restoreFromTrash(id:String) {
         val db=writableDatabase;db.beginTransaction()
         try {
@@ -611,6 +622,42 @@ class MusicLibraryRepository(context:Context) {
     private val app=context.applicationContext
     private val db=MusicLibraryDatabase.getInstance(app)
     private val artworkDir=java.io.File(app.filesDir,"music-artwork")
+    private val twinSenseTrashDir=java.io.File(app.filesDir,"twinsense-trash")
+
+    init {
+        twinSenseTrashDir.listFiles()?.filter { it.name.endsWith(".tmp") }?.forEach { it.delete() }
+    }
+
+    private fun twinSenseTrashBackup(id:String):java.io.File {
+        val safeId=id.replace(Regex("[^A-Za-z0-9_-]"),"_")
+        return java.io.File(twinSenseTrashDir,"${safeId}.audio")
+    }
+
+    private fun createTwinSenseTrashBackup(track:MusicTrack):java.io.File {
+        if(!twinSenseTrashDir.exists() && !twinSenseTrashDir.mkdirs()) {
+            throw java.io.IOException("Soundprint could not create a recovery folder for Recycle Bin.")
+        }
+        val target=twinSenseTrashBackup(track.id)
+        if(target.isFile && (track.sizeBytes<=0L || target.length()==track.sizeBytes)) return target
+        val temporary=java.io.File(twinSenseTrashDir,"${target.name}.tmp")
+        temporary.delete()
+        try {
+            val input=app.contentResolver.openInputStream(Uri.parse(track.uri))
+                ?: throw java.io.IOException("The original audio file is no longer readable.")
+            input.use { source ->
+                temporary.outputStream().buffered().use { output -> source.copyTo(output,64*1024) }
+            }
+            if(track.sizeBytes>0L && temporary.length()!=track.sizeBytes) {
+                throw java.io.IOException("The recovery copy is incomplete. The track was left in your library.")
+            }
+            if(target.exists()) target.delete()
+            if(!temporary.renameTo(target)) throw java.io.IOException("Soundprint could not save the Recycle Bin recovery copy.")
+            return target
+        } catch(error:Exception) {
+            temporary.delete()
+            throw error
+        }
+    }
 
     suspend fun importTree(
         treeUri:Uri,
@@ -1081,12 +1128,36 @@ class MusicLibraryRepository(context:Context) {
     fun markPlayed(id:String)=db.markPlayed(id)
     fun createPlaylist(name:String)=db.createPlaylist(name)
     fun addToPlaylist(playlistId:String,trackId:String)=db.addToPlaylist(playlistId,trackId)
-    fun moveToTwinSenseTrash(id:String,reason:String="soundprint")=db.moveToTrash(id,reason)
-    fun restoreFromTwinSenseTrash(id:String)=db.restoreFromTrash(id)
+    fun moveToTwinSenseTrash(id:String,reason:String="soundprint") {
+        val track=db.findById(id) ?: throw IllegalArgumentException("Song not found.")
+        val backup=createTwinSenseTrashBackup(track)
+        try {
+            db.moveToTrash(id,reason)
+        } catch(error:Exception) {
+            backup.delete()
+            throw error
+        }
+    }
+    fun restoreFromTwinSenseTrash(id:String) {
+        val track=db.findById(id) ?: throw IllegalStateException("Recycle Bin item not found.")
+        val backup=twinSenseTrashBackup(id)
+        val originalReadable=runCatching {
+            app.contentResolver.openInputStream(Uri.parse(track.uri))?.use { it.read() >= 0 } ?: false
+        }.getOrDefault(false)
+        if(!originalReadable) {
+            check(backup.isFile) { "The original audio file is unavailable and its Recycle Bin recovery copy is missing." }
+            db.updateTrackUriForRestore(id,Uri.fromFile(backup).toString())
+        }
+        db.restoreFromTrash(id)
+    }
     fun ensureTwinSenseTrashEntry(id:String,removedAt:Long,reason:String)=db.ensureTrashEntry(id,removedAt,reason)
     fun twinSenseTrashRecords()=db.recycleBinRecords()
-    fun emptyTwinSenseTrash()=db.emptyTrashAndDeleteTracks()
-    fun purgeExpiredTwinSenseTrash(cutoff:Long)=db.purgeExpiredTrashAndDeleteTracks(cutoff)
+    fun emptyTwinSenseTrash():List<String> = db.emptyTrashAndDeleteTracks().also { ids ->
+        ids.forEach { twinSenseTrashBackup(it).delete() }
+    }
+    fun purgeExpiredTwinSenseTrash(cutoff:Long):List<String> = db.purgeExpiredTrashAndDeleteTracks(cutoff).also { ids ->
+        ids.forEach { twinSenseTrashBackup(it).delete() }
+    }
     fun pruneExpiredTrash()=db.pruneTrash()
     fun sources()=db.sources()
     fun fileSources()=db.fileSources()
@@ -1106,11 +1177,15 @@ class MusicLibraryRepository(context:Context) {
         // Clearing the library must not discard the user's saved source locations or
         // release SAF read grants: Rescan folders uses these to rebuild the index.
         db.clearLibrary()
+        twinSenseTrashDir.listFiles()?.forEach { it.delete() }
     }
     fun writeBackup(output:OutputStream, managementTables:JSONObject? = null)=db.writeBackup(output, managementTables)
     fun restoreBackup(input:InputStream,replaceExisting:Boolean=false)=db.restoreBackup(input,replaceExisting)
 
-    fun removeTrackRecord(id:String)=db.removeTrackRecord(id)
+    fun removeTrackRecord(id:String) {
+        db.removeTrackRecord(id)
+        twinSenseTrashBackup(id).delete()
+    }
     fun saveAnalysis(fingerprint:String,profileJson:String,size:Long,mime:String)=db.saveAnalysis(fingerprint,profileJson,size,mime)
     fun saveTwinSenseFingerprint(fingerprint:TwinSenseFingerprint)=db.saveTwinSenseFingerprint(fingerprint)
     fun twinSenseFingerprint(trackId:String,size:Long,modifiedAt:Long)=db.twinSenseFingerprint(trackId,size,modifiedAt)
