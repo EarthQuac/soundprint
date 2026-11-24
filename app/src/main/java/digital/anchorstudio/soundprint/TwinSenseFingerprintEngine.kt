@@ -594,6 +594,7 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
 
     private fun normalizedTitle(track: MusicTrack): String {
         val title = track.title.takeIf { it.isNotBlank() && !it.equals("Unknown title", true) }
+            ?: track.fileName.takeIf { it.isNotBlank() }
             ?: Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }.orEmpty()
         val baseTitle = title
             .replace(Regex("""(?i)^\s*(?:copy|duplicate|duplicated|dup|backup|clone)(?:\s+of)?\s+"""), "")
@@ -938,7 +939,9 @@ object TwinSenseCleanupPlanner {
     }
 
     private fun fileName(track: MusicTrack): String =
-        runCatching {
+        track.fileName.takeIf { it.isNotBlank() }?.substringAfterLast('/')?.let { name ->
+            name.replace(Regex("""\.[^.]+$"""), "")
+        } ?: runCatching {
             Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }
                 ?.replace(Regex("""\.[^.]+$"""), "").orEmpty()
         }.getOrDefault("")
