@@ -3651,6 +3651,7 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
             )
         }
     }
+    }
 }
 
 private suspend fun <T> runScanWithoutSwallowingCancellation(block: suspend () -> T): Result<T> = try {
