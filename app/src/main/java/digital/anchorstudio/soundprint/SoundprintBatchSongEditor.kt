@@ -452,6 +452,99 @@ internal fun SoundprintSongsLibraryScreen(
 }
 
 @Composable
+private fun SoundprintTrackInformationDialog(track: MusicTrack, onDismiss: () -> Unit) {
+    val fileName = runCatching { android.net.Uri.parse(track.uri).lastPathSegment.orEmpty() }.getOrDefault("")
+    val extension = fileName.substringAfterLast('.', "").takeIf { it.isNotBlank() }?.uppercase(java.util.Locale.ROOT)
+    val mime = track.mimeType
+    val format = extension ?: when {
+        mime.contains("mpeg", true) -> "MP3"
+        mime.contains("wav", true) -> "WAV"
+        mime.contains("flac", true) -> "FLAC"
+        mime.contains("ogg", true) -> "OGG"
+        mime.contains("aac", true) -> "AAC"
+        mime.contains("mp4", true) || mime.contains("m4a", true) -> "M4A"
+        mime.isNotBlank() -> mime.substringAfter('/').uppercase(java.util.Locale.ROOT)
+        else -> "Unknown"
+    }
+    val codec = mime.substringAfter('/', "").takeIf { it.isNotBlank() }?.uppercase(java.util.Locale.ROOT) ?: "Not identified"
+    val fileSize = when {
+        track.sizeBytes <= 0L -> "Unknown"
+        track.sizeBytes < 1024L * 1024L -> "${(track.sizeBytes / 1024.0).toInt()} KB"
+        else -> "${"%.2f".format(java.util.Locale.ROOT, track.sizeBytes / (1024.0 * 1024.0))} MB"
+    }
+    val sampleRate = if (track.sampleRate > 0) {
+        "${"%.3f".format(java.util.Locale.ROOT, track.sampleRate / 1000.0).trimEnd('0').trimEnd('.')} kHz"
+    } else "Not available"
+    val bitrate = if (track.bitrate > 0) "${track.bitrate / 1000} kbps" else "Not available"
+    val channels = when (track.channelCount) {
+        1 -> "Mono (1 channel)"
+        2 -> "Stereo (2 channels)"
+        in 3..Int.MAX_VALUE -> "${track.channelCount} channels"
+        else -> "Not available"
+    }
+    val fields = listOf(
+        "TRACK" to listOf(
+            "Title" to track.title,
+            "Artist" to track.artist,
+            "Album" to track.album,
+            "Album artist" to track.albumArtist.ifBlank { "Not available" },
+            "Genre" to track.genre.ifBlank { "Not available" },
+            "Year" to track.year.takeIf { it > 0 }?.toString().orEmpty().ifBlank { "Not available" },
+            "Track number" to track.trackNumber.takeIf { it > 0 }?.toString().orEmpty().ifBlank { "Not available" },
+            "Duration" to if (track.durationMs > 0L) formatBatchDuration(track.durationMs) else "Not available"
+        ),
+        "AUDIO" to listOf(
+            "Format" to format,
+            "Encoding / codec" to codec,
+            "Bitrate" to bitrate,
+            "Sample rate" to sampleRate,
+            "Channels" to channels,
+            "MIME type" to mime.ifBlank { "Not available" },
+            "File size" to fileSize
+        ),
+        "LIBRARY" to listOf(
+            "File name" to fileName.ifBlank { "Unknown" },
+            "Folder" to track.folder.ifBlank { "Unknown" },
+            "Date added" to if (track.addedAt > 0L) java.text.DateFormat.getDateInstance().format(java.util.Date(track.addedAt)) else "Unknown",
+            "Times played" to track.playCount.toString()
+        )
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text("Song information", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                Text(track.title, modifier = Modifier.padding(top = 3.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        },
+        text = {
+            Column(
+                Modifier.fillMaxWidth().heightIn(max = 480.dp),
+                verticalArrangement = Arrangement.spacedBy(13.dp)
+            ) {
+                fields.forEach { (section, rows) ->
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(section, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp, color = MaterialTheme.colorScheme.primary)
+                        rows.forEach { (label, value) ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                                Text(label, Modifier.weight(0.9f), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(value, Modifier.weight(1.1f), fontSize = 11.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } }
+    )
+}
+
+@Composable
 private fun SoundprintRecycleBinPage(
     items: List<RecycleBinEntry>,
     onBack: () -> Unit,
