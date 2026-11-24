@@ -508,6 +508,26 @@ private fun PlaylistDetailNative(
                     }
                     ProFeatureBadge()
                 }
+                Text("Playlist style", Modifier.padding(top = 12.dp), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                Text("Apply a sound and playback setup for this playlist", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                NativeChoice("Choose a style", listOf(
+                    "custom" to "Custom",
+                    "workout" to "Workout · Bass + energy",
+                    "bass" to "Bass Boost",
+                    "party" to "Party · Shuffle",
+                    "chill" to "Chill · Smooth",
+                    "focus" to "Focus · Levelled"
+                )) { style ->
+                    val next = when (style) {
+                        "workout" -> preset.copy(enabled = true, extraBass = true, shuffle = true, loudnessLeveling = true, repeat = PlaylistRepeatPreset.ALL)
+                        "bass" -> preset.copy(enabled = true, extraBass = true, shuffle = false, loudnessLeveling = false, repeat = PlaylistRepeatPreset.OFF)
+                        "party" -> preset.copy(enabled = true, extraBass = true, shuffle = true, loudnessLeveling = true, repeat = PlaylistRepeatPreset.ALL)
+                        "chill" -> preset.copy(enabled = true, extraBass = false, shuffle = false, loudnessLeveling = true, repeat = PlaylistRepeatPreset.ALL)
+                        "focus" -> preset.copy(enabled = true, extraBass = false, shuffle = false, loudnessLeveling = true, repeat = PlaylistRepeatPreset.OFF)
+                        else -> preset.copy(enabled = true)
+                    }
+                    updatePreset(next)
+                }
                 PlaylistPresetSwitch("Use preset", "Automatically apply these settings on Play", preset.enabled) { updatePreset(preset.copy(enabled = it)) }
                 PlaylistPresetSwitch("Extra Bass", "Adds low-end punch", preset.extraBass) { updatePreset(preset.copy(enabled = true, extraBass = it)) }
                 PlaylistPresetSwitch("Shuffle", "Mix this playlist automatically", preset.shuffle) { updatePreset(preset.copy(enabled = true, shuffle = it)) }
