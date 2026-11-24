@@ -288,4 +288,42 @@ class MusicLibraryDatabaseTest {
         db.close()
     }
 
+
+    @Test fun twinSenseRecycleBinHidesTracksAndRestoresThem() {
+        val database = MusicLibraryDatabase(context)
+        val item = track("content://music/twinsense-trash-restore")
+        database.upsert(item)
+
+        database.moveToTrash(item.id, "TwinSense duplicate review")
+
+        assertTrue("Trashed tracks must disappear from the active library.", database.tracks().isEmpty())
+        assertEquals(item.id, database.recycleBinRecords().single().first)
+        assertEquals("TwinSense duplicate review", database.recycleBinRecords().single().third)
+
+        database.restoreFromTrash(item.id)
+
+        assertEquals(item.id, database.tracks().single().id)
+        assertTrue(database.recycleBinRecords().isEmpty())
+        database.close()
+    }
+
+    @Test fun expiringOrEmptyingTwinSenseTrashDeletesOnlyLibraryRecords() {
+        val database = MusicLibraryDatabase(context)
+        val expired = track("content://music/twinsense-trash-expired")
+        val pending = track("content://music/twinsense-trash-empty")
+        database.upsert(expired)
+        database.upsert(pending)
+        database.moveToTrash(expired.id, "expired test")
+        database.moveToTrash(pending.id, "empty test")
+
+        val expiredIds = database.purgeExpiredTrashAndDeleteTracks(System.currentTimeMillis() + 1L)
+
+        assertEquals(listOf(expired.id, pending.id).toSet(), expiredIds.toSet())
+        assertNull(database.findById(expired.id))
+        assertNull(database.findById(pending.id))
+        assertTrue(database.recycleBinRecords().isEmpty())
+        database.close()
+    }
+
+
 }
