@@ -645,6 +645,7 @@ private fun SmartPlaylistEditorDialog(
     onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
+    var advancedOpen by remember(draft.id) { mutableStateOf(false) }
     fun updateCondition(groupId: String, conditionId: String, patch: SmartCondition) {
         onDraftChange(draft.copy(groups = draft.groups.map { group ->
             if (group.id != groupId) group else group.copy(conditions = group.conditions.map { if (it.id == conditionId) patch else it })
@@ -658,18 +659,27 @@ private fun SmartPlaylistEditorDialog(
                 OutlinedTextField(value = draft.name, onValueChange = { onDraftChange(draft.copy(name = it)) }, singleLine = true, placeholder = { Text("Playlist name") }, modifier = Modifier.fillMaxWidth(),
                     colors = soundprintOutlinedFieldColors()
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Match groups", Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    NativeChoice(draft.groupsJoin.name, listOf("AND" to "All groups", "OR" to "Any group")) { value -> onDraftChange(draft.copy(groupsJoin = SmartJoin.valueOf(value))) }
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surface).clickable { advancedOpen = !advancedOpen }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Advanced settings", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Groups, multiple rules, sorting and song limit", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text(if (advancedOpen) "Hide" else "Show", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                }
+                if (advancedOpen) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Match groups", Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        NativeChoice(draft.groupsJoin.name, listOf("AND" to "All groups", "OR" to "Any group")) { value -> onDraftChange(draft.copy(groupsJoin = SmartJoin.valueOf(value))) }
+                    }
                 }
                 draft.groups.forEachIndexed { groupIndex, group ->
                     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surface).padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Group ${groupIndex + 1}", Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            NativeChoice(group.join.name, listOf("AND" to "Match all", "OR" to "Match any")) { value ->
+                            if (advancedOpen) NativeChoice(group.join.name, listOf("AND" to "Match all", "OR" to "Match any")) { value ->
                                 onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(join = SmartJoin.valueOf(value)) else it }))
                             }
-                            if (draft.groups.size > 1) Text("×", Modifier.clickable { onDraftChange(draft.copy(groups = draft.groups.filterNot { it.id == group.id })) }.padding(7.dp), fontSize = 20.sp)
+                            if (advancedOpen && draft.groups.size > 1) Text("×", Modifier.clickable { onDraftChange(draft.copy(groups = draft.groups.filterNot { it.id == group.id })) }.padding(7.dp), fontSize = 20.sp)
                         }
                         group.conditions.forEach { condition ->
                             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.background).padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -694,17 +704,17 @@ private fun SmartPlaylistEditorDialog(
                                         colors = soundprintOutlinedFieldColors()
                                     )
                                 }
-                                TextButton(enabled = group.conditions.size > 1, onClick = {
+                                if (advancedOpen) TextButton(enabled = group.conditions.size > 1, onClick = {
                                     onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(conditions = it.conditions.filterNot { c -> c.id == condition.id }) else it }))
                                 }) { Text("Remove condition") }
                             }
                         }
-                        TextButton(onClick = { onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(conditions = it.conditions + freshCondition()) else it })) }) {
+                        if (advancedOpen) TextButton(onClick = { onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(conditions = it.conditions + freshCondition()) else it })) }) {
                             SoundprintIcon(SoundprintIcons.Plus, null); Text("Add condition")
                         }
                     }
                 }
-                Button(
+                if (advancedOpen) Button(
                     onClick = { onDraftChange(draft.copy(groups = draft.groups + freshGroup())) },
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
@@ -714,21 +724,21 @@ private fun SmartPlaylistEditorDialog(
                 ) {
                     SoundprintIcon(SoundprintIcons.Plus, null); Text("Add group")
                 }
-                Text("Sort and limit", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                NativeChoice(draft.sortField.name, SmartSortField.entries.map { it.name to it.name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase) }) { value ->
+                if (advancedOpen) Text("Sort and limit", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                if (advancedOpen) NativeChoice(draft.sortField.name, SmartSortField.entries.map { it.name to it.name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase) }) { value ->
                     onDraftChange(draft.copy(sortField = SmartSortField.valueOf(value)))
                 }
-                NativeChoice(if (draft.ascending) "asc" else "desc", listOf("desc" to "Descending", "asc" to "Ascending")) { value ->
+                if (advancedOpen) NativeChoice(if (draft.ascending) "asc" else "desc", listOf("desc" to "Descending", "asc" to "Ascending")) { value ->
                     onDraftChange(draft.copy(ascending = value == "asc"))
                 }
                 var limitText by remember(draft.id) { mutableStateOf(draft.limit?.toString().orEmpty()) }
-                OutlinedTextField(value = limitText, onValueChange = {
+                if (advancedOpen) OutlinedTextField(value = limitText, onValueChange = {
                     limitText = it.filter(Char::isDigit).take(4)
                     onDraftChange(draft.copy(limit = limitText.toIntOrNull()?.coerceIn(1, 1000)))
                 }, singleLine = true, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Limit (optional)") },
                     colors = soundprintOutlinedFieldColors()
                 )
-                Text("Mood and energy rules use saved music matches. Tempo and lyrics filters need those details to be available in your library.", fontSize = 10.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (advancedOpen) Text("Mood and energy rules use saved music matches. Tempo and lyrics filters need those details to be available in your library.", fontSize = 10.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
         confirmButton = {
