@@ -95,7 +95,9 @@ class TwinSenseAudioAnalysisTest {
 
         val found = requireNotNull(match)
         assertTrue(found.versionWarning)
+        assertEquals(TwinSenseMatchKind.ALTERNATIVE, found.kind)
         assertTrue(found.reasons.any { it.contains("alternate version") })
+        assertTrue(found.reasons.any { it.contains("shorter by") })
     }
 
     @Test fun analysisProfilesRoundTripAndInvalidateOnSourceChanges() {
