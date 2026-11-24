@@ -505,6 +505,7 @@ private fun PlaylistDetailNative(
                     SoundprintIcon(SoundprintIcons.Shuffle, null); Spacer(Modifier.width(5.dp)); Text("Shuffle")
                 }
             }
+            ProFeatureGate(Modifier.fillMaxWidth()) {
             Column(
                 Modifier.fillMaxWidth().padding(top = 18.dp)
                     .clip(RoundedCornerShape(22.dp))
@@ -562,6 +563,7 @@ private fun PlaylistDetailNative(
                         })
                     }
                 }
+            }
             }
             Row(Modifier.fillMaxWidth().padding(top = 7.dp), horizontalArrangement = Arrangement.Center) {
                 TextButton(onClick = { addOpen = true }) { SoundprintIcon(SoundprintIcons.Plus, null); Text("Add songs") }
