@@ -580,9 +580,11 @@ fun SoundprintLyricsPanel(
                         textAlign = TextAlign.Center
                     )
                     if (lines.isNotEmpty()) {
-                        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Synced lyrics", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            ProFeatureBadge()
+                        ProFeatureGate(Modifier.fillMaxWidth()) {
+                            Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Synced lyrics", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                ProFeatureBadge()
+                            }
                         }
                     }
                 }
