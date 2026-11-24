@@ -659,6 +659,20 @@ private fun SmartPlaylistEditorDialog(
                 OutlinedTextField(value = draft.name, onValueChange = { onDraftChange(draft.copy(name = it)) }, singleLine = true, placeholder = { Text("Playlist name") }, modifier = Modifier.fillMaxWidth(),
                     colors = soundprintOutlinedFieldColors()
                 )
+                Text("Quick start", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                NativeChoice("Choose a starting point", listOf("never" to "Never played", "recent" to "Recently added", "favorite" to "Favorites", "energy" to "High energy", "custom" to "Start from scratch")) { preset ->
+                    val base = draft.groups.firstOrNull()?.conditions?.firstOrNull() ?: freshCondition()
+                    val (field, operator, value, name) = when (preset) {
+                        "never" -> listOf(SmartField.NEVER_PLAYED, SmartOperator.EQ, "true", "Never Played")
+                        "recent" -> listOf(SmartField.DATE_ADDED, SmartOperator.LTE, "7", "Recently Added")
+                        "favorite" -> listOf(SmartField.FAVORITE, SmartOperator.EQ, "true", "Favorites")
+                        "energy" -> listOf(SmartField.ENERGY, SmartOperator.GTE, "70", "High Energy")
+                        else -> listOf(SmartField.GENRE, SmartOperator.CONTAINS, "", "New smart playlist")
+                    }
+                    val condition = base.copy(field = field as SmartField, operator = operator as SmartOperator, value = value as String)
+                    val group = (draft.groups.firstOrNull() ?: freshGroup()).copy(conditions = listOf(condition))
+                    onDraftChange(draft.copy(name = name as String, groups = listOf(group)))
+                }
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surface).clickable { advancedOpen = !advancedOpen }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Advanced settings", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
