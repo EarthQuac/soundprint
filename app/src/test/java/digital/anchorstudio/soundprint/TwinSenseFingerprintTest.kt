@@ -72,7 +72,7 @@ class TwinSenseFingerprintTest {
 
     @Test fun smartCleanupUsesCopyMarkersOnlyWithCorroboratingMetadata() {
         val original = track("original", title = "Track")
-        val numberedCopy = track("numbered-copy", title = "Track (1)")
+        val numberedCopy = track("numbered-copy", title = "Track").copy(fileName = "Track (1).mp3")
         val corroborated = TwinSenseMatch(
             original,
             numberedCopy,
