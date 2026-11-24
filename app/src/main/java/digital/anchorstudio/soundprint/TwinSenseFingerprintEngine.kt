@@ -646,7 +646,7 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
             if (first.sizeBytes == second.sizeBytes) {
                 score += 4
                 reasons += "Same file size (${first.sizeBytes} bytes)"
-            } else reasons += "Different file sizes (${formatBytes(first.sizeBytes)} vs ${formatBytes(second.sizeBytes)})"
+            } else reasons += "Different file sizes (${TwinSenseCleanupPlanner.formatBytes(first.sizeBytes)} vs ${TwinSenseCleanupPlanner.formatBytes(second.sizeBytes)})"
         }
         if (first.sampleRate > 0 && second.sampleRate > 0) {
             if (first.sampleRate == second.sampleRate) {
@@ -958,7 +958,7 @@ object TwinSenseCleanupPlanner {
 
     private fun copyTitlePenalty(track: MusicTrack): Int = if (hasCopyMarker(track)) 100 else 0
 
-    private fun formatBytes(bytes: Long): String = when {
+    fun formatBytes(bytes: Long): String = when {
         bytes >= 1024L * 1024L -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MB"
         bytes >= 1024L -> "${"%.1f".format(bytes / 1024.0)} KB"
         else -> "$bytes B"
