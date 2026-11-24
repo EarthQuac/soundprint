@@ -248,7 +248,7 @@ internal fun SoundprintSongsLibraryScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(entry.track.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text("${entry.track.artist} · ${entry.reason} · ${daysRemaining(entry.removedAt)} days left", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                                Text("${entry.track.artist} · ${entry.reason} · ${batchDaysRemaining(entry.removedAt)} days left", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
                             }
                             TextButton(onClick = { scope.launch { withContext(Dispatchers.IO) { library.restoreFromRecycleBin(entry.track.id) }; refreshLibrary() } }) {
                                 SoundprintIcon(SoundprintIcons.ArchiveRestore, null, Modifier.size(15.dp))
@@ -418,3 +418,6 @@ private fun formatBatchDuration(durationMs: Long): String {
     val seconds = (durationMs / 1000L).coerceAtLeast(0L)
     return "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
 }
+
+private fun batchDaysRemaining(removedAt: Long): Int =
+    maxOf(0, 30 - ((System.currentTimeMillis() - removedAt) / 86_400_000L).toInt())
