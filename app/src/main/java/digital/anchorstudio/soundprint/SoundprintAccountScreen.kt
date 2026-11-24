@@ -329,6 +329,9 @@ internal fun SoundprintAccountScreen(
                 val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
                     ?.bufferedReader()?.use { it.readText() }.orEmpty()
                 val result = runCatching { org.json.JSONObject(body) }.getOrNull()
+                if (status == 429) {
+                    error("Too many requests. Please wait a little before trying again.")
+                }
                 if (status !in 200..299) {
                     error("PASSWORD_RESET_REQUEST_FAILED")
                 }
@@ -990,11 +993,11 @@ internal fun SoundprintAccountScreen(
                                 password = ""
                                 confirmPassword = ""
                                 if (resetEmailSent) {
-                                    message = "A six-digit password recovery code has been sent to $requestedEmail. Enter it below."
+                                    message = "If an account exists for $requestedEmail, a password recovery code will be sent. Enter it below if you receive one."
                                     messageError = false
                                 } else {
                                     otpRequested = false
-                                    message = "Your account doesn't exist. Please try a different account."
+                                    message = "If an account exists for $requestedEmail, a password recovery code will be sent. Check your email and try again shortly."
                                     messageError = true
                                 }
                             }
