@@ -89,6 +89,25 @@ class TwinSenseFingerprintTest {
         assertEquals(listOf("numbered-copy"), TwinSenseCleanupPlanner.tracksToRemove(result).map { it.id })
     }
 
+    @Test fun advancedAcousticMatchCanUseCopyMarkerWithMatchingArtistAndDuration() {
+        val original = track("advanced-original", title = "Track")
+        val numberedCopy = track("advanced-copy", title = "Track").copy(fileName = "Track (1).mp3")
+        val corroborated = TwinSenseMatch(
+            original,
+            numberedCopy,
+            TwinSenseMatchKind.ACOUSTIC,
+            93,
+            listOf("Similar harmonic profile", "Matching artist", "Similar duration"),
+            false
+        )
+        val result = TwinSenseScanResult(
+            listOf(TwinSenseDuplicateGroup("advanced-copy-group", listOf(original, numberedCopy), listOf(corroborated), false)),
+            2, 0, 0
+        )
+
+        assertEquals(listOf("advanced-copy"), TwinSenseCleanupPlanner.tracksToRemove(result).map { it.id })
+    }
+
     @Test fun smartCleanupNeverAutoRemovesAcousticOrVersionWarnings() {
         val first = track("first")
         val second = track("second")
