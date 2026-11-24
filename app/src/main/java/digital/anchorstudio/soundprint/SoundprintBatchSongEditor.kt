@@ -244,34 +244,6 @@ internal fun SoundprintSongsLibraryScreen(
             if (query.isNotBlank()) Text("${visibleTracks.size} matches", Modifier.padding(start = 3.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        if (recycleOpen) {
-            Surface(Modifier.padding(horizontal = 16.dp).fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Recycle Bin", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                            Text("Items are kept for 30 days. Original audio files are never deleted.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        if (recycleItems.isNotEmpty()) TextButton(onClick = { confirmEmptyBin = true }) { Text("Empty bin", color = MaterialTheme.colorScheme.error) }
-                    }
-                    if (recycleItems.isEmpty()) Text("Your Recycle Bin is empty.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    else recycleItems.forEach { entry ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(entry.track.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text("${entry.track.artist} · ${entry.reason} · ${batchDaysRemaining(entry.removedAt)} days left", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
-                            }
-                            TextButton(onClick = { scope.launch { withContext(Dispatchers.IO) { library.restoreFromRecycleBin(entry.track.id) }; refreshLibrary() } }) {
-                                SoundprintIcon(SoundprintIcons.ArchiveRestore, null, Modifier.size(15.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("Restore", fontSize = 11.sp)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         if (loading) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
         } else if (visibleTracks.isEmpty()) {
