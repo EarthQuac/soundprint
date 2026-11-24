@@ -437,7 +437,7 @@ class MusicLibraryDatabase(context: Context) :
     fun ensureTrashEntry(id:String,removedAt:Long,reason:String) {
         writableDatabase.insertWithOnConflict("soundprint_trash",null,ContentValues().apply {
             put("track_id",id);put("removed_at",removedAt);put("reason",reason)
-        },SQLiteDatabase.CONFLICT_IGNORE)
+        },SQLiteDatabase.CONFLICT_REPLACE)
     }
     fun recycleBinRecords():List<Triple<String,Long,String>> =
         readableDatabase.rawQuery("SELECT track_id,removed_at,reason FROM soundprint_trash ORDER BY removed_at DESC",null).use { c ->
@@ -1150,7 +1150,11 @@ class MusicLibraryRepository(context:Context) {
         }
         db.restoreFromTrash(id)
     }
-    fun ensureTwinSenseTrashEntry(id:String,removedAt:Long,reason:String)=db.ensureTrashEntry(id,removedAt,reason)
+    fun ensureTwinSenseTrashEntry(id:String,removedAt:Long,reason:String) {
+        val track=db.findById(id)
+        if(track!=null && !twinSenseTrashBackup(id).isFile) runCatching { createTwinSenseTrashBackup(track) }
+        db.ensureTrashEntry(id,removedAt,reason)
+    }
     fun twinSenseTrashRecords()=db.recycleBinRecords()
     fun emptyTwinSenseTrash():List<String> = db.emptyTrashAndDeleteTracks().also { ids ->
         ids.forEach { twinSenseTrashBackup(it).delete() }
