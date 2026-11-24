@@ -393,7 +393,6 @@ internal fun SoundprintSongsLibraryScreen(
             }
         )
     }
-}
 
     if (confirmEmptyBin) {
         AlertDialog(
