@@ -280,8 +280,9 @@ internal object TwinSenseAudioAnalysis {
                 reasons += "Possible alternate version: $shorter is shorter by ${formatTwinSenseDuration(durationDifference)} (${formatTwinSenseDuration(first.durationMs / 1000.0)} vs ${formatTwinSenseDuration(second.durationMs / 1000.0)})"
             } else reasons += "Similar duration (${formatTwinSenseDuration(first.durationMs / 1000.0)})"
         }
-        if (first.sizeBytes > 0L && second.sizeBytes > 0L && first.sizeBytes != second.sizeBytes) {
-            reasons += "Different file sizes (${first.sizeBytes} vs ${second.sizeBytes} bytes)"
+        if (first.sizeBytes > 0L && second.sizeBytes > 0L) {
+            reasons += if (first.sizeBytes == second.sizeBytes) "Same file size (${first.sizeBytes} bytes)"
+            else "Different file sizes (${first.sizeBytes} vs ${second.sizeBytes} bytes)"
         }
         if (first.bitrate > 0 && second.bitrate > 0) {
             reasons += if (first.bitrate == second.bitrate) "Same bitrate (${first.bitrate / 1000} kbps)"
@@ -300,6 +301,13 @@ internal object TwinSenseAudioAnalysis {
         if (codecA.isNotBlank() && codecB.isNotBlank()) {
             reasons += if (codecA.equals(codecB, true)) "Same audio encoding ($codecA)"
             else "Different audio encodings ($codecA vs $codecB)"
+        }
+        if (first.mimeType.isNotBlank() && second.mimeType.isNotBlank()) {
+            reasons += if (first.mimeType.equals(second.mimeType, true)) "Same container format (${first.mimeType})"
+            else "Different container formats (${first.mimeType} vs ${second.mimeType})"
+        }
+        if (TwinSenseCleanupPlanner.hasCopyMarker(first) || TwinSenseCleanupPlanner.hasCopyMarker(second)) {
+            reasons += "Copy-style filename marker detected; supporting evidence only"
         }
         val confidence = min(94, (72.0 + (similarity - 0.86) * 150.0).roundToInt())
         val kind = if (versionWarning) TwinSenseMatchKind.ALTERNATIVE else TwinSenseMatchKind.ACOUSTIC
