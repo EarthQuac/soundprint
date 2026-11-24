@@ -70,6 +70,25 @@ class TwinSenseFingerprintTest {
         assertEquals(listOf("copy"), removals.map { it.id })
     }
 
+    @Test fun smartCleanupUsesCopyMarkersOnlyWithCorroboratingMetadata() {
+        val original = track("original", title = "Track")
+        val numberedCopy = track("numbered-copy", title = "Track (1)")
+        val corroborated = TwinSenseMatch(
+            original,
+            numberedCopy,
+            TwinSenseMatchKind.METADATA,
+            82,
+            listOf("Matching normalized title", "Matching artist", "Similar duration", "Copy-style filename marker detected; treated only as supporting evidence"),
+            false
+        )
+        val result = TwinSenseScanResult(
+            listOf(TwinSenseDuplicateGroup("copy-group", listOf(original, numberedCopy), listOf(corroborated), false)),
+            2, 0, 0
+        )
+
+        assertEquals(listOf("numbered-copy"), TwinSenseCleanupPlanner.tracksToRemove(result).map { it.id })
+    }
+
     @Test fun smartCleanupNeverAutoRemovesAcousticOrVersionWarnings() {
         val first = track("first")
         val second = track("second")
