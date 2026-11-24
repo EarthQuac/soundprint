@@ -163,7 +163,7 @@ internal fun SoundprintSongsLibraryScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             OutlinedTextField(
-                value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth().height(48.dp),
+                value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth().height(56.dp),
                 singleLine = true, placeholder = { Text("Search songs, artists, albums", fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null, Modifier.size(18.dp)) },
                 shape = RoundedCornerShape(24.dp), colors = soundprintOutlinedFieldColors()
