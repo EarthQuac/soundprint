@@ -52,7 +52,7 @@ import kotlin.math.sin
  * Soundprint app-open animation (Jetpack Compose).
  *
  * SETUP
- * 1. Copy soundprint_logo.png into app/src/main/res/drawable/ (keep the file name).
+ * 1. Uses res/drawable-nodpi/soundprint_logo_bitmap.png (already in the project).
  * 2. Put this file in your project and fix the package + R import above.
  * 3. Show it first when the app opens:
  *
@@ -92,7 +92,13 @@ fun SoundprintSplash(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val image = ImageBitmap.imageResource(R.drawable.soundprint_logo)
+    // The animation slices a real bitmap. soundprint_logo is a vector drawable (XML), which
+    // cannot be loaded as an ImageBitmap and crashed the app on launch, so use the PNG.
+    val image = remember {
+        runCatching {
+            ImageBitmap.imageResource(context.resources, R.drawable.soundprint_logo_bitmap)
+        }.getOrNull()
+    }
 
     // Respect "remove animations" in system settings: jump straight to the finished logo.
     val animationsOff = remember {
@@ -102,6 +108,12 @@ fun SoundprintSplash(
     }
     val clock = remember { Animatable(if (animationsOff) TOTAL_SECONDS else 0f) }
     val finished by rememberUpdatedState(onFinished)
+
+    if (image == null) {
+        // Never block app launch if the logo can't be loaded.
+        LaunchedEffect(Unit) { finished() }
+        return
+    }
 
     LaunchedEffect(Unit) {
         if (!animationsOff) {

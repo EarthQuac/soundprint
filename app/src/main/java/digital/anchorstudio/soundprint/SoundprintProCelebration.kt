@@ -72,7 +72,7 @@ import kotlin.random.Random
  * Soundprint Pro purchase celebration (Jetpack Compose).
  *
  * SETUP
- * 1. soundprint_logo.png must be in res/drawable/ (same file as the splash).
+ * 1. Uses res/drawable-nodpi/soundprint_logo_bitmap.png (same file as the splash).
  * 2. Fix the package + R import above.
  * 3. Call it right after a purchase succeeds:
  *
@@ -156,7 +156,17 @@ fun SoundprintProCelebration(
 ) {
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
-    val image = ImageBitmap.imageResource(R.drawable.soundprint_logo)
+    // soundprint_logo is a vector (XML) and can't be loaded as an ImageBitmap; use the PNG.
+    val image = remember {
+        runCatching {
+            ImageBitmap.imageResource(context.resources, R.drawable.soundprint_logo_bitmap)
+        }.getOrNull()
+    }
+    if (image == null) {
+        // Never trap the user on a broken celebration screen.
+        LaunchedEffect(Unit) { onContinue() }
+        return
+    }
 
     val animationsOff = remember {
         Settings.Global.getFloat(
