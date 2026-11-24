@@ -599,7 +599,11 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                 Regex("""(?i)\s*(?:\(\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|\d+)\s*\)|\[\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|\d+)\s*\]|[-_ ]+(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|[-_ ]+\(\d+\)|[-_ ]+\d+)\s*$"""),
                 ""
             )
-        return TwinSenseText.normalize(baseTitle)
+        val baseRecording = baseTitle.replace(
+            Regex("""(?i)\\s*[-(\\[]?\\s*(?:live|remix|acoustic|instrumental|extended|radio\\s+edit|edit|demo|remaster(?:ed)?|version)(?:\\s+\\w+)?\\s*[)\\]]?\\s*$"""),
+            ""
+        )
+        return TwinSenseText.normalize(baseRecording)
     }
 
     private fun normalizedTitle(track: MusicTrack): String {
@@ -659,13 +663,18 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
         val validDurations = first.durationMs > 0L && second.durationMs > 0L
         val durationDifference = if (validDurations) kotlin.math.abs(first.durationMs - second.durationMs) else 0L
         val durationRatio = if (validDurations) durationDifference.toDouble() / max(first.durationMs, second.durationMs) else 0.0
-        val versionWarning = validDurations && durationDifference > 3_000L && durationRatio > 0.02
-        if (validDurations && !versionWarning) {
+        val durationWarning = validDurations && durationDifference > 3_000L && durationRatio > 0.02
+        val versionLabel = TwinSenseText.hasVersionLabel(
+            "${first.title} ${second.title} ${first.fileName} ${second.fileName}"
+        )
+        val versionWarning = durationWarning || versionLabel
+        if (validDurations && !durationWarning) {
             score += 12
             reasons += "Similar duration"
-        } else if (versionWarning) {
+        } else if (durationWarning) {
             reasons += "Different duration — could be an intro, edit or alternate version"
         }
+        if (versionLabel) reasons += "A version label (such as live, remix, acoustic or remaster) was detected"
         if (first.sizeBytes > 0L && second.sizeBytes > 0L) {
             if (first.sizeBytes == second.sizeBytes) {
                 score += 4
