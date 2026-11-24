@@ -377,17 +377,17 @@ internal fun SongsLibraryScreen(
                                     "${result.tracksScanned} tracks scanned · ${result.fingerprintsReused} cached fingerprints reused · ${result.groups.size} duplicate groups · ${result.matchCount} matching pairs",
                                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                if (cleanupTracks.isNotEmpty()) {
-                                    ProFeatureGate {
-                                        OutlinedButton(
-                                            onClick = { if (SoundprintProGate.require("TwinSense Smart Clean")) confirmSmartCleanup = true },
-                                            contentPadding = ButtonDefaults.ContentPadding
-                                        ) {
-                                            SoundprintIcon(SoundprintIcons.Trash2, null, modifier = Modifier.size(16.dp))
-                                            Spacer(Modifier.width(7.dp))
-                                            Text("TwinSense Smart Clean · ${cleanupTracks.size}", maxLines = 1)
-                                            ProFeatureBadge(sparkleSize = 16.dp)
-                                        }
+                                ProFeatureGate {
+                                    OutlinedButton(
+                                        onClick = { if (SoundprintProGate.require("TwinSense Smart Clean")) confirmSmartCleanup = true },
+                                        enabled = cleanupTracks.isNotEmpty() || !hasTwinSensePro,
+                                        contentPadding = ButtonDefaults.ContentPadding
+                                    ) {
+                                        SoundprintIcon(SoundprintIcons.Trash2, null, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(7.dp))
+                                        Text("TwinSense Smart Clean · ${cleanupTracks.size}", maxLines = 1)
+                                        Spacer(Modifier.width(6.dp))
+                                        ProFeatureBadge(sparkleSize = 16.dp)
                                     }
                                 }
                                 if (result.groups.isEmpty() && filenameDuplicateGroups.isEmpty()) {
@@ -570,7 +570,7 @@ internal fun SongsLibraryScreen(
         AlertDialog(
             onDismissRequest = { confirmSmartCleanup = false },
             title = { Text("Run Smart Cleanup?") },
-            text = { Text("Move ${cleanupTracks.size} verified duplicate copies to Recycle Bin? The best copy in each exact-audio group will be kept. Similar matches and alternate versions are never auto-removed.") },
+            text = { Text("Move ${cleanupTracks.size} likely duplicate copies to Recycle Bin? TwinSense keeps the best original in each group. Filename copy markers are checked against artist, album and duration; similar matches and alternate versions are left for manual review. Original audio files are never deleted.") },
             confirmButton = {
                 TextButton(onClick = {
                     confirmSmartCleanup = false
