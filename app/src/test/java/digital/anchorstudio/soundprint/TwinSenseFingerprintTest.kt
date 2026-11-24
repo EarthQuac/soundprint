@@ -59,7 +59,7 @@ class TwinSenseFingerprintTest {
     @Test fun smartCleanupOnlySelectsVerifiedExactAudioCopies() {
         val preferred = track("preferred", title = "Song", artist = "Artist", bitrate = 320_000)
         val copy = track("copy", title = "Song copy", artist = "Artist", bitrate = 128_000)
-        val exact = TwinSenseMatch(preferred, copy, TwinSenseMatchKind.EXACT_AUDIO, 100, listOf("Same SHA-256"), false)
+        val exact = TwinSenseMatch(preferred, copy, TwinSenseMatchKind.EXACT_AUDIO, 100, listOf("Matching SHA-256 signature of sampled beginning, middle and ending bytes"), false)
         val result = TwinSenseScanResult(
             listOf(TwinSenseDuplicateGroup("group", listOf(preferred, copy), listOf(exact), true)),
             2, 0, 0
