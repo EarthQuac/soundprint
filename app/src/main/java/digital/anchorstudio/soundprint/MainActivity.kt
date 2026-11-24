@@ -1298,12 +1298,9 @@ private fun SoundprintApp(
                                 }
                             }
                         )
-                        "twinsense" -> SongsLibraryScreen(
+                        "twinsense" -> TwinSenseScreen(
                             library = libraryManager,
-                            playback = playbackConnection,
-                            onImportFiles = onImportFiles,
                             onBack = { twinSenseOpen = false; openTwinSenseRecycleBin = false },
-                            initialTwinSenseOpen = true,
                             initialRecycleBinOpen = openTwinSenseRecycleBin
                         )
                         "stats" -> ListeningStatsScreen(libraryManager = libraryManager, onBack = { statsOpen = false })
