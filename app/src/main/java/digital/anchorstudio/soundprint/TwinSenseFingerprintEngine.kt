@@ -14,6 +14,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -531,7 +532,7 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
 
     private fun normalizedTitle(track: MusicTrack): String {
         val title = track.title.takeIf { it.isNotBlank() && !it.equals("Unknown title", true) }
-            ?: Uri.parse(track.uri).lastPathSegment?.let(Uri::decode).orEmpty()
+            ?: Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }.orEmpty()
         return TwinSenseText.normalize(title)
     }
 
@@ -649,6 +650,7 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                         if (cached != null) reused.incrementAndGet()
                         else withContext(Dispatchers.IO) { library.saveTwinSenseFingerprint(profile) }
                         profiles[track.id] = profile
+                        failedIds.remove(track.id)
                     }
                 } catch (cancel: CancellationException) {
                     throw cancel
@@ -656,8 +658,7 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                     failedIds.add(track.id)
                 } finally {
                     val done = completed.incrementAndGet()
-                    val percent = 35 + (done * 65 / tracks.size).coerceIn(0, 65)
-                    onProgress(TwinSenseScanProgress(done, tracks.size, track.title, reused.get(), failedIds.size).copy(completed = percent))
+                    onProgress(TwinSenseScanProgress(done, tracks.size, track.title, reused.get(), failedIds.size))
                 }
             }
             coroutineScope {
