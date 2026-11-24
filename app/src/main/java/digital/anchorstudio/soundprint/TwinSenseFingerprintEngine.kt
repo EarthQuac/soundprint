@@ -444,11 +444,15 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
         val raw = preferences.getString("last_scan", null) ?: return@withContext null
         runCatching {
             val root = JSONObject(raw)
+            val activeTrackIds = withContext(Dispatchers.IO) { library.allSongs().mapTo(hashSetOf()) { it.id } }
             val array = root.optJSONArray("matches") ?: JSONArray()
             val matches = (0 until array.length()).mapNotNull { index ->
                 val item = array.getJSONObject(index)
-                val first = library.song(item.getString("firstId")) ?: return@mapNotNull null
-                val second = library.song(item.getString("secondId")) ?: return@mapNotNull null
+                val firstId = item.getString("firstId")
+                val secondId = item.getString("secondId")
+                if (firstId !in activeTrackIds || secondId !in activeTrackIds) return@mapNotNull null
+                val first = library.song(firstId) ?: return@mapNotNull null
+                val second = library.song(secondId) ?: return@mapNotNull null
                 val reasonsArray = item.optJSONArray("reasons") ?: JSONArray()
                 val reasons = (0 until reasonsArray.length()).map { reasonsArray.getString(it) }
                 TwinSenseMatch(first, second, TwinSenseMatchKind.valueOf(item.getString("kind")),
@@ -482,10 +486,9 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
     }
 
     /**
-     * Basic Scan is deliberately conservative: one decoder at a time, so it remains
-     * compatible with lower-memory devices. Advanced Scan is Pro and runs two
-     * independent decoders concurrently. Neither mode inserts artificial delays
-     * or reduces the audio coverage/accuracy of the free scan.
+     * Basic Scan hashes sampled file bytes serially with a short pacing interval.
+     * Advanced Scan parallelizes signature reads and then runs four local audio decoders.
+     * Exact sampled signatures are independent from the optional acoustic analysis.
      */
     private suspend fun sampledSignature(track: MusicTrack): String = withContext(Dispatchers.IO) {
         require(track.sizeBytes > 0L) { "The file size is unavailable." }
