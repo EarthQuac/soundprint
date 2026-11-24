@@ -783,93 +783,70 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
 
 
 object TwinSenseCleanupPlanner {
-    /** Only verified identical-audio groups are auto-cleaned; fuzzy/alternate versions stay manual. */
+    /**
+     * Mirrors Cadence's safety rule: only exact sampled-file signatures are eligible.
+     * Acoustic similarity, metadata matches, and alternate versions are never auto-removed.
+     */
     fun tracksToRemove(result: TwinSenseScanResult): List<MusicTrack> {
+        val exactMatches = result.groups.flatMap { it.matches }.filter {
+            it.kind == TwinSenseMatchKind.EXACT_AUDIO &&
+                !it.versionWarning &&
+                it.reasons.any { reason -> reason.contains("SHA-256 signature of sampled beginning, middle and ending bytes") }
+        }
+        val adjacency = linkedMapOf<String, MutableSet<String>>()
+        val byId = linkedMapOf<String, MusicTrack>()
+        exactMatches.forEach { match ->
+            byId[match.first.id] = match.first
+            byId[match.second.id] = match.second
+            adjacency.getOrPut(match.first.id) { linkedSetOf() }.add(match.second.id)
+            adjacency.getOrPut(match.second.id) { linkedSetOf() }.add(match.first.id)
+        }
+
+        val visited = mutableSetOf<String>()
         val removals = mutableListOf<MusicTrack>()
-        result.groups.filter { group ->
-            group.matches.isNotEmpty() && group.matches.all {
-                it.kind == TwinSenseMatchKind.EXACT_AUDIO && !it.versionWarning
+        adjacency.keys.forEach { start ->
+            if (!visited.add(start)) return@forEach
+            val stack = ArrayDeque<String>()
+            val component = mutableListOf<String>()
+            stack.add(start)
+            while (stack.isNotEmpty()) {
+                val current = stack.removeLast()
+                component += current
+                adjacency[current].orEmpty().forEach { neighbor ->
+                    if (visited.add(neighbor)) stack.add(neighbor)
+                }
             }
-        }.forEach { group ->
-            val ranked = group.tracks.sortedWith(
+            if (component.size < 2) return@forEach
+            val ranked = component.mapNotNull(byId::get).sortedWith(
                 compareByDescending<MusicTrack> { quality(it) }
-                    .thenBy { it.addedAt }
-                    .thenBy { it.id }
+                    .thenByDescending { it.addedAt }
             )
             removals += ranked.drop(1)
         }
         return removals.distinctBy { it.id }
     }
 
-    /** Detect copy suffixes; require matching artist/album and duration within 2.5s. */
-    fun nameBasedDuplicateGroups(tracks: List<MusicTrack>): List<List<MusicTrack>> {
-        val candidates = tracks.map { track ->
-            val name = sourceFileName(track) ?: track.title
-            val normalized = normalizeCopiedName(name)
-            Triple(track, normalized.first, normalized.second)
-        }
-        val groups = mutableListOf<List<MusicTrack>>()
-        candidates.groupBy { (track, base, _) ->
-            listOf(base, track.artist.trim().lowercase(), track.album.trim().lowercase())
-        }.values.forEach { sameIdentity ->
-            if (sameIdentity.none { it.third }) return@forEach
-            val remaining = sameIdentity.map { it.first }.toMutableList()
-            while (remaining.isNotEmpty()) {
-                val seed = remaining.removeAt(0)
-                val close = remaining.filter { other ->
-                    kotlin.math.abs(other.durationMs - seed.durationMs) <= 2_500L &&
-                        (seed.artist.isNotBlank() || seed.album.isNotBlank())
-                }
-                if (close.isNotEmpty()) {
-                    groups += (listOf(seed) + close).distinctBy { it.id }
-                    remaining.removeAll(close.toSet())
-                }
-            }
-        }
-        return groups.filter { it.size > 1 }.sortedByDescending { it.size }
-    }
+    private fun fileName(track: MusicTrack): String =
+        runCatching { Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }.orEmpty() }.getOrDefault("")
 
-    fun tracksToRemoveByName(group: List<MusicTrack>): List<MusicTrack> {
-        if (group.size < 2) return emptyList()
-        val ranked = group.sortedWith(
-            compareBy<MusicTrack> { isCopiedName(sourceFileName(it) ?: it.title) }
-                .thenByDescending { quality(it) }
-                .thenBy { it.addedAt }
-                .thenBy { it.id }
+    /** Copy markers only decide which byte-identical file to keep; they never prove duplication. */
+    private fun copyTitlePenalty(track: MusicTrack): Int {
+        val value = "${track.title} ${fileName(track)}".lowercase(Locale.ROOT)
+        val copySuffix = Regex(
+            """(?:\\s*\\(\\s*(?:copy|duplicate|\\d+|copy\\s*\\d+)\\s*\\)\\s*$|\\s*\\[\\s*(?:copy|duplicate|\\d+|copy\\s*\\d+)\\s*\\]\\s*$|\\s*[-_]\\s*(?:copy|duplicate|\\d+|copy\\s*\\d+)\\s*$|\\s+(?:copy|duplicate)\\s*\\d*\\s*$|\\s+\\d+\\s*$)""",
+            RegexOption.IGNORE_CASE
         )
-        return ranked.drop(1)
+        return if (copySuffix.containsMatchIn(value)) 100 else 0
     }
 
-    private fun sourceFileName(track: MusicTrack): String? =
-        runCatching { android.net.Uri.parse(track.uri).lastPathSegment?.let { android.net.Uri.decode(it) } }
-            .getOrNull()
-            ?.takeIf { it.contains('.') && it.substringAfterLast('.').length in 2..5 }
-
-    private fun isCopiedName(value: String): Boolean = normalizeCopiedName(value).second
-
-    private fun normalizeCopiedName(value: String): Pair<String, Boolean> {
-        val withoutExtension = value.substringBeforeLast('.', value).trim()
-        val prefixCopy = Regex("(?i)^copy\\s+of\\s+").containsMatchIn(withoutExtension)
-        val cleaned = withoutExtension
-            .replace(Regex("(?i)^copy\\s+of\\s+"), "")
-            .replace(Regex("(?i)\\s*[-_ ]*(copy|duplicate|duplicated|dup)(?:\\s*\\(\\d+\\)|\\s*\\d+)?$"), "")
-            .replace(Regex("(?i)\\s*[-_ ]*\\(\\d+\\)$"), "")
-            .replace(Regex("(?i)\\s*[-_ ]*\\[\\d+\\]$"), "")
-            .replace(Regex("(?i)\\s*[-_ ]+\\d+$"), "")
-            .trim()
-        val marked = prefixCopy || cleaned.length < withoutExtension.length
-        return cleaned.lowercase().replace(Regex("\\s+"), " ") to marked
-    }
-
-    private fun quality(track: MusicTrack): Int =
-        (if (track.title.isNotBlank() && track.title != "Unknown title") 8 else 0) +
-        (if (track.artist.isNotBlank() && track.artist != "Unknown artist") 6 else 0) +
-        (if (track.album.isNotBlank() && track.album != "Unknown album") 4 else 0) +
-        (if (track.durationMs > 0) 3 else 0) +
-        (track.bitrate / 32_000).coerceIn(0, 20) +
-        (if (track.sampleRate > 0) 2 else 0) +
-        (if (track.channelCount > 0) 1 else 0) +
-        (if (!track.artworkUri.isNullOrBlank()) 2 else 0) +
-        (if (track.isAvailable) 3 else -100) +
-        (track.sizeBytes / (1024L * 1024L)).coerceAtMost(10L).toInt()
+    private fun quality(track: MusicTrack): Double =
+        -copyTitlePenalty(track).toDouble() +
+            (if (track.title.isNotBlank() && track.title != fileName(track)) 4.0 else 0.0) +
+            (if (track.artist.isNotBlank() && !track.artist.equals("Unknown Artist", true)) 3.0 else 0.0) +
+            (if (track.album.isNotBlank() && !track.album.equals("Unknown Album", true)) 2.0 else 0.0) +
+            (if (track.durationMs > 0L) 2.0 else 0.0) +
+            (if (track.bitrate > 0) 1.0 else 0.0) +
+            (if (track.sampleRate > 0) 1.0 else 0.0) +
+            (if (!track.artworkUri.isNullOrBlank()) 1.0 else 0.0) +
+            (min(track.sizeBytes.toDouble() / (1024.0 * 1024.0), 100.0) / 100.0)
 }
