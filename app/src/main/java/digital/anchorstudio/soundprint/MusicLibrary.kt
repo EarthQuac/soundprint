@@ -411,15 +411,67 @@ class MusicLibraryDatabase(context: Context) :
             db.delete("audio_analysis_cache",null,null);db.setTransactionSuccessful()
         } finally { db.endTransaction() }
     }
+    private fun deleteTrackAndReferences(db:SQLiteDatabase,id:String) {
+        db.delete("playlist_tracks","track_id=?",arrayOf(id))
+        db.delete("track_sources","track_id=?",arrayOf(id))
+        db.delete("soundprint_trash","track_id=?",arrayOf(id))
+        db.delete("soundprint_fingerprints","track_id=?",arrayOf(id))
+        db.delete("audio_analysis_cache","fingerprint LIKE ?",arrayOf("clap:"+id+":%"))
+        db.delete("tracks","id=?",arrayOf(id))
+    }
     fun removeTrackRecord(id:String) {
         val db=writableDatabase;db.beginTransaction()
-        try { db.delete("playlist_tracks","track_id=?",arrayOf(id));db.delete("soundprint_trash","track_id=?",arrayOf(id));db.delete("soundprint_fingerprints","track_id=?",arrayOf(id));db.delete("audio_analysis_cache","fingerprint LIKE ?",arrayOf("clap:"+id+":%"));db.delete("tracks","id=?",arrayOf(id));db.setTransactionSuccessful() }
+        try { deleteTrackAndReferences(db,id);db.setTransactionSuccessful() }
         finally { db.endTransaction() }
     }
     fun moveToTrash(id:String,reason:String="user") {
-        writableDatabase.insertWithOnConflict("soundprint_trash",null,ContentValues().apply { put("track_id",id);put("removed_at",System.currentTimeMillis());put("reason",reason) },SQLiteDatabase.CONFLICT_REPLACE)
+        val db=writableDatabase;db.beginTransaction()
+        try {
+            check(findById(id)!=null) { "Song not found." }
+            db.insertWithOnConflict("soundprint_trash",null,ContentValues().apply {
+                put("track_id",id);put("removed_at",System.currentTimeMillis());put("reason",reason)
+            },SQLiteDatabase.CONFLICT_REPLACE)
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
     }
-    fun restoreFromTrash(id:String) { writableDatabase.delete("soundprint_trash","track_id=?",arrayOf(id)) }
+    fun ensureTrashEntry(id:String,removedAt:Long,reason:String) {
+        writableDatabase.insertWithOnConflict("soundprint_trash",null,ContentValues().apply {
+            put("track_id",id);put("removed_at",removedAt);put("reason",reason)
+        },SQLiteDatabase.CONFLICT_IGNORE)
+    }
+    fun recycleBinRecords():List<Triple<String,Long,String>> =
+        readableDatabase.rawQuery("SELECT track_id,removed_at,reason FROM soundprint_trash ORDER BY removed_at DESC",null).use { c ->
+            buildList { while(c.moveToNext()) add(Triple(c.getString(0),c.getLong(1),c.getString(2))) }
+        }
+    fun restoreFromTrash(id:String) {
+        val db=writableDatabase;db.beginTransaction()
+        try {
+            check(db.delete("soundprint_trash","track_id=?",arrayOf(id)) == 1) { "Recycle Bin item not found." }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+    fun emptyTrashAndDeleteTracks():List<String> {
+        val db=writableDatabase;db.beginTransaction()
+        try {
+            val ids=mutableListOf<String>()
+            db.rawQuery("SELECT track_id FROM soundprint_trash",null).use { c -> while(c.moveToNext()) ids += c.getString(0) }
+            ids.forEach { deleteTrackAndReferences(db,it) }
+            db.setTransactionSuccessful()
+            return ids
+        } finally { db.endTransaction() }
+    }
+    fun purgeExpiredTrashAndDeleteTracks(cutoff:Long):List<String> {
+        val db=writableDatabase;db.beginTransaction()
+        try {
+            val ids=mutableListOf<String>()
+            db.rawQuery("SELECT track_id FROM soundprint_trash WHERE removed_at < ?",arrayOf(cutoff.toString())).use { c ->
+                while(c.moveToNext()) ids += c.getString(0)
+            }
+            ids.forEach { deleteTrackAndReferences(db,it) }
+            db.setTransactionSuccessful()
+            return ids
+        } finally { db.endTransaction() }
+    }
     fun pruneTrash(now:Long=System.currentTimeMillis()):Int =
         writableDatabase.delete("soundprint_trash","removed_at < ?",arrayOf((now-30L*86_400_000L).toString()))
     fun saveTwinSenseFingerprint(fingerprint:TwinSenseFingerprint) {
@@ -1029,8 +1081,12 @@ class MusicLibraryRepository(context:Context) {
     fun markPlayed(id:String)=db.markPlayed(id)
     fun createPlaylist(name:String)=db.createPlaylist(name)
     fun addToPlaylist(playlistId:String,trackId:String)=db.addToPlaylist(playlistId,trackId)
-    fun moveToTwinSenseTrash(id:String)=db.moveToTrash(id,"soundprint")
+    fun moveToTwinSenseTrash(id:String,reason:String="soundprint")=db.moveToTrash(id,reason)
     fun restoreFromTwinSenseTrash(id:String)=db.restoreFromTrash(id)
+    fun ensureTwinSenseTrashEntry(id:String,removedAt:Long,reason:String)=db.ensureTrashEntry(id,removedAt,reason)
+    fun twinSenseTrashRecords()=db.recycleBinRecords()
+    fun emptyTwinSenseTrash()=db.emptyTrashAndDeleteTracks()
+    fun purgeExpiredTwinSenseTrash(cutoff:Long)=db.purgeExpiredTrashAndDeleteTracks(cutoff)
     fun pruneExpiredTrash()=db.pruneTrash()
     fun sources()=db.sources()
     fun fileSources()=db.fileSources()
