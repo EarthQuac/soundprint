@@ -146,9 +146,9 @@ internal fun SoundprintSongsLibraryScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             OutlinedTextField(
-                value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
-                singleLine = true, placeholder = { Text("Filter songs, artists, albums...", fontSize = 14.sp) },
-                leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null, Modifier.size(20.dp)) },
+                value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth().height(48.dp),
+                singleLine = true, placeholder = { Text("Search songs, artists, albums", fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null, Modifier.size(18.dp)) },
                 shape = RoundedCornerShape(24.dp), colors = soundprintOutlinedFieldColors()
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -173,42 +173,46 @@ internal fun SoundprintSongsLibraryScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { if (proAccess.entitled) onOpenTwinSense() else proAccess.onOpenPro() },
-                    modifier = Modifier.weight(1f).height(48.dp), shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.weight(1f).height(46.dp), shape = RoundedCornerShape(24.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface)
                 ) {
-                    SoundprintIcon(SoundprintIcons.CopyCheck, null, Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("TwinSense", fontSize = 14.sp, maxLines = 1)
+                    SoundprintIcon(SoundprintIcons.CopyCheck, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("TwinSense", modifier = Modifier.weight(1f, fill = false), fontSize = 12.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                     ProFeatureBadge()
                 }
                 Button(
                     onClick = { recycleOpen = !recycleOpen; if (recycleOpen) scope.launch { recycleItems = withContext(Dispatchers.IO) { library.recycleBin() } } },
-                    modifier = Modifier.weight(1f).height(48.dp), shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.weight(1f).height(46.dp), shape = RoundedCornerShape(24.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface)
                 ) {
-                    SoundprintIcon(SoundprintIcons.Trash, null, Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Recycle Bin", fontSize = 14.sp, maxLines = 1)
+                    SoundprintIcon(SoundprintIcons.Trash, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("Recycle Bin", modifier = Modifier.weight(1f, fill = false), fontSize = 12.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { if (visibleTracks.isNotEmpty()) playback.playTracks(visibleTracks) },
-                    enabled = visibleTracks.isNotEmpty(), modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(28.dp),
+                    enabled = visibleTracks.isNotEmpty(), modifier = Modifier.weight(1f).height(48.dp), shape = RoundedCornerShape(28.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
                 ) {
-                    SoundprintIcon(SoundprintIcons.Play, null, Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Play all", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    SoundprintIcon(SoundprintIcons.Play, null, Modifier.size(17.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("Play all", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                 }
                 Button(
                     onClick = { if (visibleTracks.isNotEmpty()) playback.playTracks(visibleTracks, shuffle = true) },
-                    enabled = visibleTracks.isNotEmpty(), modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(28.dp),
+                    enabled = visibleTracks.isNotEmpty(), modifier = Modifier.weight(1f).height(48.dp), shape = RoundedCornerShape(28.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface)
                 ) {
-                    SoundprintIcon(SoundprintIcons.Shuffle, null, Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Shuffle", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    SoundprintIcon(SoundprintIcons.Shuffle, null, Modifier.size(17.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("Shuffle", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (selectedIds.isNotEmpty()) {
