@@ -313,6 +313,89 @@ internal fun SoundprintSongsLibraryScreen(
         }
     }
 
+    if (editorOpen) {
+        AlertDialog(
+            onDismissRequest = { if (!saving) editorOpen = false },
+            title = {
+                Column {
+                    Text("Edit ${selectedIds.size} songs", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Only fields you fill in will be changed.", Modifier.padding(top = 4.dp),
+                        fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    OutlinedTextField(title, { title = it }, modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Title") }, placeholder = { Text("Leave unchanged") }, singleLine = true,
+                            colors = soundprintOutlinedFieldColors()
+                        )
+                    OutlinedTextField(artist, { artist = it }, modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Artist") }, placeholder = { Text("Leave unchanged") }, singleLine = true,
+                            colors = soundprintOutlinedFieldColors()
+                        )
+                    OutlinedTextField(album, { album = it }, modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Album") }, placeholder = { Text("Leave unchanged") }, singleLine = true,
+                            colors = soundprintOutlinedFieldColors()
+                        )
+                    OutlinedTextField(genre, { genre = it }, modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Genre") }, placeholder = { Text("Leave unchanged") }, singleLine = true,
+                            colors = soundprintOutlinedFieldColors()
+                        )
+                    Text("This updates the selected tracks in SoundPrint's library. Your audio files are not modified.",
+                        fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !saving && listOf(title, artist, album, genre).any { it.isNotBlank() },
+                    onClick = {
+                        val ids = selectedIds.toList()
+                        saving = true
+                        scope.launch {
+                            val changed = withContext(Dispatchers.IO) {
+                                library.updateSongsMetadata(
+                                    ids,
+                                    title = title.takeIf { it.isNotBlank() },
+                                    artist = artist.takeIf { it.isNotBlank() },
+                                    album = album.takeIf { it.isNotBlank() },
+                                    genre = genre.takeIf { it.isNotBlank() }
+                                )
+                            }
+                            tracks = withContext(Dispatchers.IO) { library.allSongs(query = query.trim()) }
+                            selectedIds = emptySet()
+                            selectionMode = false
+                            status = "Updated $changed songs"
+                            saving = false
+                            editorOpen = false
+                        }
+                    }
+                ) { Text(if (saving) "Saving…" else "Apply to ${selectedIds.size} songs") }
+            },
+            dismissButton = {
+                TextButton(enabled = !saving, onClick = { editorOpen = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (confirmEmptyBin) {
+        AlertDialog(
+            onDismissRequest = { confirmEmptyBin = false },
+            title = { Text("Empty Recycle Bin?") },
+            text = { Text("This permanently removes the selected tracks from Soundprint's library and history. Original audio files on your device are not deleted.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmEmptyBin = false
+                    scope.launch {
+                        withContext(Dispatchers.IO) { library.emptyRecycleBin() }
+                        refreshLibrary()
+                    }
+                }) { Text("Empty bin", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmEmptyBin = false }) { Text("Cancel") } }
+        )
+    }
+}
+
 @Composable
 private fun SoundprintRecycleBinPage(
     items: List<RecycleBinEntry>,
@@ -396,88 +479,6 @@ private fun SoundprintRecycleBinPage(
     }
 }
 
-    if (editorOpen) {
-        AlertDialog(
-            onDismissRequest = { if (!saving) editorOpen = false },
-            title = {
-                Column {
-                    Text("Edit ${selectedIds.size} songs", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Only fields you fill in will be changed.", Modifier.padding(top = 4.dp),
-                        fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    OutlinedTextField(title, { title = it }, modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Title") }, placeholder = { Text("Leave unchanged") }, singleLine = true,
-                            colors = soundprintOutlinedFieldColors()
-                        )
-                    OutlinedTextField(artist, { artist = it }, modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Artist") }, placeholder = { Text("Leave unchanged") }, singleLine = true,
-                            colors = soundprintOutlinedFieldColors()
-                        )
-                    OutlinedTextField(album, { album = it }, modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Album") }, placeholder = { Text("Leave unchanged") }, singleLine = true,
-                            colors = soundprintOutlinedFieldColors()
-                        )
-                    OutlinedTextField(genre, { genre = it }, modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Genre") }, placeholder = { Text("Leave unchanged") }, singleLine = true,
-                            colors = soundprintOutlinedFieldColors()
-                        )
-                    Text("This updates the selected tracks in SoundPrint's library. Your audio files are not modified.",
-                        fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = !saving && listOf(title, artist, album, genre).any { it.isNotBlank() },
-                    onClick = {
-                        val ids = selectedIds.toList()
-                        saving = true
-                        scope.launch {
-                            val changed = withContext(Dispatchers.IO) {
-                                library.updateSongsMetadata(
-                                    ids,
-                                    title = title.takeIf { it.isNotBlank() },
-                                    artist = artist.takeIf { it.isNotBlank() },
-                                    album = album.takeIf { it.isNotBlank() },
-                                    genre = genre.takeIf { it.isNotBlank() }
-                                )
-                            }
-                            tracks = withContext(Dispatchers.IO) { library.allSongs(query = query.trim()) }
-                            selectedIds = emptySet()
-                            selectionMode = false
-                            status = "Updated $changed songs"
-                            saving = false
-                            editorOpen = false
-                        }
-                    }
-                ) { Text(if (saving) "Saving…" else "Apply to ${selectedIds.size} songs") }
-            },
-            dismissButton = {
-                TextButton(enabled = !saving, onClick = { editorOpen = false }) { Text("Cancel") }
-            }
-        )
-    }
-
-    if (confirmEmptyBin) {
-        AlertDialog(
-            onDismissRequest = { confirmEmptyBin = false },
-            title = { Text("Empty Recycle Bin?") },
-            text = { Text("This permanently removes the selected tracks from Soundprint's library and history. Original audio files on your device are not deleted.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmEmptyBin = false
-                    scope.launch {
-                        withContext(Dispatchers.IO) { library.emptyRecycleBin() }
-                        refreshLibrary()
-                    }
-                }) { Text("Empty bin", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = { TextButton(onClick = { confirmEmptyBin = false }) { Text("Cancel") } }
-        )
-    }
-}
 
 private fun formatBatchDuration(durationMs: Long): String {
     val seconds = (durationMs / 1000L).coerceAtLeast(0L)
