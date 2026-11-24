@@ -1,11 +1,13 @@
 package digital.anchorstudio.soundprint
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,17 +22,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -53,6 +49,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.DateFormat
+import java.util.Date
 import kotlin.math.max
 
 @Composable
@@ -64,15 +62,16 @@ internal fun TwinSenseScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val scanner = remember(context, library) { TwinSenseScanner(context.applicationContext, library) }
+
     var songs by remember { mutableStateOf<List<MusicTrack>>(emptyList()) }
     var recycleItems by remember { mutableStateOf<List<RecycleBinEntry>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
-    var soundprintOpen by remember(initialRecycleBinOpen) { mutableStateOf(!initialRecycleBinOpen) }
     var recycleOpen by remember(initialRecycleBinOpen) { mutableStateOf(initialRecycleBinOpen) }
     var scanResult by remember { mutableStateOf<TwinSenseScanResult?>(null) }
     var scanProgress by remember { mutableStateOf(TwinSenseScanProgress(0, 0, "", 0, 0)) }
     var scanning by remember { mutableStateOf(false) }
     var advancedScanning by remember { mutableStateOf(false) }
+    var cleaning by remember { mutableStateOf(false) }
     var scanError by remember { mutableStateOf("") }
     var scanJob by remember { mutableStateOf<Job?>(null) }
     var pendingRemoval by remember { mutableStateOf<MusicTrack?>(null) }
@@ -88,8 +87,6 @@ internal fun TwinSenseScreen(
     }
 
     LaunchedEffect(SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
-        // Basic Scan is free and must keep running. Only stop an Advanced Scan
-        // if the verified Pro entitlement is lost or becomes unresolved.
         if ((!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) && advancedScanning) {
             scanJob?.cancel()
         }
@@ -97,21 +94,19 @@ internal fun TwinSenseScreen(
 
     LaunchedEffect(library) {
         runCatching { refreshLibrary() }
+            .onFailure { scanError = it.message ?: "Could not load your music library." }
         scanResult = scanner.loadSavedResults()
         loading = false
     }
 
-    val filenameDuplicateGroups = remember(songs) { TwinSenseCleanupPlanner.nameBasedDuplicateGroups(songs) }
-    val cleanupTracks = remember(scanResult, songs) {
-        (scanResult?.let { TwinSenseCleanupPlanner.tracksToRemove(it) }.orEmpty() +
-            filenameDuplicateGroups.flatMap { group -> TwinSenseCleanupPlanner.tracksToRemoveByName(group) })
-            .distinctBy { it.id }
-    }
-
     val hasTwinSensePro = SoundprintProGate.isResolved && SoundprintProGate.hasPro
+    val cleanupTracks = remember(scanResult) {
+        scanResult?.let(TwinSenseCleanupPlanner::tracksToRemove).orEmpty()
+    }
+    val matches = remember(scanResult) { scanResult?.groups?.flatMap { it.matches }.orEmpty() }
 
     fun startTwinSenseScan(advanced: Boolean) {
-        if (scanning) return
+        if (scanning || songs.size < 2) return
         if (advanced && !SoundprintProGate.require("TwinSense Advanced Scan")) return
         scanError = ""
         scanning = true
@@ -120,9 +115,11 @@ internal fun TwinSenseScreen(
         scanJob = scope.launch {
             try {
                 scanResult = scanner.scan(advanced = advanced) { scanProgress = it }
-                if ((scanResult?.failed ?: 0) > 0) {
-                    scanError = "${scanResult?.failed} tracks could not be decoded. Available tracks were still compared."
+                val failed = scanResult?.failed ?: 0
+                if (failed > 0) {
+                    scanError = "$failed tracks could not be read or analyzed. Available tracks were still compared."
                 }
+                refreshLibrary()
             } catch (cancel: CancellationException) {
                 scanError = "Scan cancelled. Completed fingerprints remain saved for the next scan."
             } catch (error: Exception) {
@@ -135,272 +132,96 @@ internal fun TwinSenseScreen(
         }
     }
 
-
     Column(Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
-                    SoundprintIcon(SoundprintIcons.ArrowLeft, contentDescription = "Back")
-                }
-                Spacer(Modifier.width(8.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("TwinSense", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
-                    Text(if (recycleOpen) "${recycleItems.size} items in Recycle Bin" else "${songs.size} tracks to compare", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                TextButton(onClick = {
-                    recycleOpen = !recycleOpen
-                    if (recycleOpen) soundprintOpen = false else soundprintOpen = true
-                    scope.launch { recycleItems = withContext(Dispatchers.IO) { library.recycleBin() } }
-                }) {
-                    SoundprintIcon(if (recycleOpen) SoundprintIcons.AudioWaveform else SoundprintIcons.Trash, null, modifier = Modifier.size(17.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text(if (recycleOpen) "Scan" else "Recycle Bin", fontSize = 12.sp)
+        TwinSensePageHeader(
+            title = if (recycleOpen) "Recycle Bin" else "TwinSense",
+            subtitle = if (recycleOpen) "${recycleItems.size} songs · kept for 30 days" else "Duplicate audio finder",
+            onBack = onBack,
+            actionLabel = if (recycleOpen) "Scan" else "Recycle Bin",
+            actionIcon = if (recycleOpen) SoundprintIcons.AudioWaveform else SoundprintIcons.Trash,
+            onAction = {
+                recycleOpen = !recycleOpen
+                scanError = ""
+                if (recycleOpen) {
+                    scope.launch { runCatching { refreshLibrary() }.onFailure { scanError = it.message ?: "Could not load Recycle Bin." } }
+                } else {
+                    scope.launch { runCatching { refreshLibrary() }.onFailure { scanError = it.message ?: "Could not load your library." } }
                 }
             }
-        }
+        )
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            if (soundprintOpen) {
-                item {
-                    Column(Modifier.padding(horizontal = 16.dp)) {
-                        Spacer(Modifier.height(0.dp))
-                        Column(Modifier.padding(vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                SoundprintIcon(SoundprintIcons.ShieldCheck, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
-                                Spacer(Modifier.width(10.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                                        Text("TwinSense", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                                        ProFeatureBadge()
-                                    }
-                                    Text("Compare the actual audio stored on this device.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                    Button(
-                                        onClick = { startTwinSenseScan(advanced = false) },
-                                        enabled = !scanning && songs.size >= 2,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        if (scanning && !advancedScanning) {
-                                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                                        } else {
-                                            SoundprintIcon(SoundprintIcons.AudioWaveform, null, modifier = Modifier.size(16.dp))
-                                        }
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(if (scanning && !advancedScanning) "Scanning…" else "Basic Scan", maxLines = 1, fontSize = 12.sp)
-                                    }
-                                ProFeatureGate(Modifier.weight(1f)) {
-                                OutlinedButton(
-                                    onClick = {
-                                        if (hasTwinSensePro) startTwinSenseScan(advanced = true)
-                                        else SoundprintProGate.require("TwinSense Advanced Scan")
-                                    },
-                                    enabled = !scanning && songs.size >= 2,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    if (scanning && advancedScanning) {
-                                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                                    } else {
-                                        SoundprintIcon(SoundprintIcons.Zap, null, modifier = Modifier.size(16.dp))
-                                    }
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        if (scanning && advancedScanning) "Scanning…" else "Advanced Scan",
-                                        maxLines = 1,
-                                        fontSize = 12.sp
-                                    )
-                                    if (!hasTwinSensePro) ProFeatureBadge()
-                                }
-                                }
-                            }
-                            if (scanning) {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                    TextButton(onClick = { scanJob?.cancel() }) { Text("Cancel", fontSize = 11.sp) }
-                                }
-                            }
-                            if (scanning) {
-                                LinearProgressIndicator(progress = { scanProgress.percent / 100f }, modifier = Modifier.fillMaxWidth())
-                                Text(
-                                    "${if (advancedScanning) "Advanced" else "Basic"} · ${scanProgress.percent}% · ${scanProgress.completed}/${scanProgress.total} · ${scanProgress.currentTitle}",
-                                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            val finishedScan = scanResult
-                            if (finishedScan != null && !scanning) {
-                                val result = finishedScan
-                                Text(
-                                    "${result.tracksScanned} tracks scanned · ${result.fingerprintsReused} cached fingerprints reused · ${result.groups.size} duplicate groups · ${result.matchCount} matching pairs",
-                                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                if (cleanupTracks.size > 10) {
-                                    ProFeatureGate {
-                                        OutlinedButton(
-                                            onClick = { if (SoundprintProGate.require("TwinSense Smart Clean")) confirmSmartCleanup = true },
-                                            enabled = cleanupTracks.isNotEmpty() || !hasTwinSensePro,
-                                            contentPadding = ButtonDefaults.ContentPadding
-                                        ) {
-                                            SoundprintIcon(SoundprintIcons.Trash2, null, modifier = Modifier.size(16.dp))
-                                            Spacer(Modifier.width(7.dp))
-                                            Text("TwinSense Smart Clean · ${cleanupTracks.size}", maxLines = 1)
-                                            Spacer(Modifier.width(6.dp))
-                                            ProFeatureBadge(sparkleSize = 16.dp)
-                                        }
-                                    }
-                                }
-                                if (result.groups.isEmpty() && filenameDuplicateGroups.isEmpty()) {
-                                    Text("No duplicate audio or copied-name tracks found in your library.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                } else {
-                                    result.groups.forEachIndexed { index, group ->
-                                        Card(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                            shape = RoundedCornerShape(16.dp),
-                                            
-                                        ) {
-                                            Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Text("Duplicate group ${index + 1}", modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                                                    Text("${group.tracks.size} tracks", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                }
-                                                group.tracks.forEach { track ->
-                                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                                        Column(Modifier.weight(1f)) {
-                                                            Text(track.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                            Text("${track.artist} · ${formatTwinSenseDuration(track.durationMs / 1000.0)} · ${track.sizeBytes / (1024 * 1024)} MB",
-                                                                fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                        }
-                                                        TextButton(onClick = { pendingRemoval = track }) { Text("Remove", color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
-                                                    }
-                                                }
-                                                group.matches.forEach { match ->
-                                                    val label = when (match.kind) {
-                                                        TwinSenseMatchKind.EXACT_AUDIO -> "Exact audio"
-                                                        TwinSenseMatchKind.ACOUSTIC -> "Acoustic match"
-                                                        TwinSenseMatchKind.METADATA -> "Possible match"
-                                                    }
-                                                    Text("$label · ${match.confidence}% confidence${if (match.versionWarning) " · possible alternate version" else ""}",
-                                                        fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
-                                                    match.reasons.forEach { reason ->
-                                                        Text("• $reason", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    filenameDuplicateGroups.forEachIndexed { index, group ->
-                                        Card(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                            shape = RoundedCornerShape(16.dp)
-                                        ) {
-                                            Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Text("Copied-name group ${index + 1}", modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                                                    Text("${group.size} tracks", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                }
-                                                group.forEach { track ->
-                                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                                        Column(Modifier.weight(1f)) {
-                                                            Text(track.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                            Text("${track.artist} · ${formatTwinSenseDuration(track.durationMs / 1000.0)} · ${track.sizeBytes / (1024 * 1024)} MB",
-                                                                fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                        }
-                                                        TextButton(onClick = { pendingRemoval = track }) { Text("Remove", color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if (!scanning) {
-                                Text(
-                                    if (songs.size < 2) "Add at least two tracks before scanning." else "Basic Scan is free and processes one track at a time. Advanced Scan uses parallel processing for Pro members. Audio never leaves this device.",
-                                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            if (scanError.isNotBlank()) Text(scanError, fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
+        if (loading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (recycleOpen) {
+            RecycleBinContent(
+                items = recycleItems,
+                error = scanError,
+                onRestore = { id ->
+                    scope.launch {
+                        val restored = runCatching {
+                            withContext(Dispatchers.IO) { library.restoreFromRecycleBin(id) }
                         }
-                        Spacer(Modifier.height(0.dp))
+                        if (restored.isFailure) scanError = restored.exceptionOrNull()?.message ?: "Could not restore this track."
+                        refreshLibrary()
                     }
-                }
-            }
-
-            if (recycleOpen) {
+                },
+                onEmpty = { confirmEmptyBin = true },
+                onBrowseSongs = onBack
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
                 item {
-                    Card(
-                        modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text("Recycle Bin", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                                    Text("Items are kept for 30 days. Original audio files are never deleted.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                if (recycleItems.isNotEmpty()) TextButton(onClick = { confirmEmptyBin = true }) {
-                                    Text("Empty bin", color = MaterialTheme.colorScheme.error)
-                                }
-                            }
-                            if (recycleItems.isEmpty()) {
-                                Text("Your Recycle Bin is empty.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            } else recycleItems.forEach { entry ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text(entry.track.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text("${entry.track.artist} · ${entry.reason} · ${daysRemaining(entry.removedAt)} days left",
-                                            fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
-                                    }
-                                    TextButton(onClick = {
-                                        scope.launch {
-                                            runCatchingSuspend { withContext(Dispatchers.IO) { library.restoreFromRecycleBin(entry.track.id) } }
-                                            refreshLibrary()
-                                        }
-                                    }) {
-                                        SoundprintIcon(SoundprintIcons.ArchiveRestore, null, modifier = Modifier.size(15.dp))
-                                        Spacer(Modifier.width(4.dp))
-                                        Text("Restore", fontSize = 11.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    TwinSenseScannerSection(
+                        songsCount = songs.size,
+                        hasPro = hasTwinSensePro,
+                        scanning = scanning,
+                        advancedScanning = advancedScanning,
+                        progress = scanProgress,
+                        scanError = scanError,
+                        result = scanResult,
+                        matches = matches,
+                        cleanupCount = cleanupTracks.size,
+                        cleaning = cleaning,
+                        onBasicScan = { startTwinSenseScan(advanced = false) },
+                        onAdvancedScan = { startTwinSenseScan(advanced = true) },
+                        onSmartCleanup = { confirmSmartCleanup = true },
+                        onRemove = { pendingRemoval = it }
+                    )
                 }
             }
-
-            if (loading) {
-                item { Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
-            }
-
         }
     }
 
     val removalTarget = pendingRemoval
     if (removalTarget != null) {
-        val track = removalTarget
         AlertDialog(
             onDismissRequest = { pendingRemoval = null },
             title = { Text("Move this track to Recycle Bin?") },
-            text = { Text("${track.title} will leave your library but can be restored for 30 days. The original audio file will remain untouched.") },
+            text = {
+                Text("${removalTarget.title} will leave your library but can be restored for 30 days. The original audio file will remain untouched.")
+            },
             confirmButton = {
                 TextButton(onClick = {
+                    val track = removalTarget
                     pendingRemoval = null
                     scope.launch {
-                        runCatchingSuspend { withContext(Dispatchers.IO) { library.moveToRecycleBin(track.id, "TwinSense duplicate review") } }
-                        scanResult?.let { previous ->
-                            val updated = scanner.withoutTracks(previous, setOf(track.id))
-                            scanResult = updated
-                            scanner.saveResult(updated)
+                        val moved = runCatching {
+                            withContext(Dispatchers.IO) { library.moveToRecycleBin(track.id, "TwinSense duplicate review") }
+                        }
+                        if (moved.isSuccess) {
+                            scanResult?.let { previous ->
+                                val updated = scanner.withoutTracks(previous, setOf(track.id))
+                                scanResult = updated
+                                scanner.saveResult(updated)
+                            }
+                        } else {
+                            scanError = moved.exceptionOrNull()?.message ?: "The track could not be moved. It remains in your library."
                         }
                         refreshLibrary()
                     }
@@ -414,16 +235,24 @@ internal fun TwinSenseScreen(
         AlertDialog(
             onDismissRequest = { confirmSmartCleanup = false },
             title = { Text("Run Smart Cleanup?") },
-            text = { Text("Move ${cleanupTracks.size} likely duplicate copies to Recycle Bin? TwinSense keeps the best original in each group. Filename copy markers are checked against artist, album and duration; similar matches and alternate versions are left for manual review. Original audio files are never deleted.") },
+            text = {
+                Text(
+                    "Move ${cleanupTracks.size} byte-identical duplicate tracks to Recycle Bin? TwinSense keeps the best-quality copy in each group. Copy-style filename markers only help choose which identical copy to keep; similar audio and alternate versions are never auto-removed. Original audio files are never deleted."
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     confirmSmartCleanup = false
+                    if (cleaning) return@TextButton
+                    cleaning = true
                     scope.launch {
                         val moved = mutableSetOf<String>()
+                        val failed = mutableSetOf<String>()
                         withContext(Dispatchers.IO) {
                             cleanupTracks.forEach { track ->
                                 runCatching { library.moveToRecycleBin(track.id, "TwinSense Smart Cleanup") }
                                     .onSuccess { moved += track.id }
+                                    .onFailure { failed += track.id }
                             }
                         }
                         scanResult?.let { previous ->
@@ -431,6 +260,10 @@ internal fun TwinSenseScreen(
                             scanResult = updated
                             scanner.saveResult(updated)
                         }
+                        if (failed.isNotEmpty()) {
+                            scanError = "${failed.size} duplicate tracks could not be moved and remain in your library."
+                        }
+                        cleaning = false
                         refreshLibrary()
                     }
                 }) { Text("Clean up duplicates", color = MaterialTheme.colorScheme.error) }
@@ -443,19 +276,426 @@ internal fun TwinSenseScreen(
         AlertDialog(
             onDismissRequest = { confirmEmptyBin = false },
             title = { Text("Empty Recycle Bin?") },
-            text = { Text("This permanently removes the selected tracks from Soundprint's library and history. Original audio files on your device are not deleted.") },
+            text = {
+                Text("This permanently removes the selected tracks from Soundprint's library and history. Original audio files on your device are not deleted.")
+            },
             confirmButton = {
                 TextButton(onClick = {
                     confirmEmptyBin = false
                     scope.launch {
-                        withContext(Dispatchers.IO) { library.emptyRecycleBin() }
-                        recycleItems = emptyList()
+                        val emptied = runCatching { withContext(Dispatchers.IO) { library.emptyRecycleBin() } }
+                        if (emptied.isFailure) scanError = emptied.exceptionOrNull()?.message ?: "Could not empty Recycle Bin."
                         refreshLibrary()
                     }
                 }) { Text("Empty bin", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { confirmEmptyBin = false }) { Text("Cancel") } }
         )
+    }
+}
+
+@Composable
+private fun TwinSensePageHeader(
+    title: String,
+    subtitle: String,
+    onBack: () -> Unit,
+    actionLabel: String,
+    actionIcon: Int,
+    onAction: () -> Unit
+) {
+    Column {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier.size(36.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(0.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.foundation.clickable(onClick = onBack)
+                SoundprintIcon(SoundprintIcons.ArrowLeft, "Back", modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.3).sp, color = MaterialTheme.colorScheme.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (subtitle.isNotBlank()) Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
+                SoundprintIcon(actionIcon, null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(5.dp))
+                Text(actionLabel, fontSize = 11.sp, maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TwinSenseScannerSection(
+    songsCount: Int,
+    hasPro: Boolean,
+    scanning: Boolean,
+    advancedScanning: Boolean,
+    progress: TwinSenseScanProgress,
+    scanError: String,
+    result: TwinSenseScanResult?,
+    matches: List<TwinSenseMatch>,
+    cleanupCount: Int,
+    cleaning: Boolean,
+    onBasicScan: () -> Unit,
+    onAdvancedScan: () -> Unit,
+    onSmartCleanup: () -> Unit,
+    onRemove: (MusicTrack) -> Unit
+) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 20.dp)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Column(
+            Modifier.fillMaxWidth().padding(vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(
+                    Modifier.size(36.dp).clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SoundprintIcon(SoundprintIcons.ShieldCheck, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("Find duplicate tracks", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                    Text("Find duplicate tracks in your library", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (result != null && !scanning) {
+                    Text("${matches.size} ${if (matches.size == 1) "match" else "matches"}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth().padding(top = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (hasPro) {
+                    OutlinedButton(
+                        onClick = onAdvancedScan,
+                        enabled = !scanning && songsCount >= 2,
+                        modifier = Modifier.height(36.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                    ) {
+                        if (scanning && advancedScanning) CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
+                        else SoundprintIcon(SoundprintIcons.Zap, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (scanning) "Analysing · ${progress.percent}%" else if (result != null) "Run advanced scan" else "Advanced audio scan", fontSize = 12.sp, maxLines = 1)
+                    }
+                } else {
+                    Button(
+                        onClick = onBasicScan,
+                        enabled = !scanning && songsCount >= 2,
+                        modifier = Modifier.height(36.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                    ) {
+                        if (scanning && !advancedScanning) CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
+                        else SoundprintIcon(SoundprintIcons.ShieldCheck, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (scanning) "Scanning · ${progress.percent}%" else if (result != null) "Scan again" else "Basic scan", fontSize = 12.sp, maxLines = 1)
+                    }
+                }
+                if (songsCount < 2 && !scanning) {
+                    Text("Add at least two tracks to scan.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            if (scanning) {
+                Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                    LinearProgressIndicator(
+                        progress = { progress.percent / 100f },
+                        modifier = Modifier.fillMaxWidth().height(4.dp)
+                    )
+                    Text(
+                        "Checking music stored on this device. Audio files are never uploaded.",
+                        Modifier.padding(top = 8.dp),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (scanError.isNotBlank()) {
+                Text(scanError, Modifier.fillMaxWidth().padding(top = 12.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (result != null && !scanning && matches.isEmpty()) {
+                Text(
+                    "No duplicate tracks found.",
+                    Modifier.fillMaxWidth().padding(top = 16.dp).border(
+                        BorderStroke(0.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ).padding(top = 12.dp),
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+        if (result != null && !scanning && matches.isNotEmpty()) {
+            Column(Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("${matches.size} possible duplicate ${if (matches.size == 1) "pair" else "pairs"}", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("Review each pair before removing anything.", Modifier.padding(top = 2.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (cleanupCount > 10) {
+                        Button(
+                            onClick = onSmartCleanup,
+                            enabled = !cleaning && !scanning,
+                            modifier = Modifier.height(36.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
+                        ) {
+                            SoundprintIcon(SoundprintIcons.Trash2, null, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text(if (cleaning) "Cleaning…" else "Smart Cleanup · $cleanupCount", fontSize = 11.sp, maxLines = 1)
+                        }
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+            matches.forEach { match ->
+                TwinSenseMatchRow(match = match, onRemove = onRemove)
+            }
+        } else if (result == null && !scanning) {
+            Text(
+                "Compare the audio in your library to find exact copies and possible matches.",
+                Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun TwinSenseMatchRow(match: TwinSenseMatch, onRemove: (MusicTrack) -> Unit) {
+    var reasonsExpanded by remember(match.first.id, match.second.id) { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                if (match.kind == TwinSenseMatchKind.EXACT_AUDIO) "Exact file match" else "Possible match",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (match.kind == TwinSenseMatchKind.EXACT_AUDIO) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text("${match.confidence}% confidence", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (match.versionWarning) Text("Possible alternate version", fontSize = 11.sp, color = MaterialTheme.colorScheme.tertiary)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TwinSenseComparedTrack(track = match.first, index = 0, onRemove = onRemove)
+            TwinSenseComparedTrack(track = match.second, index = 1, onRemove = onRemove)
+        }
+        if (match.reasons.isNotEmpty()) {
+            Text(
+                if (reasonsExpanded) "Hide match details" else "Why these tracks matched",
+                Modifier.padding(top = 12.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                    .clickable { reasonsExpanded = !reasonsExpanded },
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (reasonsExpanded) {
+                Column(Modifier.padding(start = 16.dp, top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    match.reasons.forEach { reason ->
+                        Text("• $reason", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+}
+
+@Composable
+private fun TwinSenseComparedTrack(track: MusicTrack, index: Int, onRemove: (MusicTrack) -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(36.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                SoundprintIcon(SoundprintIcons.Music2, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+            }
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(track.title.ifBlank { "Unknown title" }, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(track.artist.ifBlank { "Unknown artist" } + if (track.album.isNotBlank()) " · ${track.album}" else "", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        Row(
+            Modifier.padding(start = 48.dp, top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(formatTwinSenseDuration(track.durationMs / 1000.0), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(if (track.sizeBytes > 0L) "${"%.1f".format(track.sizeBytes / (1024.0 * 1024.0))} MB" else "Size unknown", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (track.bitrate > 0) Text("${track.bitrate / 1000} kbps", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (track.mimeType.isNotBlank()) Text(track.mimeType, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        TextButton(
+            onClick = { onRemove(track) },
+            modifier = Modifier.padding(start = 36.dp, top = 4.dp).height(32.dp),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+        ) {
+            SoundprintIcon(SoundprintIcons.Trash2, null, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Remove ${if (index == 0) "first" else "second"} track", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+        }
+    }
+}
+
+@Composable
+private fun RecycleBinContent(
+    items: List<RecycleBinEntry>,
+    error: String,
+    onRestore: (String) -> Unit,
+    onEmpty: () -> Unit,
+    onBrowseSongs: () -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(16.dp),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SoundprintIcon(SoundprintIcons.Trash2, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("Your deleted songs", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Restore songs back to your library anytime within 30 days. The original files on your device are never deleted.",
+                        Modifier.padding(top = 4.dp),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (items.isNotEmpty()) {
+                    TextButton(onClick = onEmpty, contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)) {
+                        Text("Empty bin", fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        }
+        if (error.isNotBlank()) {
+            item { Text(error, Modifier.padding(horizontal = 16.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.error) }
+        }
+        if (items.isEmpty()) {
+            item {
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 24.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(16.dp))
+                        .padding(horizontal = 24.dp, vertical = 48.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    SoundprintIcon(SoundprintIcons.Trash2, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
+                    Text("Recycle Bin is empty", Modifier.padding(top = 12.dp), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Songs you remove from your library will show up here.", Modifier.padding(top = 4.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedButton(onClick = onBrowseSongs, modifier = Modifier.padding(top = 16.dp), shape = RoundedCornerShape(50)) {
+                        Text("Browse songs", fontSize = 12.sp)
+                    }
+                }
+            }
+        } else {
+            items(items, key = { it.track.id }) { entry ->
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    NativeArtwork(entry.track.artworkUri, entry.track.id, Modifier.size(48.dp), 9)
+                    Column(Modifier.weight(1f)) {
+                        Text(entry.track.title, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            "${entry.track.artist} · ${formatTwinSenseDuration(entry.track.durationMs / 1000.0)}",
+                            Modifier.padding(top = 2.dp),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "${entry.reason} · ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(entry.removedAt))}",
+                            Modifier.padding(top = 4.dp),
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    TextButton(onClick = { onRestore(entry.track.id) }, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)) {
+                        SoundprintIcon(SoundprintIcons.RotateCcw, null, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text("Restore", fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TwinSensePageHeader(
+    title: String,
+    subtitle: String,
+    onBack: () -> Unit,
+    actionLabel: String,
+    actionIcon: Int,
+    onAction: () -> Unit
+) {
+    Column {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier.size(36.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable(onClick = onBack),
+                contentAlignment = Alignment.Center
+            ) {
+                SoundprintIcon(SoundprintIcons.ArrowLeft, "Back", modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.3).sp, color = MaterialTheme.colorScheme.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (subtitle.isNotBlank()) Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
+                SoundprintIcon(actionIcon, null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(5.dp))
+                Text(actionLabel, fontSize = 11.sp, maxLines = 1)
+            }
+        }
     }
 }
 
