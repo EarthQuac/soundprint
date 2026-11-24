@@ -592,24 +592,48 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
         signature
     }
 
-    private fun normalizedTitle(track: MusicTrack): String {
-        val title = track.title.takeIf { it.isNotBlank() && !it.equals("Unknown title", true) }
-            ?: track.fileName.takeIf { it.isNotBlank() }
-            ?: Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }.orEmpty()
-        val baseTitle = title
-            .replace(Regex("""(?i)^\s*(?:copy|duplicate|duplicated|dup|backup|clone)(?:\s+of)?\s+"""), "")
+    private fun normalizeCandidateName(value: String): String {
+        val baseTitle = value
+            .replace(Regex("""(?i)^\\s*(?:copy|duplicate|duplicated|dup|backup|clone)(?:\\s+of)?\\s+"""), "")
             .replace(
-                Regex("""(?i)\s*(?:\(\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|\d+)\s*\)|\[\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|\d+)\s*\]|[-_ ]+(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|[-_ ]+\(\d+\)|[-_ ]+\d+)\s*$"""),
+                Regex("""(?i)\\s*(?:\\(\\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\\d+)?|\\d+)\\s*\\)|\\[\\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\\d+)?|\\d+)\\s*\\]|[-_ ]+(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\\d+)?|[-_ ]+\\(\\d+\\)|[-_ ]+\\d+)\\s*$"""),
                 ""
             )
         return TwinSenseText.normalize(baseTitle)
     }
 
+    private fun normalizedTitle(track: MusicTrack): String {
+        val title = track.title.takeIf { it.isNotBlank() && !it.equals("Unknown title", true) }
+            ?: track.fileName.takeIf { it.isNotBlank() }
+            ?: Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }.orEmpty()
+        return normalizeCandidateName(title)
+    }
+
+    private fun normalizedFileName(track: MusicTrack): String {
+        val raw = track.fileName.takeIf { it.isNotBlank() }
+            ?: Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }.orEmpty()
+        return normalizeCandidateName(raw.substringAfterLast('/').replace(Regex("""\\.[^.]+$"""), ""))
+    }
+
+    private fun sameCandidateName(first: MusicTrack, second: MusicTrack): Boolean {
+        val firstTitle = normalizedTitle(first)
+        val secondTitle = normalizedTitle(second)
+        val firstFile = normalizedFileName(first)
+        val secondFile = normalizedFileName(second)
+        return (firstTitle.isNotBlank() && firstTitle == secondTitle) ||
+            (firstFile.isNotBlank() && firstFile == secondFile)
+    }
+
     private fun compareMetadata(first: MusicTrack, second: MusicTrack): TwinSenseMatch? {
         val titleA = normalizedTitle(first)
         val titleB = normalizedTitle(second)
-        if (titleA.isBlank() || titleA != titleB) return null
-        val reasons = mutableListOf("Matching normalized title")
+        val titleMatches = titleA.isNotBlank() && titleA == titleB
+        val fileA = normalizedFileName(first)
+        val fileB = normalizedFileName(second)
+        val fileNameMatches = fileA.isNotBlank() && fileA == fileB
+        if (!titleMatches && !fileNameMatches) return null
+        val reasons = mutableListOf(if (titleMatches) "Matching normalized title" else "Matching normalized file name")
+        if (titleMatches && fileNameMatches) reasons += "Matching normalized file name"
         var score = 40
         val artistA = TwinSenseText.normalize(first.artist)
         val artistB = TwinSenseText.normalize(second.artist)
@@ -809,11 +833,16 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
             track.duplicateOf?.let(tracksById::get)?.let { canonical -> add(track, canonical) }
         }
 
-        val titleGroups = tracks.map { it to normalizedTitle(it) }
-            .filter { it.second.isNotBlank() }
-            .groupBy { it.second }
-        titleGroups.values.forEach { group ->
-            for (i in group.indices) for (j in i + 1 until group.size) add(group[i].first, group[j].first)
+        val nameGroups = linkedMapOf<String, MutableList<MusicTrack>>()
+        tracks.forEach { track ->
+            listOf(normalizedTitle(track), normalizedFileName(track))
+                .filter { it.isNotBlank() }
+                .distinct()
+                .forEach { name -> nameGroups.getOrPut(name) { mutableListOf() }.add(track) }
+        }
+        nameGroups.values.forEach { group ->
+            val unique = group.distinctBy { it.id }
+            for (i in unique.indices) for (j in i + 1 until unique.size) add(unique[i], unique[j])
         }
 
         val matches = mutableListOf<TwinSenseMatch>()
@@ -850,9 +879,7 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                 continue
             }
 
-            if (advanced && normalizedTitle(first).isNotBlank() &&
-                normalizedTitle(first) == normalizedTitle(second)
-            ) {
+            if (advanced && sameCandidateName(first, second)) {
                 val firstProfile = profiles[first.id]
                 val secondProfile = profiles[second.id]
                 if (firstProfile != null && secondProfile != null) {
