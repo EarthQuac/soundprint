@@ -196,7 +196,11 @@ internal object TwinSenseAudioAnalysis {
             abs(first.durationMs - second.durationMs) / 1000.0 else 0.0
         val durationRatio = if (first.durationMs > 0L && second.durationMs > 0L)
             durationDifference / max(first.durationMs, second.durationMs).toDouble() * 1000.0 else 0.0
-        val versionWarning = durationDifference > 3.0 && durationRatio > 0.02
+        val durationWarning = durationDifference > 3.0 && durationRatio > 0.02
+        val versionLabel = TwinSenseText.hasVersionLabel(
+            "${first.title} ${second.title} ${first.fileName} ${second.fileName}"
+        )
+        val versionWarning = durationWarning || versionLabel
         data class Signal(val name: String, val similarity: Double, val weight: Double)
         val signals = mutableListOf<Signal>()
 
@@ -275,11 +279,12 @@ internal object TwinSenseAudioAnalysis {
             reasons += "Different disc numbers (${first.discNumber} vs ${second.discNumber})"
         }
         if (first.durationMs > 0L && second.durationMs > 0L) {
-            if (versionWarning) {
+            if (durationWarning) {
                 val shorter = if (first.durationMs < second.durationMs) "First track" else "Second track"
                 reasons += "Possible alternate version: $shorter is shorter by ${formatTwinSenseDuration(durationDifference)} (${formatTwinSenseDuration(first.durationMs / 1000.0)} vs ${formatTwinSenseDuration(second.durationMs / 1000.0)})"
             } else reasons += "Similar duration (${formatTwinSenseDuration(first.durationMs / 1000.0)})"
         }
+        if (versionLabel) reasons += "A version label (such as live, remix, acoustic or remaster) was detected"
         if (first.sizeBytes > 0L && second.sizeBytes > 0L) {
             reasons += if (first.sizeBytes == second.sizeBytes) "Same file size (${first.sizeBytes} bytes)"
             else "Different file sizes (${first.sizeBytes} vs ${second.sizeBytes} bytes)"
