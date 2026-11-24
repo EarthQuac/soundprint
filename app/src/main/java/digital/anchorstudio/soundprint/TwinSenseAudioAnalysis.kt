@@ -244,13 +244,46 @@ internal object TwinSenseAudioAnalysis {
         val totalWeight = signals.sumOf { it.weight }
         if (totalWeight <= 0.0) return null
         val similarity = signals.sumOf { it.similarity * it.weight } / totalWeight
-        if (similarity < 0.93) return null
+        if (similarity < if (versionWarning) 0.86 else 0.93) return null
 
         val reasons = signals.filter { it.similarity >= 0.82 }.map { it.name }.toMutableList()
-        reasons += "Compared locally using cached audio-analysis measurements"
-        if (versionWarning) reasons += "Different duration — preserve and review as a possible alternate version"
+        reasons += "Compared locally using decoded audio-analysis measurements"
+        if (first.artist.isNotBlank() && second.artist.isNotBlank()) {
+            if (first.artist.equals(second.artist, ignoreCase = true)) reasons += "Matching artist metadata"
+            else reasons += "Artist metadata differs (${first.artist} vs ${second.artist})"
+        }
+        if (first.album.isNotBlank() && second.album.isNotBlank() && !first.album.equals(second.album, true)) {
+            reasons += "Album metadata differs (${first.album} vs ${second.album})"
+        }
+        if (first.durationMs > 0L && second.durationMs > 0L) {
+            if (versionWarning) {
+                reasons += "Duration differs by ${formatTwinSenseDuration(durationDifference)} (${formatTwinSenseDuration(first.durationMs / 1000.0)} vs ${formatTwinSenseDuration(second.durationMs / 1000.0)})"
+            } else reasons += "Similar duration (${formatTwinSenseDuration(first.durationMs / 1000.0)})"
+        }
+        if (first.sizeBytes > 0L && second.sizeBytes > 0L && first.sizeBytes != second.sizeBytes) {
+            reasons += "Different file sizes (${first.sizeBytes} vs ${second.sizeBytes} bytes)"
+        }
+        if (first.bitrate > 0 && second.bitrate > 0) {
+            reasons += if (first.bitrate == second.bitrate) "Same bitrate (${first.bitrate / 1000} kbps)"
+            else "Different bitrates (${first.bitrate / 1000} vs ${second.bitrate / 1000} kbps)"
+        }
+        if (first.sampleRate > 0 && second.sampleRate > 0) {
+            reasons += if (first.sampleRate == second.sampleRate) "Same source sample rate (${first.sampleRate} Hz)"
+            else "Different source sample rates (${first.sampleRate} vs ${second.sampleRate} Hz)"
+        }
+        if (first.channelCount > 0 && second.channelCount > 0) {
+            reasons += if (first.channelCount == second.channelCount) "Same channel count (${first.channelCount})"
+            else "Different channel counts (${first.channelCount} vs ${second.channelCount})"
+        }
+        val codecA = first.encoding.ifBlank { first.mimeType }
+        val codecB = second.encoding.ifBlank { second.mimeType }
+        if (codecA.isNotBlank() && codecB.isNotBlank()) {
+            reasons += if (codecA.equals(codecB, true)) "Same audio encoding ($codecA)"
+            else "Different audio encodings ($codecA vs $codecB)"
+        }
         val confidence = min(94, (72.0 + (similarity - 0.86) * 150.0).roundToInt())
-        return TwinSenseMatch(first, second, TwinSenseMatchKind.ACOUSTIC, confidence, reasons, versionWarning)
+        val kind = if (versionWarning) TwinSenseMatchKind.ALTERNATIVE else TwinSenseMatchKind.ACOUSTIC
+        return TwinSenseMatch(first, second, kind, confidence, reasons.distinct(), versionWarning)
     }
 
     private data class Tempo(val bpm: Int, val confidence: Double)
