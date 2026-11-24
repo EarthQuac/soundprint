@@ -8,6 +8,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -36,8 +37,8 @@ internal fun SoundprintProSparkle(
     modifier: Modifier = Modifier,
     contentDescription: String? = null
 ) {
-    val surfaceLuminance = MaterialTheme.colorScheme.surface.luminance()
-    val gold = if (surfaceLuminance < 0.5f) Color(0xFFF6CE72) else Color(0xFF946200)
+    val themeFill = MaterialTheme.colorScheme.primary
+    val goldOutline = Color(0xFFE2BE68)
     val accessibleModifier = if (contentDescription == null) modifier else {
         modifier.semantics { this.contentDescription = contentDescription }
     }
@@ -54,7 +55,8 @@ internal fun SoundprintProSparkle(
             quadraticTo(centerX - waist, centerY - waist, centerX, centerY - radius)
             close()
         }
-        drawPath(sparkle, gold)
+        drawPath(sparkle, themeFill)
+        drawPath(sparkle, goldOutline, style = Stroke(width = size.minDimension * 0.095f))
     }
 }
 
