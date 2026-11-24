@@ -469,6 +469,9 @@ class MusicLibraryManager(context:Context) {
     fun saveTwinSenseFingerprint(fingerprint:TwinSenseFingerprint)=repository.saveTwinSenseFingerprint(fingerprint)
     fun twinSenseFingerprint(trackId:String,size:Long,modifiedAt:Long)=repository.twinSenseFingerprint(trackId,size,modifiedAt)
     fun deleteTwinSenseFingerprint(trackId:String)=repository.deleteTwinSenseFingerprint(trackId)
+    fun cachedTwinSenseAnalysis(key:String)=repository.cachedAnalysis(key)
+    fun saveTwinSenseAnalysis(trackId:String,key:String,profileJson:String,size:Long,mime:String)=
+        repository.saveTwinSenseAudioAnalysis(trackId,key,profileJson,size,mime)
 
     /**
      * Older TwinSense builds mirrored trash metadata into a second SQLite database.
