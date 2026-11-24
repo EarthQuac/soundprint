@@ -269,48 +269,45 @@ fun SoundprintPlaylistsScreen(
                             .then(if (hasPro) Modifier else Modifier.clip(RoundedCornerShape(18.dp))),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(
+                        Row(
                             Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(5.dp)
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Keep the full heading and its Pro mark on their own row so neither
-                            // can be squeezed by the action button on narrow screens.
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(9.dp)
-                            ) {
-                                Text(
-                                    "Smart playlists",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                                ProFeatureBadge(sparkleSize = 44.dp)
-                            }
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
+                            Column(Modifier.weight(1f, fill = true)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        "Smart playlists",
+                                        modifier = Modifier.weight(1f, fill = false),
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    // Enlarge the actual Pro sparkle beside this heading.
+                                    ProFeatureBadge(sparkleSize = 48.dp)
+                                }
                                 Text(
                                     if (SoundprintListeningPreferences.automaticPlaylistsEnabled(androidx.compose.ui.platform.LocalContext.current)) "Automatically updated from your listening and library" else "Updates paused in Settings · your saved rules are kept",
-                                    modifier = Modifier.weight(1f),
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                Button(
-                                    onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true },
-                                    shape = CircleShape,
-                                    contentPadding = ButtonDefaults.ContentPadding
-                                ) {
-                                    SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(15.dp))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("New playlist", fontSize = 11.sp, maxLines = 1, softWrap = false)
-                                }
+                            }
+                            Button(
+                                onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true },
+                                shape = CircleShape,
+                                contentPadding = ButtonDefaults.ContentPadding
+                            ) {
+                                SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(15.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("New playlist", fontSize = 11.sp, maxLines = 1, softWrap = false)
                             }
                         }
                         current?.smartPlaylists.orEmpty().forEach { rule ->
