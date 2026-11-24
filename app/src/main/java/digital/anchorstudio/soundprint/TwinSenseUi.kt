@@ -500,45 +500,14 @@ private fun TwinSenseComparedTrack(track: MusicTrack, index: Int, onRemove: (Mus
                 Text(track.artist.ifBlank { "Unknown artist" } + if (track.album.isNotBlank()) " · ${track.album}" else "", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        Column(
+        Row(
             Modifier.padding(start = 48.dp, top = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Duration · ${formatTwinSenseDuration(track.durationMs / 1000.0)}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(
-                    "File size · ${if (track.sizeBytes > 0L) "${"%.1f".format(track.sizeBytes / (1024.0 * 1024.0))} MB" else "Unknown"}",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (track.bitrate > 0) {
-                    Text("Bitrate · ${track.bitrate / 1000} kbps", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (track.sampleRate > 0) {
-                    val sampleRateKhz = track.sampleRate / 1000.0
-                    Text("Sample rate · ${"%.1f".format(java.util.Locale.ROOT, sampleRateKhz)} kHz", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (track.channelCount > 0) {
-                    Text("Channels · ${if (track.channelCount == 1) "Mono" else if (track.channelCount == 2) "Stereo" else "${track.channelCount} channels"}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (track.mimeType.isNotBlank()) {
-                    val format = track.mimeType.substringAfter('/', track.mimeType).uppercase(java.util.Locale.ROOT)
-                    Text("Format · $format", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            Text(formatTwinSenseDuration(track.durationMs / 1000.0), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(if (track.sizeBytes > 0L) "${"%.1f".format(track.sizeBytes / (1024.0 * 1024.0))} MB" else "Size unknown", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (track.bitrate > 0) Text("${track.bitrate / 1000} kbps", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (track.mimeType.isNotBlank()) Text(track.mimeType, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         TextButton(
             onClick = { onRemove(track) },
