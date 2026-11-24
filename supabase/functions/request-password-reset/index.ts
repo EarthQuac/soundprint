@@ -37,23 +37,24 @@ Deno.serve(async (req: Request) => {
     return reply(503, { message: "Password reset is temporarily unavailable. Please try again." });
   }
 
+  const emailHash = Array.from(
+    new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(email))),
+    (byte) => byte.toString(16).padStart(2, "0"),
+  ).join("");
   const admin = createClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-
-  // Search Auth users server-side. Never expose the service-role key to the Android app.
-  let accountExists = false;
-  for (let page = 1; page <= 100; page++) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error) {
-      console.error("Password reset account lookup failed:", error.message);
-      return reply(503, { message: "We couldn't check your account right now. Please try again." });
-    }
-    accountExists = data.users.some((user) => user.email?.trim().toLowerCase() === email);
-    if (accountExists || data.users.length < 1000) break;
+  const { data: allowed, error: rateLimitError } = await admin.rpc(
+    "consume_password_reset_rate_limit",
+    { p_email_hash: emailHash },
+  );
+  if (rateLimitError || typeof allowed !== "boolean") {
+    console.error("Password reset rate limit check failed:", rateLimitError?.message);
+    return reply(503, { message: "Password reset is temporarily unavailable. Please try again." });
   }
-
-  if (!accountExists) return reply(200, { sent: false });
+  if (!allowed) {
+    return reply(429, { message: "Please wait before requesting another password reset." });
+  }
 
   const auth = createClient(url, anonKey, {
     auth: { autoRefreshToken: false, persistSession: false },
