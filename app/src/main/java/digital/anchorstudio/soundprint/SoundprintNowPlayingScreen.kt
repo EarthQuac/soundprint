@@ -422,13 +422,26 @@ fun SoundprintNowPlayingScreen(
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             item {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    IconButton(onClick = onBack) { SoundprintIcon(SoundprintIcons.ArrowLeft, "Go back") }
-                    Text("NOW PLAYING", fontSize = 11.sp, letterSpacing = 1.8.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row {
-                        IconButton(onClick = { queueOpen = true }) { SoundprintIcon(SoundprintIcons.ListMusic, "Queue") }
-                        IconButton(onClick = onMinimize) { SoundprintIcon(SoundprintIcons.X, "Minimize to mini player", tint = MaterialTheme.colorScheme.error) }
+                Box(Modifier.fillMaxWidth()) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        IconButton(onClick = onBack) { SoundprintIcon(SoundprintIcons.ArrowLeft, "Go back") }
+                        Row {
+                            IconButton(onClick = { queueOpen = true }) { SoundprintIcon(SoundprintIcons.ListMusic, "Queue") }
+                            IconButton(onClick = onMinimize) { SoundprintIcon(SoundprintIcons.X, "Minimize to mini player", tint = MaterialTheme.colorScheme.error) }
+                        }
                     }
+                    Text(
+                        "NOW PLAYING",
+                        Modifier.align(Alignment.Center),
+                        fontSize = 11.sp,
+                        letterSpacing = 1.8.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
             item {

@@ -1463,7 +1463,7 @@ private fun SoundprintApp(
                 onDismissRequest = { SoundprintProGate.lockedFeature = null },
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        SoundprintProSparkle(Modifier.size(20.dp))
                         Spacer(Modifier.width(9.dp))
                         Text("$feature is a Pro feature")
                     }
@@ -1728,7 +1728,7 @@ private fun HomeScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 HeaderAction(SoundprintIcons.UserRound, "Account", onClick = onAccount)
                 HeaderAction(SoundprintIcons.ChartNoAxesColumnIncreasing, "Listening stats", onClick = onListeningStats)
-                HeaderAction(SoundprintIcons.Crown, "Soundprint Pro", tint = MaterialTheme.colorScheme.primary, onClick = onOpenPro)
+                ProHeaderAction(onClick = onOpenPro)
                 HeaderAction(SoundprintIcons.Search, "Search", onClick = { searchOpen = true })
                 HeaderAction(SoundprintIcons.Settings, "Settings", onClick = onSettings)
             }
@@ -2425,6 +2425,16 @@ private fun HeaderAction(icon: Int, description: String, tint: Color = MaterialT
         contentAlignment = Alignment.Center
     ) {
         SoundprintIcon(icon, description, Modifier.size(20.dp), tint = tint)
+    }
+}
+
+@Composable
+private fun ProHeaderAction(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier.size(36.dp).clip(CircleShape).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        SoundprintProSparkle(Modifier.size(20.dp), contentDescription = "Soundprint Pro")
     }
 }
 

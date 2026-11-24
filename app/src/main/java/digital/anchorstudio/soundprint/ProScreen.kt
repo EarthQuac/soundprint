@@ -142,7 +142,7 @@ private fun ProHero() {
         .padding(22.dp)) {
         Row(Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
             .padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-            SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+            SoundprintProSparkle(Modifier.size(15.dp))
             Spacer(Modifier.width(7.dp))
             Text("Your music. Your way.", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
         }
@@ -183,7 +183,7 @@ private fun ProFounderOffer(onClaim: (() -> Unit)?, remaining: Int, capacity: In
             .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f), RoundedCornerShape(24.dp))
             .padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                SoundprintProSparkle(Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Founder Access · Lifetime Pro", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
             }
@@ -325,7 +325,7 @@ private fun ProFreeFeatures() {
 
 @Composable
 private fun ProFeaturesGrid() {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Column {
             Text("Every Pro feature", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
             Text("The tools included with Soundprint Pro.", modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -333,18 +333,18 @@ private fun ProFeaturesGrid() {
         proFeatures.forEach { feature ->
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surface)
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.52f), RoundedCornerShape(18.dp))
-                .padding(14.dp),
+                .padding(16.dp),
                 verticalAlignment = Alignment.Top) {
-                Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
                     contentAlignment = Alignment.Center) {
-                    SoundprintIcon(feature.icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
+                    SoundprintIcon(feature.icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 }
-                Column(Modifier.weight(1f).padding(start = 11.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(feature.title, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
-                        ProFeatureBadge()
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(feature.title, modifier = Modifier.weight(1f), fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                        ProFeatureBadge(Modifier.padding(top = 1.dp))
                     }
-                    Text(feature.description, modifier = Modifier.padding(top = 5.dp), fontSize = 10.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(feature.description, modifier = Modifier.padding(top = 6.dp), fontSize = 11.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -358,7 +358,7 @@ private fun ProActiveCard(entitlementSource: String?) {
         .padding(18.dp)) {
         Row(Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)).padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            SoundprintIcon(SoundprintIcons.Crown, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+            SoundprintProSparkle(Modifier.size(15.dp))
             Spacer(Modifier.width(7.dp))
             Text("Pro active", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
         }

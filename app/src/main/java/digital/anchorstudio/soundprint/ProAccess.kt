@@ -1,20 +1,17 @@
 package digital.anchorstudio.soundprint
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 internal data class SoundprintProUiAccess(
     val entitled: Boolean = false,
@@ -27,27 +24,37 @@ internal val LocalSoundprintProUiAccess = staticCompositionLocalOf { SoundprintP
 internal fun ProFeatureBadge(modifier: Modifier = Modifier) {
     val access = LocalSoundprintProUiAccess.current
     if (!access.entitled) {
-        Surface(
-            modifier = modifier,
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = .12f)
-        ) {
-            Row(
-                Modifier.height(20.dp).padding(horizontal = 7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                SoundprintIcon(SoundprintIcons.Crown, null, modifier = Modifier.size(11.dp), tint = MaterialTheme.colorScheme.primary)
-                Text(
-                    "Pro",
-                    fontSize = 9.sp,
-                    lineHeight = 10.sp,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                    letterSpacing = .65.sp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+        SoundprintProSparkle(
+            modifier = modifier.size(16.dp),
+            contentDescription = "Pro feature"
+        )
+    }
+}
+
+@Composable
+internal fun SoundprintProSparkle(
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null
+) {
+    val surfaceLuminance = MaterialTheme.colorScheme.surface.luminance()
+    val gold = if (surfaceLuminance < 0.5f) Color(0xFFF6CE72) else Color(0xFF946200)
+    val accessibleModifier = if (contentDescription == null) modifier else {
+        modifier.semantics { this.contentDescription = contentDescription }
+    }
+    Canvas(accessibleModifier) {
+        val radius = size.minDimension * 0.48f
+        val waist = radius * 0.16f
+        val centerX = size.width / 2f
+        val centerY = size.height / 2f
+        val sparkle = Path().apply {
+            moveTo(centerX, centerY - radius)
+            quadraticTo(centerX + waist, centerY - waist, centerX + radius, centerY)
+            quadraticTo(centerX + waist, centerY + waist, centerX, centerY + radius)
+            quadraticTo(centerX - waist, centerY + waist, centerX - radius, centerY)
+            quadraticTo(centerX - waist, centerY - waist, centerX, centerY - radius)
+            close()
         }
+        drawPath(sparkle, gold)
     }
 }
 

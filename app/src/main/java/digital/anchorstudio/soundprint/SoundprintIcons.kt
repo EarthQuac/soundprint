@@ -90,7 +90,6 @@ internal object SoundprintIcons {
     val EighthNotes = R.drawable.lucide_ic_eighth_notes
     val User = LucideR.drawable.lucide_ic_user
     val FolderPlus = LucideR.drawable.lucide_ic_folder_plus
-    val Crown = LucideR.drawable.lucide_ic_crown
     val SunMoon = LucideR.drawable.lucide_ic_sun_moon
     val Sun = LucideR.drawable.lucide_ic_sun
     val Gauge = LucideR.drawable.lucide_ic_gauge
