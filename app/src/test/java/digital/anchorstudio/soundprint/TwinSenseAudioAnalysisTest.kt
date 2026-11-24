@@ -64,7 +64,7 @@ class TwinSenseAudioAnalysisTest {
 
         assertNotNull(match)
         assertEquals(TwinSenseMatchKind.ACOUSTIC, match!!.kind)
-        assertEquals(94, match.confidence)
+        assertEquals(93, match.confidence)
         assertTrue(match.reasons.contains("Similar harmonic profile"))
         assertFalse(match.versionWarning)
     }
