@@ -662,7 +662,7 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
     ): TwinSenseScanResult {
         val tracks = withContext(Dispatchers.IO) { library.allSongs() }
         val sampled = ConcurrentHashMap<String, String>()
-        val profiles = ConcurrentHashMap<String, TwinSenseFingerprint>()
+        val profiles = ConcurrentHashMap<String, TwinSenseAudioAnalysisProfile>()
         val failedIds = ConcurrentHashMap.newKeySet<String>()
         val reused = AtomicInteger(0)
         val completed = AtomicInteger(0)
@@ -705,13 +705,24 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                 coroutineContext.ensureActive()
                 try {
                     decoderSlots.withPermit {
-                        val cached = withContext(Dispatchers.IO) {
-                            library.twinSenseFingerprint(track.id, track.sizeBytes, track.modifiedAt)
+                        val cacheKey = "twinsense:${track.id}:${track.sizeBytes}:${track.modifiedAt}:${track.mimeType}:${TwinSenseAudioAnalysisProfile.ANALYSIS_VERSION}"
+                        val cachedProfile = withContext(Dispatchers.IO) {
+                            library.cachedTwinSenseAnalysis(cacheKey)
+                        }?.let { TwinSenseAudioAnalysisProfile.fromJson(it) }
+                            ?.takeIf { it.matchesSource(track) }
+                        if (cachedProfile != null) {
+                            reused.incrementAndGet()
+                            profiles[track.id] = cachedProfile
+                        } else {
+                            val created = engine.createWithProfile(track)
+                            profiles[track.id] = created.audioProfile
+                            withContext(Dispatchers.IO) {
+                                library.saveTwinSenseFingerprint(created.fingerprint)
+                                library.saveTwinSenseAnalysis(
+                                    track.id, cacheKey, created.audioProfile.toJson(), track.sizeBytes, track.mimeType
+                                )
+                            }
                         }
-                        val profile = cached ?: engine.create(track)
-                        if (cached != null) reused.incrementAndGet()
-                        else withContext(Dispatchers.IO) { library.saveTwinSenseFingerprint(profile) }
-                        profiles[track.id] = profile
                         failedIds.remove(track.id)
                     }
                 } catch (cancel: CancellationException) {
@@ -777,19 +788,9 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                 val firstProfile = profiles[first.id]
                 val secondProfile = profiles[second.id]
                 if (firstProfile != null && secondProfile != null) {
-                    val similarity = TwinSenseFingerprintComparator.compare(firstProfile, secondProfile)
-                    if (similarity != null && similarity >= 0.93) {
-                        val durationDifference = kotlin.math.abs(first.durationMs - second.durationMs)
-                        val durationRatio = if (first.durationMs > 0L && second.durationMs > 0L)
-                            durationDifference.toDouble() / max(first.durationMs, second.durationMs) else 0.0
-                        val versionWarning = durationDifference > 3_000L && durationRatio > 0.02
-                        val confidence = min(94, (72 + (similarity - 0.86) * 150).toInt())
-                        matches += TwinSenseMatch(
-                            first, second, TwinSenseMatchKind.ACOUSTIC, confidence,
-                            listOf("Similar local audio-analysis profile", "Compared cached spectral fingerprint frames") +
-                                if (versionWarning) listOf("Different duration — preserve and review as a possible alternate version") else emptyList(),
-                            versionWarning
-                        )
+                    val audioMatch = TwinSenseAudioAnalysis.compare(first, second, firstProfile, secondProfile)
+                    if (audioMatch != null) {
+                        matches += audioMatch
                         continue
                     }
                 }
