@@ -153,10 +153,10 @@ internal fun SoundprintSongsLibraryScreen(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.weight(1f)) {
-                    OutlinedButton(onClick = { sortMenuExpanded = true }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(24.dp)) {
-                        SoundprintIcon(SoundprintIcons.ArrowDownUp, null, Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Sort: $sortBy", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
+                    OutlinedButton(onClick = { sortMenuExpanded = true }, modifier = Modifier.fillMaxWidth().height(44.dp), shape = RoundedCornerShape(24.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 4.dp)) {
+                        SoundprintIcon(SoundprintIcons.ArrowDownUp, null, Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Sort: $sortBy", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp, softWrap = false)
                     }
                     DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = { sortMenuExpanded = false }) {
                         listOf("Title", "Artist", "Album", "Date added", "Duration").forEach { option ->
@@ -164,10 +164,10 @@ internal fun SoundprintSongsLibraryScreen(
                         }
                     }
                 }
-                OutlinedButton(onClick = { descending = !descending }, modifier = Modifier.weight(1f).height(48.dp), shape = RoundedCornerShape(24.dp)) {
-                    SoundprintIcon(SoundprintIcons.ArrowDownUp, null, Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (descending) "Descending" else "Ascending", fontSize = 14.sp, maxLines = 1)
+                OutlinedButton(onClick = { descending = !descending }, modifier = Modifier.weight(1f).height(44.dp), shape = RoundedCornerShape(24.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 4.dp)) {
+                    SoundprintIcon(SoundprintIcons.ArrowDownUp, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(if (descending) "Descending" else "Ascending", fontSize = 12.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
