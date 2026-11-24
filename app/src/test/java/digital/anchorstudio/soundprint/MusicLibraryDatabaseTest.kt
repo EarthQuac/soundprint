@@ -264,7 +264,7 @@ class MusicLibraryDatabaseTest {
         val migrated = MusicLibraryDatabase(context)
         val item = migrated.findById("legacy")!!
         assertEquals("Legacy track", item.title)
-        assertEquals(5, migrated.readableDatabase.version)
+        assertEquals(7, migrated.readableDatabase.version)
         assertTrue(migrated.readableDatabase.rawQuery("SELECT 1 FROM track_sources WHERE track_id='legacy' AND source_uri='legacy-folder'", null).use { it.moveToFirst() })
         migrated.close()
     }
