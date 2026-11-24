@@ -715,12 +715,11 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                             reused.incrementAndGet()
                             profiles[track.id] = cachedProfile
                         } else {
-                            val created = engine.createWithProfile(track)
-                            profiles[track.id] = created.audioProfile
+                            val created = engine.analyze(track)
+                            profiles[track.id] = created
                             withContext(Dispatchers.IO) {
-                                library.saveTwinSenseFingerprint(created.fingerprint)
                                 library.saveTwinSenseAnalysis(
-                                    track.id, cacheKey, created.audioProfile.toJson(), track.sizeBytes, track.mimeType
+                                    track.id, cacheKey, created.toJson(), track.sizeBytes, track.mimeType
                                 )
                             }
                         }
