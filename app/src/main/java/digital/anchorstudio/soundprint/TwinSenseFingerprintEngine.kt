@@ -63,7 +63,7 @@ data class TwinSenseFingerprint(
     val version: Int = TWINSENSE_VERSION
 )
 
-data class TwinSenseFingerprintAnalysis(
+internal data class TwinSenseFingerprintAnalysis(
     val fingerprint: TwinSenseFingerprint,
     val audioProfile: TwinSenseAudioAnalysisProfile
 )
