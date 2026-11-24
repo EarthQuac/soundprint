@@ -740,7 +740,7 @@ fun SoundprintNowPlayingScreen(
                     mime.isNotBlank() -> mime.substringAfter('/').uppercase()
                     else -> "Unknown"
                 }
-                val codec = mime.substringAfter('/', "").takeIf { it.isNotBlank() }?.uppercase() ?: "Not identified"
+                val codec = track?.encoding?.takeIf { it.isNotBlank() } ?: mime.substringAfter('/', "").takeIf { it.isNotBlank() }?.uppercase() ?: "Not identified"
                 val size = track?.sizeBytes ?: 0L
                 val fileSize = when {
                     size <= 0L -> "Unknown"
@@ -766,7 +766,7 @@ fun SoundprintNowPlayingScreen(
                     "AUDIO" to listOf(
                         "Format" to format,
                         "Encoding / codec" to codec,
-                        "Bitrate" to if ((track?.bitrate ?: 0) > 0) "${track!!.bitrate} kbps" else "Not available",
+                        "Bitrate" to if ((track?.bitrate ?: 0) > 0) "${track!!.bitrate / 1000} kbps" else "Not available",
                         "Sample rate" to if (sampleRate > 0) "${"%.3f".format(java.util.Locale.getDefault(), sampleRate / 1000.0).trimEnd('0').trimEnd('.')} kHz" else "Not available",
                         "Channels" to when (channels) { 1 -> "Mono (1)"; in 2..Int.MAX_VALUE -> "$channels channels"; else -> "Not available" },
                         "File size" to fileSize
