@@ -275,6 +275,7 @@ private class LibraryManagementDatabase(context:Context):SQLiteOpenHelper(contex
         buildList { while(c.moveToNext()) add(Triple(c.getString(0),c.getLong(1),c.getString(2))) }
     }
     fun removeRecycleBinEntry(id:String) { writableDatabase.delete("recycle_bin","track_id=?",arrayOf(id)) }
+    fun clearRecycleBin() { writableDatabase.delete("recycle_bin",null,null) }
     fun purgeRecycleBin(cutoff:Long):List<String> {
         val ids=mutableListOf<String>();val db=writableDatabase;db.beginTransaction()
         try { db.rawQuery("SELECT track_id FROM recycle_bin WHERE removed_at<=?",arrayOf(cutoff.toString())).use { c -> while(c.moveToNext()) ids+=c.getString(0) };ids.forEach { db.delete("recycle_bin","track_id=?",arrayOf(it)) };db.setTransactionSuccessful() }
@@ -469,21 +470,53 @@ class MusicLibraryManager(context:Context) {
     fun twinSenseFingerprint(trackId:String,size:Long,modifiedAt:Long)=repository.twinSenseFingerprint(trackId,size,modifiedAt)
     fun deleteTwinSenseFingerprint(trackId:String)=repository.deleteTwinSenseFingerprint(trackId)
 
+    /**
+     * Older TwinSense builds mirrored trash metadata into a second SQLite database.
+     * Import those records once into the library database, which is now the single source
+     * of truth for the hidden track and its Recycle Bin entry.
+     */
+    private fun migrateLegacyRecycleBinEntries() {
+        state.recycleBin().forEach { (id,removedAt,reason) ->
+            if (repository.track(id) != null) repository.ensureTwinSenseTrashEntry(id,removedAt,reason)
+            state.removeRecycleBinEntry(id)
+        }
+    }
+
     fun moveToRecycleBin(id:String,reason:String="user") {
-        require(repository.track(id)!=null) { "Song not found." };repository.moveToTwinSenseTrash(id);state.addRecycleBinEntry(id,reason)
+        require(repository.track(id)!=null) { "Song not found." }
+        repository.moveToTwinSenseTrash(id,reason)
     }
     fun recycleBin():List<RecycleBinEntry> {
+        migrateLegacyRecycleBinEntries()
         purgeExpiredRecycleBin()
-        return state.recycleBin().mapNotNull { (id,removed,reason) -> repository.track(id)?.let { RecycleBinEntry(it,removed,reason) } }
+        return repository.twinSenseTrashRecords().mapNotNull { (id,removed,reason) ->
+            repository.track(id)?.let { RecycleBinEntry(it,removed,reason) }
+        }
     }
     fun restoreFromRecycleBin(id:String) {
-        check(state.recycleBin().any { it.first==id }) { "Recycle Bin item not found." };repository.restoreFromTwinSenseTrash(id);state.removeRecycleBinEntry(id)
+        migrateLegacyRecycleBinEntries()
+        check(repository.twinSenseTrashRecords().any { it.first==id }) { "Recycle Bin item not found." }
+        repository.restoreFromTwinSenseTrash(id)
+        state.removeRecycleBinEntry(id)
     }
     /** Removes Soundprint's record only. The original audio file in Android storage is untouched. */
-    fun permanentlyRemoveFromLibrary(id:String) { state.removeRecycleBinEntry(id);state.removeTrackReferences(id);repository.removeTrackRecord(id) }
-    fun emptyRecycleBin() { state.recycleBin().map { it.first }.forEach { state.removeTrackReferences(it);repository.removeTrackRecord(it);state.removeRecycleBinEntry(it) } }
+    fun permanentlyRemoveFromLibrary(id:String) {
+        state.removeRecycleBinEntry(id)
+        state.removeTrackReferences(id)
+        repository.removeTrackRecord(id)
+    }
+    fun emptyRecycleBin() {
+        migrateLegacyRecycleBinEntries()
+        val removed=repository.emptyTwinSenseTrash()
+        removed.forEach { state.removeTrackReferences(it) }
+        state.clearRecycleBin()
+    }
     fun purgeExpiredRecycleBin(now:Long=System.currentTimeMillis()):Int {
-        val expired=state.purgeRecycleBin(now-RECYCLE_BIN_RETENTION_MS);expired.forEach { state.removeTrackReferences(it);repository.removeTrackRecord(it) };return expired.size
+        migrateLegacyRecycleBinEntries()
+        val expired=repository.purgeExpiredTwinSenseTrash(now-RECYCLE_BIN_RETENTION_MS)
+        expired.forEach { state.removeTrackReferences(it) }
+        state.clearRecycleBin()
+        return expired.size
     }
     fun searchSongs(query:String,favoritesOnly:Boolean=false,sort:TrackSort=TrackSort.TITLE,ascending:Boolean=true)=
         repository.tracks(query,sort,ascending).filter { !favoritesOnly||it.isFavorite }
