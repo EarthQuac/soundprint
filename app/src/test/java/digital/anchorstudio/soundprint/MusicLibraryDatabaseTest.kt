@@ -197,6 +197,15 @@ class MusicLibraryDatabaseTest {
         db.close()
     }
 
+    @Test fun persistsOriginalAudioFileNameForDuplicateCleanup() {
+        val db = MusicLibraryDatabase(context)
+        val original = track("content://music/numbered-copy").copy(fileName = "Song (1).mp3")
+        db.upsert(original)
+
+        assertEquals("Song (1).mp3", db.findById(original.id)!!.fileName)
+        db.close()
+    }
+
     @Test fun versionOneDatabaseMigratesThroughEverySchemaVersion() {
         val raw = context.openOrCreateDatabase("soundprint_music_library.db", Context.MODE_PRIVATE, null)
         raw.execSQL("""CREATE TABLE tracks(
