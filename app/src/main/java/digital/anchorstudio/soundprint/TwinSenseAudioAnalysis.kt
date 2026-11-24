@@ -257,7 +257,7 @@ internal object TwinSenseAudioAnalysis {
         }
         if (first.durationMs > 0L && second.durationMs > 0L) {
             if (versionWarning) {
-                reasons += "Duration differs by ${formatTwinSenseDuration(durationDifference)} (${formatTwinSenseDuration(first.durationMs / 1000.0)} vs ${formatTwinSenseDuration(second.durationMs / 1000.0)})"
+                reasons += "Possible alternate version: duration differs by ${formatTwinSenseDuration(durationDifference)} (${formatTwinSenseDuration(first.durationMs / 1000.0)} vs ${formatTwinSenseDuration(second.durationMs / 1000.0)})"
             } else reasons += "Similar duration (${formatTwinSenseDuration(first.durationMs / 1000.0)})"
         }
         if (first.sizeBytes > 0L && second.sizeBytes > 0L && first.sizeBytes != second.sizeBytes) {
