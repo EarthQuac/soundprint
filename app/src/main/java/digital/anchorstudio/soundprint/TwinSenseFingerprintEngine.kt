@@ -894,7 +894,14 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                 if (firstProfile != null && secondProfile != null) {
                     val audioMatch = TwinSenseAudioAnalysis.compare(first, second, firstProfile, secondProfile)
                     if (audioMatch != null) {
-                        matches += audioMatch
+                        val metadataMatch = compareMetadata(first, second)
+                        val combinedMatch = if (metadataMatch != null) {
+                            audioMatch.copy(
+                                confidence = max(audioMatch.confidence, metadataMatch.confidence),
+                                reasons = (audioMatch.reasons + metadataMatch.reasons).distinct()
+                            )
+                        } else audioMatch
+                        matches += combinedMatch
                         continue
                     }
                 }
@@ -960,11 +967,11 @@ object TwinSenseCleanupPlanner {
             val byteIdentical = match.kind == TwinSenseMatchKind.EXACT_AUDIO &&
                 !match.versionWarning &&
                 match.reasons.any { reason -> reason.contains("SHA-256 signature of sampled beginning, middle and ending bytes") }
-            val corroboratedCopy = match.kind == TwinSenseMatchKind.METADATA &&
+            val corroboratedCopy = match.kind in setOf(TwinSenseMatchKind.METADATA, TwinSenseMatchKind.ACOUSTIC) &&
                 !match.versionWarning &&
                 match.confidence >= 75 &&
                 (hasCopyMarker(match.first) || hasCopyMarker(match.second)) &&
-                match.reasons.any { it == "Matching artist" } &&
+                match.reasons.any { it == "Matching artist" || it == "Matching artist metadata" } &&
                 match.first.durationMs > 0L && match.second.durationMs > 0L &&
                 kotlin.math.abs(match.first.durationMs - match.second.durationMs) <= 3_000L
             byteIdentical || corroboratedCopy
