@@ -595,10 +595,12 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
     private fun normalizedTitle(track: MusicTrack): String {
         val title = track.title.takeIf { it.isNotBlank() && !it.equals("Unknown title", true) }
             ?: Uri.parse(track.uri).lastPathSegment?.let { Uri.decode(it) }.orEmpty()
-        val baseTitle = title.replace(
-            Regex("""(?i)\s*(?:\(\s*(?:copy|duplicate|duplicated|dup|\d+)\s*\)|\[\s*(?:copy|duplicate|duplicated|dup|\d+)\s*\]|[-_ ]+(?:copy|duplicate|duplicated|dup)(?:[-_ ]*\d+)?|[-_ ]+\(\d+\)|[-_ ]+\d+)\s*$"""),
-            ""
-        )
+        val baseTitle = title
+            .replace(Regex("""(?i)^\s*(?:copy|duplicate|duplicated|dup|backup|clone)(?:\s+of)?\s+"""), "")
+            .replace(
+                Regex("""(?i)\s*(?:\(\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|\d+)\s*\)|\[\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|\d+)\s*\]|[-_ ]+(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|[-_ ]+\(\d+\)|[-_ ]+\d+)\s*$"""),
+                ""
+            )
         return TwinSenseText.normalize(baseTitle)
     }
 
@@ -945,7 +947,7 @@ object TwinSenseCleanupPlanner {
     fun hasCopyMarker(track: MusicTrack): Boolean {
         val value = "${track.title} ${fileName(track)}".lowercase(Locale.ROOT)
         val copySuffix = Regex(
-            """(?:\s*\(\s*(?:copy|duplicate|duplicated|dup|\d+)\s*\)\s*$|\s*\[\s*(?:copy|duplicate|duplicated|dup|\d+)\s*\]\s*$|\s*[-_]\s*(?:copy|duplicate|duplicated|dup)(?:[-_ ]*\d+)?\s*$|\s+(?:copy|duplicate|duplicated|dup)\s*\d*\s*$|\s+\(\d+\)\s*$|\s+\d+\s*$)""",
+            """(?:^|\s)(?:copy|duplicate|duplicated|dup|backup|clone)(?:\s+of)?\s+|(?:\s*\(\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|\d+)\s*\)\s*$|\s*\[\s*(?:(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?|\d+)\s*\]\s*$|\s*[-_]\s*(?:copy|duplicate|duplicated|dup|backup|clone)(?:[-_ ]*\d+)?\s*$|\s+(?:copy|duplicate|duplicated|dup|backup|clone)\s*\d*\s*$|\s+\(\d+\)\s*$|\s+\d+\s*$)""",
             RegexOption.IGNORE_CASE
         )
         return copySuffix.containsMatchIn(value)
