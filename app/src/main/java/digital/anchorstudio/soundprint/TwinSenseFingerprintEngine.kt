@@ -6,8 +6,10 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -17,6 +19,8 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+import java.security.MessageDigest
 import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
@@ -108,7 +112,7 @@ object TwinSenseText {
         .normalizeCompat()
         .lowercase(Locale.ROOT)
         .replace(Regex("\\.(mp3|m4a|aac|flac|wav|ogg|opus|wma|aiff?)$"), "")
-        .replace(Regex("\\b(official audio|official video|lyrics?|audio|video|explicit|clean|copy|duplicate)\\b"), " ")
+        .replace(Regex("\\b(official audio|official video|lyrics?|audio|video|remaster(?:ed)?|explicit|clean|copy|duplicate|\\d{4} remaster)\\b"), " ")
         .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
         .trim()
         .replace(Regex("\\s+"), " ")
@@ -482,48 +486,191 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
      * independent decoders concurrently. Neither mode inserts artificial delays
      * or reduces the audio coverage/accuracy of the free scan.
      */
+    private suspend fun sampledSignature(track: MusicTrack): String = withContext(Dispatchers.IO) {
+        require(track.sizeBytes > 0L) { "The file size is unavailable." }
+        val cacheKey = "sampled_signature_${track.id}"
+        val cached = preferences.getString(cacheKey, null)
+        if (cached != null &&
+            preferences.getLong("${cacheKey}_size", -1L) == track.sizeBytes &&
+            preferences.getLong("${cacheKey}_modified", -1L) == track.modifiedAt
+        ) return@withContext cached
+
+        val digest = MessageDigest.getInstance("SHA-256")
+        digest.update("${track.sizeBytes}\u0000${track.mimeType.lowercase(Locale.ROOT)}".toByteArray(Charsets.UTF_8))
+        val chunkSize = 48 * 1024
+        val offsets = listOf(
+            0L,
+            max(0L, track.sizeBytes / 2L - chunkSize / 2L),
+            max(0L, track.sizeBytes - chunkSize)
+        ).distinct()
+        val descriptor = appContext.contentResolver.openFileDescriptor(Uri.parse(track.uri), "r")
+            ?: error("Android could not open this audio file.")
+        ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { input ->
+            val channel = input.channel
+            offsets.forEach { offset ->
+                channel.position(offset)
+                val byteCount = min(chunkSize.toLong(), (track.sizeBytes - offset).coerceAtLeast(0L)).toInt()
+                if (byteCount > 0) {
+                    val buffer = ByteBuffer.allocate(byteCount)
+                    while (buffer.hasRemaining()) {
+                        val read = channel.read(buffer)
+                        if (read <= 0) break
+                    }
+                    digest.update(buffer.array(), 0, buffer.position())
+                }
+            }
+        }
+        val signature = digest.digest().joinToString("") { "%02x".format(it) }
+        preferences.edit()
+            .putString(cacheKey, signature)
+            .putLong("${cacheKey}_size", track.sizeBytes)
+            .putLong("${cacheKey}_modified", track.modifiedAt)
+            .apply()
+        signature
+    }
+
+    private fun normalizedTitle(track: MusicTrack): String {
+        val title = track.title.takeIf { it.isNotBlank() && !it.equals("Unknown title", true) }
+            ?: Uri.parse(track.uri).lastPathSegment?.let(Uri::decode).orEmpty()
+        return TwinSenseText.normalize(title)
+    }
+
+    private fun compareMetadata(first: MusicTrack, second: MusicTrack): TwinSenseMatch? {
+        val titleA = normalizedTitle(first)
+        val titleB = normalizedTitle(second)
+        if (titleA.isBlank() || titleA != titleB) return null
+        val reasons = mutableListOf("Matching normalized title")
+        var score = 40
+        val artistA = TwinSenseText.normalize(first.artist)
+        val artistB = TwinSenseText.normalize(second.artist)
+        val albumA = TwinSenseText.normalize(first.album)
+        val albumB = TwinSenseText.normalize(second.album)
+        if (artistA.isNotBlank() && artistA != "unknown artist" && artistA == artistB) {
+            score += 25
+            reasons += "Matching artist"
+        }
+        if (albumA.isNotBlank() && albumA != "unknown album" && albumA == albumB) {
+            score += 8
+            reasons += "Matching album"
+        }
+        val validDurations = first.durationMs > 0L && second.durationMs > 0L
+        val durationDifference = if (validDurations) kotlin.math.abs(first.durationMs - second.durationMs) else 0L
+        val durationRatio = if (validDurations) durationDifference.toDouble() / max(first.durationMs, second.durationMs) else 0.0
+        val versionWarning = validDurations && durationDifference > 3_000L && durationRatio > 0.02
+        if (validDurations && !versionWarning) {
+            score += 12
+            reasons += "Similar duration"
+        } else if (versionWarning) {
+            reasons += "Different duration — could be an intro, edit or alternate version"
+        }
+        if (first.sizeBytes > 0L && first.sizeBytes == second.sizeBytes) {
+            score += 4
+            reasons += "Same file size"
+        }
+        if (first.sampleRate > 0 && second.sampleRate > 0 && first.sampleRate == second.sampleRate) {
+            score += 2
+            reasons += "Same sample rate (${first.sampleRate} Hz)"
+        }
+        if (first.channelCount > 0 && second.channelCount > 0 && first.channelCount == second.channelCount) {
+            score += 2
+            reasons += "Same channel count (${first.channelCount})"
+        }
+        val bitrateA = first.bitrate / 1000
+        val bitrateB = second.bitrate / 1000
+        if (bitrateA > 0 && bitrateA == bitrateB) {
+            score += 2
+            reasons += "Same bitrate (${bitrateA} kbps)"
+        }
+        if (first.mimeType.isNotBlank() && second.mimeType.isNotBlank() &&
+            TwinSenseText.normalize(first.mimeType) == TwinSenseText.normalize(second.mimeType)
+        ) {
+            score += 2
+            reasons += "Matching encoding (${first.mimeType})"
+        }
+        if (versionWarning) {
+            return if (score >= 65) TwinSenseMatch(first, second, TwinSenseMatchKind.METADATA, min(score, 94), reasons, true) else null
+        }
+        if (score < 65) return null
+        return TwinSenseMatch(first, second, TwinSenseMatchKind.METADATA, min(score, 98), reasons, false)
+    }
+
     suspend fun scan(
         advanced: Boolean = false,
         onProgress: (TwinSenseScanProgress) -> Unit = {}
     ): TwinSenseScanResult {
         val tracks = withContext(Dispatchers.IO) { library.allSongs() }
-        val fingerprints = ConcurrentHashMap<String, TwinSenseFingerprint>()
+        val sampled = ConcurrentHashMap<String, String>()
+        val profiles = ConcurrentHashMap<String, TwinSenseFingerprint>()
+        val failedIds = ConcurrentHashMap.newKeySet<String>()
         val reused = AtomicInteger(0)
-        val failed = AtomicInteger(0)
         val completed = AtomicInteger(0)
-        val decoderSlots = Semaphore(if (advanced) 2 else 1)
+        val nextIndex = AtomicInteger(0)
 
-        suspend fun fingerprintTrack(track: MusicTrack) {
+        suspend fun sampleTrack(track: MusicTrack) {
             coroutineContext.ensureActive()
             try {
-                decoderSlots.withPermit {
-                    val cached = withContext(Dispatchers.IO) {
-                        library.twinSenseFingerprint(track.id, track.sizeBytes, track.modifiedAt)
-                    }
-                    val fingerprint = cached ?: engine.create(track)
-                    if (cached != null) {
-                        reused.incrementAndGet()
-                    } else {
-                        withContext(Dispatchers.IO) { library.saveTwinSenseFingerprint(fingerprint) }
-                    }
-                    fingerprints[track.id] = fingerprint
-                }
+                sampled[track.id] = sampledSignature(track)
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (_: Exception) {
-                failed.incrementAndGet()
+                failedIds.add(track.id)
             } finally {
                 val done = completed.incrementAndGet()
-                onProgress(TwinSenseScanProgress(done, tracks.size, track.title, reused.get(), failed.get()))
+                onProgress(TwinSenseScanProgress(done, tracks.size, track.title, reused.get(), failedIds.size))
+                if (!advanced) delay(150L)
             }
         }
 
-        if (advanced) {
-            coroutineScope {
-                tracks.map { track -> async { fingerprintTrack(track) } }.awaitAll()
+        val sampleWorkers = if (advanced) min(6, tracks.size) else min(1, tracks.size)
+        coroutineScope {
+            repeat(sampleWorkers) {
+                launch {
+                    while (true) {
+                        val index = nextIndex.getAndIncrement()
+                        if (index >= tracks.size) break
+                        sampleTrack(tracks[index])
+                    }
+                }
             }
-        } else {
-            for (track in tracks) fingerprintTrack(track)
+        }
+
+        if (advanced && tracks.isNotEmpty()) {
+            completed.set(0)
+            nextIndex.set(0)
+            val decoderSlots = Semaphore(4)
+            suspend fun analyzeTrack(track: MusicTrack) {
+                coroutineContext.ensureActive()
+                try {
+                    decoderSlots.withPermit {
+                        val cached = withContext(Dispatchers.IO) {
+                            library.twinSenseFingerprint(track.id, track.sizeBytes, track.modifiedAt)
+                        }
+                        val profile = cached ?: engine.create(track)
+                        if (cached != null) reused.incrementAndGet()
+                        else withContext(Dispatchers.IO) { library.saveTwinSenseFingerprint(profile) }
+                        profiles[track.id] = profile
+                    }
+                } catch (cancel: CancellationException) {
+                    throw cancel
+                } catch (_: Exception) {
+                    failedIds.add(track.id)
+                } finally {
+                    val done = completed.incrementAndGet()
+                    val percent = 35 + (done * 65 / tracks.size).coerceIn(0, 65)
+                    onProgress(TwinSenseScanProgress(done, tracks.size, track.title, reused.get(), failedIds.size).copy(completed = percent))
+                }
+            }
+            coroutineScope {
+                repeat(min(4, tracks.size)) {
+                    launch {
+                        while (true) {
+                            val index = nextIndex.getAndIncrement()
+                            if (index >= tracks.size) break
+                            analyzeTrack(tracks[index])
+                        }
+                    }
+                }
+            }
         }
 
         val candidates = linkedMapOf<String, Pair<MusicTrack, MusicTrack>>()
@@ -532,63 +679,68 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
             val pair = if (first.id < second.id) first to second else second to first
             candidates["${pair.first.id}:${pair.second.id}"] = pair
         }
-        val titleGroups = tracks.groupBy { TwinSenseText.normalize(it.title) }.filterKeys { it.isNotBlank() }
-        titleGroups.values.forEach { group -> for (i in group.indices) for (j in i + 1 until group.size) add(group[i], group[j]) }
-
-        val byDuration = tracks.filter { it.durationMs > 0 }.sortedBy { it.durationMs }
-        for (i in byDuration.indices) {
-            val first = byDuration[i]
-            var j = i + 1
-            val tolerance = max(3_000L, (first.durationMs * 0.025).toLong())
-            while (j < byDuration.size && byDuration[j].durationMs - first.durationMs <= tolerance) {
-                add(first, byDuration[j])
-                j++
-            }
+        val fingerprintGroups = tracks.filter { it.sizeBytes > 0L && sampled.containsKey(it.id) }
+            .groupBy { "${it.sizeBytes}:${sampled[it.id]}" }
+        fingerprintGroups.values.forEach { group ->
+            for (i in group.indices) for (j in i + 1 until group.size) add(group[i], group[j])
         }
-        val hashGroups = tracks.filter { !it.contentHash.isNullOrBlank() }.groupBy { it.contentHash }
-        hashGroups.values.forEach { group -> for (i in group.indices) for (j in i + 1 until group.size) add(group[i], group[j]) }
+        val titleGroups = tracks.map { it to normalizedTitle(it) }
+            .filter { it.second.isNotBlank() }
+            .groupBy { it.second }
+        titleGroups.values.forEach { group ->
+            for (i in group.indices) for (j in i + 1 until group.size) add(group[i].first, group[j].first)
+        }
 
         val matches = mutableListOf<TwinSenseMatch>()
         for ((first, second) in candidates.values) {
             coroutineContext.ensureActive()
-            val versionWarning = TwinSenseText.hasVersionLabel(first.title) || TwinSenseText.hasVersionLabel(second.title)
-            if (!first.contentHash.isNullOrBlank() && first.contentHash == second.contentHash) {
-                matches += TwinSenseMatch(first, second, TwinSenseMatchKind.EXACT_AUDIO, 100,
-                    listOf("Identical SHA-256 hash of the complete audio file"), versionWarning)
+            val firstSignature = sampled[first.id]
+            val secondSignature = sampled[second.id]
+            if (first.sizeBytes > 0L && first.sizeBytes == second.sizeBytes &&
+                firstSignature != null && firstSignature == secondSignature
+            ) {
+                matches += TwinSenseMatch(
+                    first, second, TwinSenseMatchKind.EXACT_AUDIO, 99,
+                    listOf("Matching file size", "Matching SHA-256 signature of sampled beginning, middle and ending bytes"),
+                    false
+                )
                 continue
             }
-            val firstFingerprint = fingerprints[first.id]
-            val secondFingerprint = fingerprints[second.id]
-            if (firstFingerprint != null && secondFingerprint != null) {
-                val similarity = TwinSenseFingerprintComparator.compare(firstFingerprint, secondFingerprint)
-                if (similarity != null && similarity >= 0.86) {
-                    val confidence = (similarity * 100).toInt().coerceIn(86, 99)
-                    val exactDuration = abs(first.durationMs - second.durationMs) <= 1_500L
-                    val kind = if (similarity >= 0.94 && exactDuration && !versionWarning) TwinSenseMatchKind.EXACT_AUDIO else TwinSenseMatchKind.ACOUSTIC
-                    matches += TwinSenseMatch(first, second, kind, confidence,
-                        listOf("Local PCM spectral fingerprint similarity: ${confidence}%", "Compared ${min(firstFingerprint.frameCount, secondFingerprint.frameCount)} audio sections"),
-                        versionWarning || abs(first.durationMs - second.durationMs) > 3_000L)
-                    continue
+
+            if (advanced && normalizedTitle(first).isNotBlank() &&
+                normalizedTitle(first) == normalizedTitle(second)
+            ) {
+                val firstProfile = profiles[first.id]
+                val secondProfile = profiles[second.id]
+                if (firstProfile != null && secondProfile != null) {
+                    val similarity = TwinSenseFingerprintComparator.compare(firstProfile, secondProfile)
+                    if (similarity != null && similarity >= 0.93) {
+                        val durationDifference = kotlin.math.abs(first.durationMs - second.durationMs)
+                        val durationRatio = if (first.durationMs > 0L && second.durationMs > 0L)
+                            durationDifference.toDouble() / max(first.durationMs, second.durationMs) else 0.0
+                        val versionWarning = durationDifference > 3_000L && durationRatio > 0.02
+                        val confidence = min(94, (72 + (similarity - 0.86) * 150).toInt())
+                        matches += TwinSenseMatch(
+                            first, second, TwinSenseMatchKind.ACOUSTIC, confidence,
+                            listOf("Similar local audio-analysis profile", "Compared cached spectral fingerprint frames") +
+                                if (versionWarning) listOf("Different duration — preserve and review as a possible alternate version") else emptyList(),
+                            versionWarning
+                        )
+                        continue
+                    }
                 }
             }
-            val titleA = TwinSenseText.normalize(first.title)
-            val titleB = TwinSenseText.normalize(second.title)
-            if (titleA.isNotBlank() && titleA == titleB) {
-                val artistA = TwinSenseText.normalize(first.artist)
-                val artistB = TwinSenseText.normalize(second.artist)
-                val durationDifference = abs(first.durationMs - second.durationMs)
-                if (artistA.isNotBlank() && artistA == artistB && durationDifference <= 3_000L) {
-                    matches += TwinSenseMatch(first, second, TwinSenseMatchKind.METADATA, 72,
-                        listOf("Matching normalized title", "Matching artist", "Similar duration; audio could not confirm a match"),
-                        versionWarning || durationDifference > 1_500L)
-                }
-            }
+            compareMetadata(first, second)?.let(matches::add)
         }
+
         matches.sortWith(compareByDescending<TwinSenseMatch> { it.kind == TwinSenseMatchKind.EXACT_AUDIO }
             .thenByDescending { it.confidence })
-        val failedCount = failed.get()
-        val reusedCount = reused.get()
-        val result = TwinSenseScanResult(buildGroups(matches), tracks.size - failedCount, reusedCount, failedCount)
+        val result = TwinSenseScanResult(
+            buildGroups(matches),
+            tracks.size - failedIds.size,
+            reused.get(),
+            failedIds.size
+        )
         saveResult(result)
         return result
     }
