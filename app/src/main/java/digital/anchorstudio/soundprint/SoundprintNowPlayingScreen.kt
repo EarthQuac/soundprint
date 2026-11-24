@@ -1112,13 +1112,17 @@ fun SoundprintNowPlayingScreen(
             PlayerToggle("Gapless playback", "Seamless transitions between queued tracks", gapless, proFeature = true) { gapless = it }
             PlayerToggle("Loudness leveling", "Keep volume consistent", loudness, proFeature = true) { loudness = it }
             PlayerToggle("Stop after this song", "Pause at the end of the current track", stopAfterCurrent, proFeature = true) { stopAfterCurrent = it }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Crossfade", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                ProFeatureBadge()
-            }
-            Text("Blend into the next queued track", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            PlayerChoiceRow(listOf("Off", "2s", "4s", "6s", "8s"), if (crossfade == 0) "Off" else "${crossfade}s") {
-                crossfade = it.removeSuffix("s").toIntOrNull() ?: 0
+            ProFeatureGate(Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Crossfade", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        ProFeatureBadge()
+                    }
+                    Text("Blend into the next queued track", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    PlayerChoiceRow(listOf("Off", "2s", "4s", "6s", "8s"), if (crossfade == 0) "Off" else "${crossfade}s") {
+                        crossfade = it.removeSuffix("s").toIntOrNull() ?: 0
+                    }
+                }
             }
         }
     }
@@ -1430,18 +1434,20 @@ private fun PlayerQuickAction(
     proFeature: Boolean = false,
     onClick: () -> Unit
 ) {
-    Column(
-        modifier.height(84.dp).clip(RoundedCornerShape(16.dp))
-            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick).padding(horizontal = 6.dp, vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        SoundprintIcon(icon, null, modifier = Modifier.size(20.dp), tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (proFeature) ProFeatureBadge()
+    ProFeatureGate(modifier = modifier, enabled = proFeature) {
+        Column(
+            Modifier.fillMaxWidth().height(84.dp).clip(RoundedCornerShape(16.dp))
+                .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                .clickable(onClick = onClick).padding(horizontal = 6.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            SoundprintIcon(icon, null, modifier = Modifier.size(20.dp), tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (proFeature) ProFeatureBadge()
+            }
         }
     }
 }
@@ -1484,7 +1490,21 @@ private fun PlayerChoiceRow(options:List<String>,selected:String,onSelect:(Strin
     }
 }
 @Composable
-private fun PlayerToggle(title:String,detail:String,checked:Boolean,proFeature:Boolean=false,onChange:(Boolean)->Unit){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)){Text(title,fontSize=12.sp,fontWeight=FontWeight.Medium);if(proFeature) ProFeatureBadge()};Text(detail,fontSize=10.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)};Switch(checked,onChange)}}
+private fun PlayerToggle(title: String, detail: String, checked: Boolean, proFeature: Boolean = false, onChange: (Boolean) -> Unit) {
+    ProFeatureGate(Modifier.fillMaxWidth(), enabled = proFeature) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(title, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    if (proFeature) ProFeatureBadge()
+                }
+                Text(detail, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked, onChange)
+        }
+    }
+}
+
 private fun discBrush(style:PlayerDiscStyle,finish:PlayerDiscFinish):Brush = when(style){
     PlayerDiscStyle.VINYL -> Brush.radialGradient(
         colors = when (finish) {
