@@ -307,7 +307,7 @@ class MusicLibraryDatabaseTest {
         database.close()
     }
 
-    @Test fun expiringOrEmptyingTwinSenseTrashDeletesOnlyLibraryRecords() {
+    @Test fun expiringTwinSenseTrashDeletesOnlyLibraryRecords() {
         val database = MusicLibraryDatabase(context)
         val expired = track("content://music/twinsense-trash-expired")
         val pending = track("content://music/twinsense-trash-empty")
@@ -347,6 +347,25 @@ class MusicLibraryDatabaseTest {
         assertEquals(4096L, restoredFile.length())
         repository.removeTrackRecord(item.id)
         restoredFile.delete()
+        database.close()
+    }
+
+
+
+    @Test fun emptyingTwinSenseTrashLeavesActiveLibraryTracksAlone() {
+        val database = MusicLibraryDatabase(context)
+        val active = track("content://music/twinsense-trash-active")
+        val trashed = track("content://music/twinsense-trash-empty-only")
+        database.upsert(active)
+        database.upsert(trashed)
+        database.moveToTrash(trashed.id, "empty test")
+
+        val removed = database.emptyTrashAndDeleteTracks()
+
+        assertEquals(listOf(trashed.id), removed)
+        assertNotNull(database.findById(active.id))
+        assertNull(database.findById(trashed.id))
+        assertTrue(database.recycleBinRecords().isEmpty())
         database.close()
     }
 
