@@ -204,7 +204,7 @@ private fun ProFounderOffer(onClaim: (() -> Unit)?, remaining: Int, capacity: In
             Button(onClick = { if (!signedIn) onSignIn?.invoke() else onClaim?.invoke() },
                 enabled = if (!signedIn) onSignIn != null && offerEnabled && remaining > 0 else onClaim != null && offerEnabled && remaining > 0,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp), shape = RoundedCornerShape(50.dp)) {
-                Text(if (!offerEnabled || remaining <= 0) "Founder offer unavailable" else if (!signedIn) "Sign in to claim Founder Access" else "Claim founder offer")
+                Text(if (!offerEnabled || remaining <= 0) "Founder offer unavailable" else if (!signedIn) "Sign in to claim founder offer" else "Claim founder offer")
             }
         }
     }
