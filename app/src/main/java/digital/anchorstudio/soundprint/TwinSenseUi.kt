@@ -330,13 +330,14 @@ internal fun SongsLibraryScreen(
                                         Text(if (scanning && !advancedScanning) "Scanning…" else "Basic Scan", maxLines = 1, fontSize = 12.sp)
                                     }
                                 }
+                                ProFeatureGate(Modifier.weight(1f)) {
                                 OutlinedButton(
                                     onClick = {
                                         if (hasTwinSensePro) startTwinSenseScan(advanced = true)
                                         else SoundprintProGate.require("TwinSense Advanced Scan")
                                     },
                                     enabled = !scanning && songs.size >= 2,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
                                     if (scanning && advancedScanning) {
                                         CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -350,6 +351,7 @@ internal fun SongsLibraryScreen(
                                         fontSize = 12.sp
                                     )
                                     if (!hasTwinSensePro) ProFeatureBadge()
+                                }
                                 }
                             }
                             if (scanning) {
@@ -372,10 +374,12 @@ internal fun SongsLibraryScreen(
                                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 if (cleanupTracks.isNotEmpty()) {
-                                    OutlinedButton(onClick = { if (SoundprintProGate.require("TwinSense")) confirmSmartCleanup = true }) {
-                                        SoundprintIcon(SoundprintIcons.Trash2, null, modifier = Modifier.size(16.dp))
-                                        Spacer(Modifier.width(7.dp))
-                                        Text("Smart Cleanup · ${cleanupTracks.size}")
+                                    ProFeatureGate {
+                                        OutlinedButton(onClick = { if (SoundprintProGate.require("TwinSense")) confirmSmartCleanup = true }) {
+                                            SoundprintIcon(SoundprintIcons.Trash2, null, modifier = Modifier.size(16.dp))
+                                            Spacer(Modifier.width(7.dp))
+                                            Text("Smart Cleanup · ${cleanupTracks.size}")
+                                        }
                                     }
                                 }
                                 if (result.groups.isEmpty()) {
