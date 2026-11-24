@@ -63,11 +63,6 @@ data class TwinSenseFingerprint(
     val version: Int = TWINSENSE_VERSION
 )
 
-internal data class TwinSenseFingerprintAnalysis(
-    val fingerprint: TwinSenseFingerprint,
-    val audioProfile: TwinSenseAudioAnalysisProfile
-)
-
 enum class TwinSenseMatchKind { EXACT_AUDIO, ACOUSTIC, METADATA }
 
 data class TwinSenseMatch(
@@ -131,40 +126,46 @@ object TwinSenseText {
 /** Decodes local content URIs and fingerprints actual PCM audio, not filenames or sampled file bytes. */
 class TwinSenseFingerprintEngine(private val context: Context) {
     suspend fun create(track: MusicTrack, onProgress: (Int) -> Unit = {}): TwinSenseFingerprint =
-        createWithProfile(track, onProgress).fingerprint
+        withContext(Dispatchers.IO) {
+            validateTrack(track)
+            val decoded = decodePcm(track, onProgress)
+            val analysisRate = decoded.sampleRate.coerceAtMost(22_050)
+            val mono = resampleMono(decoded.samples, decoded.sampleRate, analysisRate)
+            val features = extractFeatures(mono, analysisRate)
+            require(features.isNotEmpty()) { "Not enough decodable audio to create a TwinSense fingerprint." }
+            val compressed = ByteArrayOutputStream().use { output ->
+                DeflaterOutputStream(output).use { it.write(features) }
+                output.toByteArray()
+            }
+            TwinSenseFingerprint(
+                trackId = track.id,
+                sourceSize = track.sizeBytes,
+                sourceModifiedAt = track.modifiedAt,
+                durationMs = track.durationMs.takeIf { it > 0L }
+                    ?: if (decoded.sampleRate > 0) decoded.samples.size.toLong() * 1000L / decoded.sampleRate else 0L,
+                sampleRate = analysisRate,
+                frameCount = features.size / FEATURE_BANDS,
+                featureBands = FEATURE_BANDS,
+                compressedFeatures = compressed
+            )
+        }
 
-    internal suspend fun createWithProfile(
+    internal suspend fun analyze(
         track: MusicTrack,
         onProgress: (Int) -> Unit = {}
-    ): TwinSenseFingerprintAnalysis = withContext(Dispatchers.IO) {
+    ): TwinSenseAudioAnalysisProfile = withContext(Dispatchers.IO) {
+        validateTrack(track)
+        val decoded = decodePcm(track, onProgress)
+        TwinSenseAudioAnalysis.analyze(track, decoded.samples, decoded.sampleRate)
+    }
+
+    private fun validateTrack(track: MusicTrack) {
         require(track.sizeBytes in 0..MAX_SOURCE_FILE_BYTES) {
             "TwinSense skipped this file because it is larger than 1 GB. The rest of your scan can continue safely."
         }
         require(track.durationMs in 0..MAX_TRACK_DURATION_MS) {
             "TwinSense skipped this file because its reported duration is unusually large."
         }
-        val decoded = decodePcm(track, onProgress)
-        val audioProfile = TwinSenseAudioAnalysis.analyze(track, decoded.samples, decoded.sampleRate)
-        val analysisRate = decoded.sampleRate.coerceAtMost(22_050)
-        val mono = resampleMono(decoded.samples, decoded.sampleRate, analysisRate)
-        val features = extractFeatures(mono, analysisRate)
-        require(features.isNotEmpty()) { "Not enough decodable audio to create a TwinSense fingerprint." }
-        val compressed = ByteArrayOutputStream().use { output ->
-            DeflaterOutputStream(output).use { it.write(features) }
-            output.toByteArray()
-        }
-        val fingerprint = TwinSenseFingerprint(
-            trackId = track.id,
-            sourceSize = track.sizeBytes,
-            sourceModifiedAt = track.modifiedAt,
-            durationMs = track.durationMs.takeIf { it > 0L }
-                ?: if (decoded.sampleRate > 0) decoded.samples.size.toLong() * 1000L / decoded.sampleRate else 0L,
-            sampleRate = analysisRate,
-            frameCount = features.size / FEATURE_BANDS,
-            featureBands = FEATURE_BANDS,
-            compressedFeatures = compressed
-        )
-        TwinSenseFingerprintAnalysis(fingerprint, audioProfile)
     }
 
     private data class DecodedAudio(val samples: FloatArray, val sampleRate: Int)
