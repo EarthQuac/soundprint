@@ -650,15 +650,16 @@ object TwinSenseCleanupPlanner {
 
     /** Detect copy suffixes; require matching artist/album and duration within 2.5s. */
     fun nameBasedDuplicateGroups(tracks: List<MusicTrack>): List<List<MusicTrack>> {
-        val candidates = tracks.mapNotNull { track ->
+        val candidates = tracks.map { track ->
             val name = sourceFileName(track) ?: track.title
             val normalized = normalizeCopiedName(name)
-            if (!normalized.second) null else track to normalized.first
+            Triple(track, normalized.first, normalized.second)
         }
         val groups = mutableListOf<List<MusicTrack>>()
-        candidates.groupBy { (track, base) ->
+        candidates.groupBy { (track, base, _) ->
             listOf(base, track.artist.trim().lowercase(), track.album.trim().lowercase())
         }.values.forEach { sameIdentity ->
+            if (sameIdentity.none { it.third }) return@forEach
             val remaining = sameIdentity.map { it.first }.toMutableList()
             while (remaining.isNotEmpty()) {
                 val seed = remaining.removeAt(0)
@@ -687,7 +688,7 @@ object TwinSenseCleanupPlanner {
     }
 
     private fun sourceFileName(track: MusicTrack): String? =
-        runCatching { android.net.Uri.parse(track.uri).lastPathSegment?.let(android.net.Uri::decode) }
+        runCatching { android.net.Uri.parse(track.uri).lastPathSegment?.let { android.net.Uri.decode(it) } }
             .getOrNull()
             ?.takeIf { it.contains('.') && it.substringAfterLast('.').length in 2..5 }
 
