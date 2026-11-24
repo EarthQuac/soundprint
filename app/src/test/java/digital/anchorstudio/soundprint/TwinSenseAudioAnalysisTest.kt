@@ -62,11 +62,11 @@ class TwinSenseAudioAnalysisTest {
         val second = track("profile-b")
         val match = TwinSenseAudioAnalysis.compare(first, second, profile(first), profile(second))
 
-        assertNotNull(match)
-        assertEquals(TwinSenseMatchKind.ACOUSTIC, match!!.kind)
-        assertEquals(93, match.confidence)
-        assertTrue(match.reasons.contains("Similar harmonic profile"))
-        assertFalse(match.versionWarning)
+        val found = requireNotNull(match)
+        assertEquals(TwinSenseMatchKind.ACOUSTIC, found.kind)
+        assertEquals(93, found.confidence)
+        assertTrue(found.reasons.contains("Similar harmonic profile"))
+        assertFalse(found.versionWarning)
     }
 
     @Test fun materiallyDifferentProfilesAreNotMatched() {
@@ -93,9 +93,9 @@ class TwinSenseAudioAnalysisTest {
         val second = track("profile-b", durationMs = 190_000L)
         val match = TwinSenseAudioAnalysis.compare(first, second, profile(first), profile(second))
 
-        assertNotNull(match)
-        assertTrue(match!!.versionWarning)
-        assertTrue(match.reasons.any { it.contains("alternate version") })
+        val found = requireNotNull(match)
+        assertTrue(found.versionWarning)
+        assertTrue(found.reasons.any { it.contains("alternate version") })
     }
 
     @Test fun analysisProfilesRoundTripAndInvalidateOnSourceChanges() {
@@ -103,8 +103,8 @@ class TwinSenseAudioAnalysisTest {
         val original = profile(originalTrack)
         val restored = TwinSenseAudioAnalysisProfile.fromJson(original.toJson())
 
-        assertNotNull(restored)
-        assertTrue(restored!!.matchesSource(originalTrack))
-        assertTrue(!restored.matchesSource(originalTrack.copy(sizeBytes = originalTrack.sizeBytes + 1L)))
+        val found = requireNotNull(restored)
+        assertTrue(found.matchesSource(originalTrack))
+        assertTrue(!found.matchesSource(originalTrack.copy(sizeBytes = originalTrack.sizeBytes + 1L)))
     }
 }
