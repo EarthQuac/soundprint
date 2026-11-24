@@ -466,7 +466,7 @@ private fun SoundprintTrackInformationDialog(track: MusicTrack, onDismiss: () ->
         mime.isNotBlank() -> mime.substringAfter('/').uppercase(java.util.Locale.ROOT)
         else -> "Unknown"
     }
-    val codec = mime.substringAfter('/', "").takeIf { it.isNotBlank() }?.uppercase(java.util.Locale.ROOT) ?: "Not identified"
+    val codec = track.encoding.takeIf { it.isNotBlank() } ?: "Not identified"
     val fileSize = when {
         track.sizeBytes <= 0L -> "Unknown"
         track.sizeBytes < 1024L * 1024L -> "${(track.sizeBytes / 1024.0).toInt()} KB"
