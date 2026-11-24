@@ -326,4 +326,29 @@ class MusicLibraryDatabaseTest {
     }
 
 
+
+    @Test fun twinSenseRecycleBinKeepsAudioRecoverableIfTheOriginalFileDisappears() {
+        val repository = MusicLibraryRepository(context)
+        val database = MusicLibraryDatabase.getInstance(context)
+        val source = java.io.File(context.cacheDir, "twinsense-recovery-source.mp3")
+        source.writeBytes(ByteArray(4096) { (it % 251).toByte() })
+        val uri = source.toURI().toString()
+        val item = track(uri).copy(sizeBytes = source.length(), modifiedAt = source.lastModified())
+        database.upsert(item)
+
+        repository.moveToTwinSenseTrash(item.id, "recovery test")
+        source.delete()
+        repository.restoreFromTwinSenseTrash(item.id)
+
+        val restored = database.findById(item.id)!!
+        assertTrue("Restore should fall back to the private recovery copy.", restored.uri.startsWith("file:"))
+        val restoredFile = java.io.File(java.net.URI(restored.uri))
+        assertTrue(restoredFile.isFile)
+        assertEquals(4096L, restoredFile.length())
+        database.removeTrackRecord(item.id)
+        restoredFile.delete()
+        database.close()
+    }
+
+
 }
