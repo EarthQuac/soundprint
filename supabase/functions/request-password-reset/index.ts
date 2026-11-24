@@ -37,8 +37,15 @@ Deno.serve(async (req: Request) => {
     return reply(503, { message: "Password reset is temporarily unavailable. Please try again." });
   }
 
+  const hmacKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(serviceKey),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
   const emailHash = Array.from(
-    new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(email))),
+    new Uint8Array(await crypto.subtle.sign("HMAC", hmacKey, new TextEncoder().encode(email))),
     (byte) => byte.toString(16).padStart(2, "0"),
   ).join("");
   const admin = createClient(url, serviceKey, {
@@ -64,7 +71,6 @@ Deno.serve(async (req: Request) => {
   });
   if (error) {
     console.error("Password reset email request failed:", error.message);
-    return reply(503, { message: "We couldn't send your reset code right now. Please try again." });
   }
 
   return reply(200, { sent: true });
