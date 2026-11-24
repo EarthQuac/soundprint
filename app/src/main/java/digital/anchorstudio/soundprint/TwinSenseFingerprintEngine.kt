@@ -887,8 +887,8 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
 
 object TwinSenseCleanupPlanner {
     /**
-     * Mirrors Cadence's safety rule: only exact sampled-file signatures are eligible.
-     * Acoustic similarity, metadata matches, and alternate versions are never auto-removed.
+     * Only byte-identical files or copy-marked tracks with corroborating matching artist/title/duration
+     * evidence are eligible. Acoustic-only matches and all alternate versions are never auto-removed.
      */
     fun tracksToRemove(result: TwinSenseScanResult): List<MusicTrack> {
         val exactMatches = result.groups.flatMap { it.matches }.filter { match ->
