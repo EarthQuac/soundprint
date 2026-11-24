@@ -252,12 +252,32 @@ internal object TwinSenseAudioAnalysis {
             if (first.artist.equals(second.artist, ignoreCase = true)) reasons += "Matching artist metadata"
             else reasons += "Artist metadata differs (${first.artist} vs ${second.artist})"
         }
-        if (first.album.isNotBlank() && second.album.isNotBlank() && !first.album.equals(second.album, true)) {
-            reasons += "Album metadata differs (${first.album} vs ${second.album})"
+        if (first.album.isNotBlank() && second.album.isNotBlank()) {
+            if (first.album.equals(second.album, true)) reasons += "Matching album metadata"
+            else reasons += "Album metadata differs (${first.album} vs ${second.album})"
+        }
+        if (first.albumArtist.isNotBlank() && second.albumArtist.isNotBlank()) {
+            if (first.albumArtist.equals(second.albumArtist, true)) reasons += "Matching album artist metadata"
+            else reasons += "Album artist metadata differs (${first.albumArtist} vs ${second.albumArtist})"
+        }
+        if (first.genre.isNotBlank() && second.genre.isNotBlank()) {
+            if (first.genre.equals(second.genre, true)) reasons += "Matching genre metadata (${first.genre})"
+            else reasons += "Genre metadata differs (${first.genre} vs ${second.genre})"
+        }
+        if (first.year > 0 && second.year > 0) {
+            if (first.year == second.year) reasons += "Matching release year (${first.year})"
+            else reasons += "Different release years (${first.year} vs ${second.year})"
+        }
+        if (first.trackNumber > 0 && second.trackNumber > 0 && first.trackNumber != second.trackNumber) {
+            reasons += "Different track numbers (${first.trackNumber} vs ${second.trackNumber})"
+        }
+        if (first.discNumber > 0 && second.discNumber > 0 && first.discNumber != second.discNumber) {
+            reasons += "Different disc numbers (${first.discNumber} vs ${second.discNumber})"
         }
         if (first.durationMs > 0L && second.durationMs > 0L) {
             if (versionWarning) {
-                reasons += "Possible alternate version: duration differs by ${formatTwinSenseDuration(durationDifference)} (${formatTwinSenseDuration(first.durationMs / 1000.0)} vs ${formatTwinSenseDuration(second.durationMs / 1000.0)})"
+                val shorter = if (first.durationMs < second.durationMs) "First track" else "Second track"
+                reasons += "Possible alternate version: $shorter is shorter by ${formatTwinSenseDuration(durationDifference)} (${formatTwinSenseDuration(first.durationMs / 1000.0)} vs ${formatTwinSenseDuration(second.durationMs / 1000.0)})"
             } else reasons += "Similar duration (${formatTwinSenseDuration(first.durationMs / 1000.0)})"
         }
         if (first.sizeBytes > 0L && second.sizeBytes > 0L && first.sizeBytes != second.sizeBytes) {
