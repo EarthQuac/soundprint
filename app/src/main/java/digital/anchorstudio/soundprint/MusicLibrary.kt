@@ -32,7 +32,7 @@ data class MusicTrack(
     val isFavorite: Boolean, val playCount: Int, val lastPlayedAt: Long?,
     val bitrate: Int = 0, val sampleRate: Int = 0, val channelCount: Int = 0,
     val encoding: String = "", val discNumber: Int = 0, val contentHash: String? = null, val duplicateOf: String? = null,
-    val sourceUri: String? = null, val isAvailable: Boolean = true
+    val sourceUri: String? = null, val isAvailable: Boolean = true, val fileName: String = ""
 )
 data class MusicPlaylist(val id: String, val name: String, val trackIds: List<String>)
 data class MusicLibrarySource(val uri: String, val displayName: String, val lastScannedAt: Long)
@@ -55,7 +55,7 @@ enum class TrackSort { TITLE, ARTIST, ALBUM, DATE_ADDED, DURATION, YEAR, PLAY_CO
 
 /** SQLite is the source of truth. Schema upgrades are additive and preserve existing user data. */
 class MusicLibraryDatabase(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "soundprint_music_library.db", null, 6) {
+    SQLiteOpenHelper(context.applicationContext, "soundprint_music_library.db", null, 7) {
 
     init { setWriteAheadLoggingEnabled(true) }
 
@@ -71,6 +71,7 @@ class MusicLibraryDatabase(context: Context) :
         if (oldVersion < 4) migrateToV4(db)
         if (oldVersion < 5) createSoundprintSchema(db)
         if (oldVersion < 6) migrateToV6(db)
+        if (oldVersion < 7) migrateToV7(db)
         // Idempotent safety net: databases upgraded from older versions must always have these tables,
         // otherwise every library query that filters out trashed songs would fail.
         ensureCoreTables(db)
@@ -91,7 +92,7 @@ class MusicLibraryDatabase(context: Context) :
             bitrate INTEGER NOT NULL DEFAULT 0, sample_rate INTEGER NOT NULL DEFAULT 0,
             channel_count INTEGER NOT NULL DEFAULT 0, encoding TEXT NOT NULL DEFAULT '', disc_number INTEGER NOT NULL DEFAULT 0,
             content_hash TEXT, duplicate_of TEXT, source_uri TEXT, is_available INTEGER NOT NULL DEFAULT 1,
-            last_seen_scan_id TEXT)""")
+            last_seen_scan_id TEXT, file_name TEXT NOT NULL DEFAULT '')""")
         createIndexes(db)
         db.execSQL("CREATE TABLE playlists(id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
         db.execSQL("CREATE TABLE playlist_tracks(playlist_id TEXT NOT NULL, track_id TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY(playlist_id,track_id))")
@@ -138,6 +139,14 @@ class MusicLibraryDatabase(context: Context) :
             while (c.moveToNext()) columns += c.getString(c.getColumnIndexOrThrow("name"))
         }
         if ("encoding" !in columns) db.execSQL("ALTER TABLE tracks ADD COLUMN encoding TEXT NOT NULL DEFAULT ''")
+    }
+
+    private fun migrateToV7(db:SQLiteDatabase) {
+        val columns = mutableSetOf<String>()
+        db.rawQuery("PRAGMA table_info(tracks)", null).use { c ->
+            while (c.moveToNext()) columns += c.getString(c.getColumnIndexOrThrow("name"))
+        }
+        if ("file_name" !in columns) db.execSQL("ALTER TABLE tracks ADD COLUMN file_name TEXT NOT NULL DEFAULT ''")
     }
 
     private fun createIndexes(db: SQLiteDatabase) {
@@ -207,6 +216,7 @@ class MusicLibraryDatabase(context: Context) :
         put("is_favorite",if(t.isFavorite) 1 else 0); put("play_count",t.playCount); put("last_played_at",t.lastPlayedAt)
         put("bitrate",t.bitrate); put("sample_rate",t.sampleRate); put("channel_count",t.channelCount)
         put("encoding",t.encoding); put("disc_number",t.discNumber); put("content_hash",t.contentHash); put("duplicate_of",t.duplicateOf)
+        put("file_name",t.fileName)
         put("source_uri",t.sourceUri); put("is_available",if(t.isAvailable) 1 else 0)
     }
 
@@ -624,7 +634,8 @@ class MusicLibraryDatabase(context: Context) :
             artworkUri=s("artwork_uri"),addedAt=n("added_at"),isFavorite=n("is_favorite")==1L,playCount=n("play_count").toInt(),
             lastPlayedAt=if(isNull(last)) null else getLong(last),bitrate=n("bitrate").toInt(),sampleRate=n("sample_rate").toInt(),
             channelCount=n("channel_count").toInt(),encoding=s("encoding"),discNumber=n("disc_number").toInt(),contentHash=s("content_hash"),
-            duplicateOf=s("duplicate_of"),sourceUri=s("source_uri"),isAvailable=n("is_available")==1L
+            duplicateOf=s("duplicate_of"),sourceUri=s("source_uri"),isAvailable=n("is_available")==1L,
+            fileName=s("file_name")
         )
     }
 }
@@ -1042,7 +1053,8 @@ class MusicLibraryRepository(context:Context) {
             folder=file.parentFile?.name.orEmpty(),artworkUri=artwork,addedAt=old?.addedAt ?: System.currentTimeMillis(),
             isFavorite=old?.isFavorite ?: false,playCount=old?.playCount ?: 0,lastPlayedAt=old?.lastPlayedAt,
             bitrate=bitrate.coerceAtLeast(0),sampleRate=sampleRate.coerceAtLeast(0),channelCount=channels.coerceAtLeast(0),
-            encoding=encoding,discNumber=discNumber.coerceAtLeast(0),contentHash=hash,sourceUri=sourceUri ?: old?.sourceUri,isAvailable=true
+            encoding=encoding,discNumber=discNumber.coerceAtLeast(0),contentHash=hash,sourceUri=sourceUri ?: old?.sourceUri,isAvailable=true,
+            fileName=file.name.orEmpty()
         )
     }
 
