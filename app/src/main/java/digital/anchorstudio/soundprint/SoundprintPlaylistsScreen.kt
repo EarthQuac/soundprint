@@ -51,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -246,73 +247,82 @@ fun SoundprintPlaylistsScreen(
                     }
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                            Text("Smart playlists", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                            ProFeatureBadge()
-                        }
-                        Text(if (SoundprintListeningPreferences.automaticPlaylistsEnabled(androidx.compose.ui.platform.LocalContext.current)) "Automatically updated from your listening and library" else "Updates paused in Settings · your saved rules are kept", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Button(onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true }, shape = CircleShape, contentPadding = ButtonDefaults.ContentPadding) {
-                        SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(15.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("New smart playlist", fontSize = 11.sp, maxLines = 1)
-                    }
-                }
-                current?.smartPlaylists.orEmpty().forEach { rule ->
-                    val count = current?.smartResults?.get(rule.id)?.size ?: 0
-                    Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                            
-                            .background(MaterialTheme.colorScheme.surface).padding(11.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(Modifier.weight(1f).clickable { selectedSmartId = rule.id }, verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
-                                SoundprintIcon(SoundprintIcons.ListMusic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            val proUi = LocalSoundprintProUiAccess.current
+            val hasPro = proUi.entitled
+            Box(Modifier.fillMaxWidth()) {
+                Column(
+                    Modifier.fillMaxWidth()
+                        .graphicsLayer(alpha = if (hasPro) 1f else 0.46f)
+                        .then(if (hasPro) Modifier else Modifier.clip(RoundedCornerShape(18.dp))),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                                Text("Smart playlists", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                ProFeatureBadge()
                             }
-                            Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                                Text(rule.name, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text("$count songs", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            SoundprintIcon(SoundprintIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                            Text(if (SoundprintListeningPreferences.automaticPlaylistsEnabled(androidx.compose.ui.platform.LocalContext.current)) "Automatically updated from your listening and library" else "Updates paused in Settings · your saved rules are kept", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        if (rule.preset) {
-                            Text("Preset", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 5.dp))
-                        } else {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                SoundprintIcon(SoundprintIcons.Pencil, "Edit ${rule.name}", Modifier.size(17.dp).clip(CircleShape).clickable {
-                                    if (SoundprintProGate.require("Smart playlists")) {
-                                    editingId = rule.id
-                                    draft = rule.copy(groups = rule.groups.map { it.copy(conditions = it.conditions.toList()) })
-                                    editorOpen = true
-                                    }
-                                }.padding(2.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Spacer(Modifier.width(8.dp))
-                                SoundprintIcon(SoundprintIcons.Copy, "Duplicate ${rule.name}", Modifier.size(17.dp).clickable {
-                                    if (SoundprintProGate.require("Smart playlists")) {
-                                    val copy = rule.copy(
-                                        id = UUID.randomUUID().toString(),
-                                        name = "${rule.name} copy",
-                                        preset = false,
-                                        groups = rule.groups.map { group -> group.copy(id = UUID.randomUUID().toString(), conditions = group.conditions.map { it.copy(id = UUID.randomUUID().toString()) }) }
-                                    )
-                                    libraryManager.saveSmartPlaylist(copy)
-                                    refreshVersion++
-                                    }
-                                }, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Spacer(Modifier.width(8.dp))
-                                SoundprintIcon(SoundprintIcons.Trash2, "Delete ${rule.name}", Modifier.size(17.dp).clip(RoundedCornerShape(8.dp)).clickable {
-                                    if (SoundprintProGate.require("Smart playlists")) {
+                        Button(onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true }, shape = CircleShape, contentPadding = ButtonDefaults.ContentPadding) {
+                            SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(15.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("New smart playlist", fontSize = 11.sp, maxLines = 1)
+                        }
+                    }
+                    current?.smartPlaylists.orEmpty().forEach { rule ->
+                        val count = current?.smartResults?.get(rule.id)?.size ?: 0
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                                .background(MaterialTheme.colorScheme.surface).padding(11.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(Modifier.weight(1f).clickable { selectedSmartId = rule.id }, verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
+                                    SoundprintIcon(SoundprintIcons.ListMusic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                }
+                                Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                                    Text(rule.name, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("$count songs", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                SoundprintIcon(SoundprintIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                            }
+                            if (rule.preset) {
+                                Text("Preset", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 5.dp))
+                            } else {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    SoundprintIcon(SoundprintIcons.Pencil, "Edit ${rule.name}", Modifier.size(17.dp).clip(CircleShape).clickable {
+                                        editingId = rule.id
+                                        draft = rule.copy(groups = rule.groups.map { it.copy(conditions = it.conditions.toList()) })
+                                        editorOpen = true
+                                    }.padding(2.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.width(8.dp))
+                                    SoundprintIcon(SoundprintIcons.Copy, "Duplicate ${rule.name}", Modifier.size(17.dp).clickable {
+                                        val copy = rule.copy(
+                                            id = UUID.randomUUID().toString(),
+                                            name = "${rule.name} copy",
+                                            preset = false,
+                                            groups = rule.groups.map { group -> group.copy(id = UUID.randomUUID().toString(), conditions = group.conditions.map { it.copy(id = UUID.randomUUID().toString()) }) }
+                                        )
+                                        libraryManager.saveSmartPlaylist(copy)
+                                        refreshVersion++
+                                    }, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.width(8.dp))
+                                    SoundprintIcon(SoundprintIcons.Trash2, "Delete ${rule.name}", Modifier.size(17.dp).clip(RoundedCornerShape(8.dp)).clickable {
                                         libraryManager.deleteSmartPlaylist(rule.id)
                                         refreshVersion++
-                                    }
-                                }.padding(4.dp), tint = MaterialTheme.colorScheme.error)
+                                    }.padding(4.dp), tint = MaterialTheme.colorScheme.error)
+                                }
                             }
                         }
                     }
+                }
+                if (!hasPro) {
+                    Box(
+                        Modifier.matchParentSize()
+                            .clip(RoundedCornerShape(18.dp))
+                            .clickable(onClick = proUi.onOpenPro)
+                    )
                 }
             }
             if (current == null) {
