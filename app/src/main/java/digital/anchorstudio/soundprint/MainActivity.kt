@@ -1060,6 +1060,7 @@ private fun SoundprintApp(
     var statsOpen by remember { mutableStateOf(false) }
     var proOpen by remember { mutableStateOf(false) }
     var twinSenseOpen by remember { mutableStateOf(false) }
+    var openTwinSenseRecycleBin by remember { mutableStateOf(false) }
     var proStatus by remember { mutableStateOf(SoundprintProStatus()) }
     var proMessage by remember { mutableStateOf<String?>(null) }
     val authSessionState by SoundprintSupabase.client.auth.sessionStatus.collectAsState()
@@ -1301,8 +1302,9 @@ private fun SoundprintApp(
                             library = libraryManager,
                             playback = playbackConnection,
                             onImportFiles = onImportFiles,
-                            onBack = { twinSenseOpen = false },
-                            initialTwinSenseOpen = true
+                            onBack = { twinSenseOpen = false; openTwinSenseRecycleBin = false },
+                            initialTwinSenseOpen = true,
+                            initialRecycleBinOpen = openTwinSenseRecycleBin
                         )
                         "stats" -> ListeningStatsScreen(libraryManager = libraryManager, onBack = { statsOpen = false })
                         "account" -> SoundprintAccountScreen(
@@ -1318,6 +1320,7 @@ private fun SoundprintApp(
                             onPaletteChange = { name -> if (name == "Amber" || name == "Lavender" || SoundprintProGate.require("$name theme")) onPaletteChange(name) },
                             onBack = { settingsOpen = false },
                             onOpenPro = { settingsOpen = false; proOpen = true },
+                            onOpenRecycleBin = { settingsOpen = false; openTwinSenseRecycleBin = true; twinSenseOpen = true },
                             libraryTrackCount = libraryTrackCount,
                             librarySources = librarySources,
                             libraryStatus = libraryStatus,
@@ -2761,6 +2764,7 @@ private fun SettingsScreen(
     onPaletteChange: (String) -> Unit,
     onBack: () -> Unit,
     onOpenPro: () -> Unit,
+    onOpenRecycleBin: () -> Unit,
     libraryTrackCount: Int,
     librarySources: List<MusicLibrarySource>,
     libraryStatus: String,
@@ -2827,8 +2831,6 @@ private fun SettingsScreen(
     var clearDialog by remember { mutableStateOf(false) }
     var historyDialog by remember { mutableStateOf(false) }
     var helpDialog by remember { mutableStateOf(false) }
-    var recycleBinOpen by remember { mutableStateOf(false) }
-    var recycleBinEntries by remember { mutableStateOf(emptyList<RecycleBinEntry>()) }
     val needle = query.trim().lowercase()
     fun matches(vararg words: String): Boolean =
         needle.isEmpty() || needle.split(Regex("\\s+")).filter(String::isNotBlank)
@@ -3230,12 +3232,7 @@ private fun SettingsScreen(
                         }
                         SettingsDivider()
                     }
-                    SettingsActionRow("Recycle Bin", "Restore songs removed from your library within 30 days", "Open") {
-                        settingsScope.launch {
-                            recycleBinEntries = withContext(Dispatchers.IO) { libraryManager.recycleBin() }
-                            recycleBinOpen = true
-                        }
-                    }
+                    SettingsActionRow("Recycle Bin", "Restore songs removed from your library within 30 days", "Open", onClick = onOpenRecycleBin)
                     SettingsActionRow("Audio tag editor", "Manually edit title, artist, album and genre — free for everyone", "Open", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("tag-editor")), onClick = onOpenTagEditor)
                     SettingsActionRow("Playback history", "Clear recently played songs, play counts, listening time and streaks", "Clear", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("history"))) { historyDialog = true }
                     SettingsActionRow("Backup library", "Export your library records, playlists, favourites and listening stats", "Backup", modifier = Modifier.bringIntoViewRequester(settingRequesters.getValue("backup")), onClick = onBackup)
@@ -3262,41 +3259,6 @@ private fun SettingsScreen(
             }
         }
     }
-    if (recycleBinOpen) AlertDialog(
-        onDismissRequest = { recycleBinOpen = false },
-        title = { Text("Recycle Bin") },
-        text = {
-            if (recycleBinEntries.isEmpty()) {
-                Text("Your Recycle Bin is empty.")
-            } else {
-                Column(
-                    Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    recycleBinEntries.forEach { entry ->
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(entry.track.title, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(entry.track.artist, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                            TextButton(onClick = {
-                                settingsScope.launch {
-                                    recycleBinEntries = withContext(Dispatchers.IO) {
-                                        libraryManager.restoreFromRecycleBin(entry.track.id)
-                                        libraryManager.recycleBin()
-                                    }
-                                }
-                            }) { Text("Restore") }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = { recycleBinOpen = false }) { Text("Done") } }
-    )
     if (clearDialog) AlertDialog(
         onDismissRequest = { clearDialog = false },
         title = { Text("Clear your library?") },
