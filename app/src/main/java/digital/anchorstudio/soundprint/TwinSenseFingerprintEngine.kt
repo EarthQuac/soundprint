@@ -42,8 +42,8 @@ import java.util.concurrent.atomic.AtomicInteger
 private const val TWINSENSE_VERSION = 2
 private const val FEATURE_BANDS = 24
 private const val FFT_SIZE = 4096
-// TwinSense fingerprints a bounded opening sample instead of retaining an entire decoded song in RAM.
-private const val MAX_PCM_SAMPLES = 4_000_000
+// Keep the local decode bounded while covering a much larger portion of typical songs.
+private const val MAX_PCM_SAMPLES = 8_000_000
 // TwinSense works on decoded PCM, never on the compressed file bytes. Keep both
 // the decoder buffer and the resampled analysis buffer explicitly bounded.
 private const val MAX_SOURCE_FILE_BYTES = 1_073_741_824L
@@ -700,7 +700,7 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
         if (advanced && tracks.isNotEmpty()) {
             completed.set(0)
             nextIndex.set(0)
-            val decoderSlots = Semaphore(4)
+            val decoderSlots = Semaphore(2)
             suspend fun analyzeTrack(track: MusicTrack) {
                 coroutineContext.ensureActive()
                 try {
@@ -736,7 +736,7 @@ class TwinSenseScanner(context: Context, private val library: MusicLibraryManage
                 }
             }
             coroutineScope {
-                repeat(min(4, tracks.size)) {
+                repeat(min(2, tracks.size)) {
                     launch {
                         while (true) {
                             val index = nextIndex.getAndIncrement()
