@@ -108,10 +108,16 @@ class SoundprintMusicImportWorker(
 ) : CoroutineWorker(context, parameters) {
 
     private fun downloadAudioToMediaStore(rawUrl: String): Uri {
-        val parsed = Uri.parse(rawUrl)
-        require(parsed.scheme == "https" || parsed.scheme == "http") { "Only http and https links are supported." }
+        val parsed = Uri.parse(rawUrl.trim())
+        require(parsed.scheme.equals("https", ignoreCase = true) && !parsed.host.isNullOrBlank() && parsed.userInfo == null) {
+            "Use a direct HTTPS link to a supported audio file."
+        }
+        val initialUrl = URL(rawUrl.trim())
+        require(initialUrl.protocol.equals("https", ignoreCase = true) && initialUrl.userInfo == null) {
+            "Use a direct HTTPS link to a supported audio file."
+        }
         val name = parsed.lastPathSegment?.takeIf { it.contains('.') } ?: "SoundPrint-audio.mp3"
-        val safeName = name.replace(Regex("[\\\\/:*?\"<>|]+"), "_").take(120)
+        val safeName = name.replace(Regex("[\\\\/:*?\\\"<>|]+"), "_").take(120)
         val extension = safeName.substringAfterLast('.', "").lowercase(Locale.ROOT)
         val supported = setOf("mp3", "m4a", "aac", "flac", "wav", "ogg", "opus", "wma", "aiff", "aif", "ape", "alac", "3gp", "amr")
         require(extension in supported) { "Use a direct link to a supported audio file (MP3, M4A, FLAC, WAV, OGG and more)." }
@@ -127,39 +133,60 @@ class SoundprintMusicImportWorker(
         val destination = resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
             ?: throw IllegalStateException("Android could not create the imported audio file.")
         try {
-            val connection = URL(rawUrl).openConnection() as HttpURLConnection
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 30_000
-            connection.instanceFollowRedirects = true
-            connection.setRequestProperty("User-Agent", "SoundPrint Android")
-            try {
-                connection.connect()
-                require(connection.responseCode in 200..299) { "The audio link returned HTTP " + connection.responseCode + "." }
-                val contentType = connection.contentType?.substringBefore(';')?.lowercase(Locale.ROOT).orEmpty()
-                require(contentType.startsWith("audio/") || contentType in setOf("application/octet-stream", "binary/octet-stream")) {
-                    "That link does not appear to point directly to an audio file."
-                }
-                require(connection.contentLengthLong <= 250L * 1024L * 1024L) { "Audio files must be 250 MB or smaller." }
-                val output = resolver.openOutputStream(destination, "w")
-                    ?: throw IllegalStateException("Android could not open the imported audio file.")
-                var total = 0L
-                connection.inputStream.use { input ->
-                    output.use { out ->
-                        val buffer = ByteArray(64 * 1024)
-                        while (true) {
-                            if (isStopped) throw CancellationException("Import cancelled.")
-                            val read = input.read(buffer)
-                            if (read < 0) break
-                            total += read
-                            require(total <= 250L * 1024L * 1024L) { "Audio files must be 250 MB or smaller." }
-                            out.write(buffer, 0, read)
+            var currentUrl = initialUrl
+            var downloaded = false
+            for (redirectCount in 0..5) {
+                val connection = currentUrl.openConnection() as HttpURLConnection
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 30_000
+                connection.instanceFollowRedirects = false
+                connection.setRequestProperty("User-Agent", "SoundPrint Android")
+                try {
+                    connection.connect()
+                    val responseCode = connection.responseCode
+                    if (responseCode in 300..399) {
+                        require(redirectCount < 5) { "The audio link redirected too many times." }
+                        val location = connection.getHeaderField("Location")
+                            ?: throw IllegalArgumentException("The audio link returned an invalid redirect.")
+                        val redirectedUrl = URL(currentUrl, location)
+                        require(
+                            redirectedUrl.protocol.equals("https", ignoreCase = true) &&
+                                !redirectedUrl.host.isNullOrBlank() &&
+                                redirectedUrl.userInfo == null
+                        ) { "Audio links must stay on HTTPS." }
+                        currentUrl = redirectedUrl
+                        continue
+                    }
+                    require(responseCode in 200..299) { "The audio link returned HTTP $responseCode." }
+                    val contentType = connection.contentType?.substringBefore(';')?.lowercase(Locale.ROOT).orEmpty()
+                    require(contentType.startsWith("audio/") || contentType in setOf("application/octet-stream", "binary/octet-stream")) {
+                        "That link does not appear to point directly to an audio file."
+                    }
+                    require(connection.contentLengthLong <= 250L * 1024L * 1024L) { "Audio files must be 250 MB or smaller." }
+                    val output = resolver.openOutputStream(destination, "w")
+                        ?: throw IllegalStateException("Android could not open the imported audio file.")
+                    var total = 0L
+                    connection.inputStream.use { input ->
+                        output.use { out ->
+                            val buffer = ByteArray(64 * 1024)
+                            while (true) {
+                                if (isStopped) throw CancellationException("Import cancelled.")
+                                val read = input.read(buffer)
+                                if (read < 0) break
+                                total += read
+                                require(total <= 250L * 1024L * 1024L) { "Audio files must be 250 MB or smaller." }
+                                out.write(buffer, 0, read)
+                            }
                         }
                     }
+                    require(total > 0L) { "The audio link returned an empty file." }
+                    downloaded = true
+                    break
+                } finally {
+                    connection.disconnect()
                 }
-                require(total > 0L) { "The audio link returned an empty file." }
-            } finally {
-                connection.disconnect()
             }
+            require(downloaded) { "The audio link could not be downloaded." }
             if (Build.VERSION.SDK_INT >= 29) {
                 resolver.update(destination, ContentValues().apply { put(MediaStore.Audio.Media.IS_PENDING, 0) }, null, null)
             }
