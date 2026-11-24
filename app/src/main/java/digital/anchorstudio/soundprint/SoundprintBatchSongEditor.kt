@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -68,6 +69,8 @@ internal fun SoundprintSongsLibraryScreen(
     var selectionMode by remember { mutableStateOf(false) }
     var sortBy by remember { mutableStateOf("Title") }
     var descending by remember { mutableStateOf(false) }
+    val songsListState = rememberLazyListState()
+    var pendingScrollAnchorId by remember { mutableStateOf<String?>(null) }
     var sortMenuExpanded by remember { mutableStateOf(false) }
     var recycleOpen by remember { mutableStateOf(false) }
     var confirmEmptyBin by remember { mutableStateOf(false) }
@@ -105,6 +108,13 @@ internal fun SoundprintSongsLibraryScreen(
             else -> tracks.sortedBy { it.title.lowercase() }
         }
         if (descending) sorted.asReversed() else sorted
+    }
+
+    LaunchedEffect(visibleTracks, pendingScrollAnchorId) {
+        val anchorId = pendingScrollAnchorId ?: return@LaunchedEffect
+        val anchorIndex = visibleTracks.indexOfFirst { it.id == anchorId }
+        if (anchorIndex >= 0) songsListState.scrollToItem(anchorIndex)
+        pendingScrollAnchorId = null
     }
 
     fun toggleSelection(id: String) {
@@ -171,7 +181,11 @@ internal fun SoundprintSongsLibraryScreen(
                         }
                     }
                 }
-                OutlinedButton(onClick = { descending = !descending }, modifier = Modifier.weight(1f).height(44.dp), shape = RoundedCornerShape(24.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 4.dp)) {
+                OutlinedButton(onClick = {
+                    pendingScrollAnchorId = songsListState.layoutInfo.visibleItemsInfo.firstOrNull()
+                        ?.let { visibleTracks.getOrNull(it.index)?.id }
+                    descending = !descending
+                }, modifier = Modifier.weight(1f).height(44.dp), shape = RoundedCornerShape(24.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 4.dp)) {
                     SoundprintIcon(SoundprintIcons.ArrowDownUp, null, Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(if (descending) "Descending" else "Ascending", fontSize = 12.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
@@ -254,6 +268,7 @@ internal fun SoundprintSongsLibraryScreen(
             }
         } else {
             LazyColumn(
+                state = songsListState,
                 modifier = Modifier.weight(1f),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(3.dp)
