@@ -97,8 +97,6 @@ internal object TwinSenseAudioAnalysis {
     private const val ENVELOPE_FRAME_SIZE = 1024
     private const val ENVELOPE_HOP_SIZE = 512
 
-    private data class Tempo(val bpm: Int, val confidence: Double)
-
     fun analyze(track: MusicTrack, samples: FloatArray, sampleRate: Int): TwinSenseAudioAnalysisProfile {
         require(samples.isNotEmpty() && sampleRate > 0) { "This audio file contains no decodable samples." }
         val duration = if (track.durationMs > 0L) track.durationMs / 1000.0 else samples.size.toDouble() / sampleRate
