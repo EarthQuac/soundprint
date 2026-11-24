@@ -56,12 +56,9 @@ import kotlinx.coroutines.withContext
 import kotlin.math.max
 
 @Composable
-internal fun SongsLibraryScreen(
+internal fun TwinSenseScreen(
     library: MusicLibraryManager,
-    playback: SoundprintPlaybackConnection,
-    onImportFiles: () -> Unit,
     onBack: () -> Unit,
-    initialTwinSenseOpen: Boolean = false,
     initialRecycleBinOpen: Boolean = false
 ) {
     val context = LocalContext.current
@@ -70,11 +67,7 @@ internal fun SongsLibraryScreen(
     var songs by remember { mutableStateOf<List<MusicTrack>>(emptyList()) }
     var recycleItems by remember { mutableStateOf<List<RecycleBinEntry>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
-    var query by remember { mutableStateOf("") }
-    var sort by remember { mutableStateOf("Title") }
-    var descending by remember { mutableStateOf(false) }
-    var sortMenu by remember { mutableStateOf(false) }
-    var soundprintOpen by remember(initialTwinSenseOpen, initialRecycleBinOpen) { mutableStateOf(initialTwinSenseOpen && !initialRecycleBinOpen) }
+    var soundprintOpen by remember(initialRecycleBinOpen) { mutableStateOf(!initialRecycleBinOpen) }
     var recycleOpen by remember(initialRecycleBinOpen) { mutableStateOf(initialRecycleBinOpen) }
     var scanResult by remember { mutableStateOf<TwinSenseScanResult?>(null) }
     var scanProgress by remember { mutableStateOf(TwinSenseScanProgress(0, 0, "", 0, 0)) }
@@ -106,19 +99,6 @@ internal fun SongsLibraryScreen(
         runCatching { refreshLibrary() }
         scanResult = scanner.loadSavedResults()
         loading = false
-    }
-
-    val filteredSongs = remember(songs, query, sort, descending) {
-        val needle = query.trim()
-        val list = songs.filter { needle.isBlank() || listOf(it.title, it.artist, it.album, it.genre, it.folder).any { value -> value.contains(needle, true) } }
-        val sorted = when (sort) {
-            "Artist" -> list.sortedWith(compareBy<MusicTrack> { it.artist.lowercase() }.thenBy { it.title.lowercase() })
-            "Album" -> list.sortedWith(compareBy<MusicTrack> { it.album.lowercase() }.thenBy { it.trackNumber })
-            "Date added" -> list.sortedBy { it.addedAt }
-            "Duration" -> list.sortedBy { it.durationMs }
-            else -> list.sortedBy { it.title.lowercase() }
-        }
-        if (descending) sorted.reversed() else sorted
     }
 
     val filenameDuplicateGroups = remember(songs) { TwinSenseCleanupPlanner.nameBasedDuplicateGroups(songs) }
@@ -158,7 +138,7 @@ internal fun SongsLibraryScreen(
 
     Column(Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
@@ -166,22 +146,18 @@ internal fun SongsLibraryScreen(
                 }
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(if (initialTwinSenseOpen) "TwinSense" else "Songs", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
-                    Text(if (initialTwinSenseOpen) "${songs.size} tracks to compare" else "${songs.size} songs", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("TwinSense", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+                    Text(if (recycleOpen) "${recycleItems.size} items in Recycle Bin" else "${songs.size} tracks to compare", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }
-            Button(
-                onClick = onImportFiles,
-                modifier = Modifier.padding(start = 12.dp, top = 10.dp).height(42.dp),
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                )
-            ) {
-                SoundprintIcon(SoundprintIcons.FolderPlus, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Add music", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = {
+                    recycleOpen = !recycleOpen
+                    if (recycleOpen) soundprintOpen = false else soundprintOpen = true
+                    scope.launch { recycleItems = withContext(Dispatchers.IO) { library.recycleBin() } }
+                }) {
+                    SoundprintIcon(if (recycleOpen) SoundprintIcons.AudioWaveform else SoundprintIcons.Trash, null, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text(if (recycleOpen) "Scan" else "Recycle Bin", fontSize = 12.sp)
+                }
             }
         }
 
@@ -189,115 +165,6 @@ internal fun SongsLibraryScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            item {
-                Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 8.dp, bottom = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        placeholder = { Text("Filter songs, artists, albums...", fontSize = 14.sp) },
-                        leadingIcon = { SoundprintIcon(SoundprintIcons.Search, null, modifier = Modifier.size(20.dp)) },
-                        shape = RoundedCornerShape(24.dp),
-                        colors = soundprintOutlinedFieldColors()
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(Modifier.weight(1f)) {
-                            OutlinedButton(
-                                onClick = { sortMenu = true },
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
-                                shape = RoundedCornerShape(24.dp)
-                            ) {
-                                SoundprintIcon(SoundprintIcons.ArrowDownUp, null, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Sort: $sort", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
-                            }
-                            DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
-                                listOf("Title", "Artist", "Album", "Date added", "Duration").forEach { option ->
-                                    DropdownMenuItem(text = { Text(option) }, onClick = { sort = option; sortMenu = false })
-                                }
-                            }
-                        }
-                        OutlinedButton(
-                            onClick = { descending = !descending },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(24.dp)
-                        ) {
-                            SoundprintIcon(SoundprintIcons.ArrowDownUp, null, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(if (descending) "Descending" else "Ascending", fontSize = 14.sp, maxLines = 1)
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = { soundprintOpen = !soundprintOpen; if (soundprintOpen) recycleOpen = false },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        ) {
-                            SoundprintIcon(SoundprintIcons.CopyCheck, null, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("TwinSense", fontSize = 14.sp, maxLines = 1)
-                            ProFeatureBadge()
-                        }
-                        Button(
-                            onClick = {
-                                recycleOpen = !recycleOpen
-                                if (recycleOpen) soundprintOpen = false
-                                scope.launch { recycleItems = withContext(Dispatchers.IO) { library.recycleBin() } }
-                            },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        ) {
-                            SoundprintIcon(SoundprintIcons.Trash, null, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Recycle Bin", fontSize = 14.sp, maxLines = 1)
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = { if (filteredSongs.isNotEmpty()) playback.playTracks(filteredSongs) },
-                            enabled = filteredSongs.isNotEmpty(),
-                            modifier = Modifier.weight(1f).height(52.dp),
-                            shape = RoundedCornerShape(28.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        ) {
-                            SoundprintIcon(SoundprintIcons.Play, null, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Play all", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        Button(
-                            onClick = { if (filteredSongs.isNotEmpty()) playback.playTracks(filteredSongs, shuffle = true) },
-                            enabled = filteredSongs.isNotEmpty(),
-                            modifier = Modifier.weight(1f).height(52.dp),
-                            shape = RoundedCornerShape(28.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        ) {
-                            SoundprintIcon(SoundprintIcons.Shuffle, null, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Shuffle", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                    if (query.isNotBlank()) Text("${filteredSongs.size} matches", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-
             if (soundprintOpen) {
                 item {
                     Column(Modifier.padding(horizontal = 16.dp)) {
@@ -319,7 +186,6 @@ internal fun SongsLibraryScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                if (!hasTwinSensePro) {
                                     Button(
                                         onClick = { startTwinSenseScan(advanced = false) },
                                         enabled = !scanning && songs.size >= 2,
@@ -333,7 +199,6 @@ internal fun SongsLibraryScreen(
                                         Spacer(Modifier.width(6.dp))
                                         Text(if (scanning && !advancedScanning) "Scanning…" else "Basic Scan", maxLines = 1, fontSize = 12.sp)
                                     }
-                                }
                                 ProFeatureGate(Modifier.weight(1f)) {
                                 OutlinedButton(
                                     onClick = {
@@ -377,17 +242,19 @@ internal fun SongsLibraryScreen(
                                     "${result.tracksScanned} tracks scanned · ${result.fingerprintsReused} cached fingerprints reused · ${result.groups.size} duplicate groups · ${result.matchCount} matching pairs",
                                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                ProFeatureGate {
-                                    OutlinedButton(
-                                        onClick = { if (SoundprintProGate.require("TwinSense Smart Clean")) confirmSmartCleanup = true },
-                                        enabled = cleanupTracks.isNotEmpty() || !hasTwinSensePro,
-                                        contentPadding = ButtonDefaults.ContentPadding
-                                    ) {
-                                        SoundprintIcon(SoundprintIcons.Trash2, null, modifier = Modifier.size(16.dp))
-                                        Spacer(Modifier.width(7.dp))
-                                        Text("TwinSense Smart Clean · ${cleanupTracks.size}", maxLines = 1)
-                                        Spacer(Modifier.width(6.dp))
-                                        ProFeatureBadge(sparkleSize = 16.dp)
+                                if (cleanupTracks.size > 10) {
+                                    ProFeatureGate {
+                                        OutlinedButton(
+                                            onClick = { if (SoundprintProGate.require("TwinSense Smart Clean")) confirmSmartCleanup = true },
+                                            enabled = cleanupTracks.isNotEmpty() || !hasTwinSensePro,
+                                            contentPadding = ButtonDefaults.ContentPadding
+                                        ) {
+                                            SoundprintIcon(SoundprintIcons.Trash2, null, modifier = Modifier.size(16.dp))
+                                            Spacer(Modifier.width(7.dp))
+                                            Text("TwinSense Smart Clean · ${cleanupTracks.size}", maxLines = 1)
+                                            Spacer(Modifier.width(6.dp))
+                                            ProFeatureBadge(sparkleSize = 16.dp)
+                                        }
                                     }
                                 }
                                 if (result.groups.isEmpty() && filenameDuplicateGroups.isEmpty()) {
@@ -513,31 +380,8 @@ internal fun SongsLibraryScreen(
 
             if (loading) {
                 item { Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
-            } else if (filteredSongs.isEmpty()) {
-                item {
-                    Column(
-                        Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 34.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        SoundprintIcon(SoundprintIcons.Music2, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(32.dp))
-                        Text(if (query.isBlank()) "No music found" else "No matches", fontWeight = FontWeight.SemiBold)
-                        Text(if (query.isBlank()) "Add music to your device to see your songs here." else "Try another title, artist or album.",
-                            fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            } else {
-                items(filteredSongs, key = { it.id }) { track ->
-                    NativeSongLibraryRow(
-                        track = track,
-                        library = library,
-                        playback = playback,
-                        onPlay = { playback.playTracks(filteredSongs, filteredSongs.indexOfFirst { it.id == track.id }.coerceAtLeast(0)) },
-                        onChanged = { scope.launch { refreshLibrary() } }
-                    )
-                }
             }
-            item { Spacer(Modifier.height(18.dp)) }
+
         }
     }
 
