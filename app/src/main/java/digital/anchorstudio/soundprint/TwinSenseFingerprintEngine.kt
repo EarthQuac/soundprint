@@ -833,7 +833,7 @@ object TwinSenseCleanupPlanner {
     private fun copyTitlePenalty(track: MusicTrack): Int {
         val value = "${track.title} ${fileName(track)}".lowercase(Locale.ROOT)
         val copySuffix = Regex(
-            """(?:\\s*\\(\\s*(?:copy|duplicate|\\d+|copy\\s*\\d+)\\s*\\)\\s*$|\\s*\\[\\s*(?:copy|duplicate|\\d+|copy\\s*\\d+)\\s*\\]\\s*$|\\s*[-_]\\s*(?:copy|duplicate|\\d+|copy\\s*\\d+)\\s*$|\\s+(?:copy|duplicate)\\s*\\d*\\s*$|\\s+\\d+\\s*$)""",
+            """(?:\s*\(\s*(?:copy|duplicate|\d+|copy\s*\d+)\s*\)\s*$|\s*\[\s*(?:copy|duplicate|\d+|copy\s*\d+)\s*\]\s*$|\s*[-_]\s*(?:copy|duplicate|\d+|copy\s*\d+)\s*$|\s+(?:copy|duplicate)\s*\d*\s*$|\s+\d+\s*$)""",
             RegexOption.IGNORE_CASE
         )
         return if (copySuffix.containsMatchIn(value)) 100 else 0
