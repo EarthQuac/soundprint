@@ -108,7 +108,8 @@ fun SoundprintSplash(
             context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f
         ) == 0f
     }
-    val clock = remember { Animatable(if (animationsOff) TOTAL_SECONDS else 0f) }
+    val clockAnimation = remember { Animatable(if (animationsOff) TOTAL_SECONDS else 0f) }
+    val clock: State<Float> = clockAnimation.asState()
     val bgReveal = remember { Animatable(if (animationsOff) 1f else 0f) }
     val exitFade = remember { Animatable(1f) }
     val finished by rememberUpdatedState(onFinished)
@@ -129,7 +130,7 @@ fun SoundprintSplash(
             androidx.compose.runtime.withFrameNanos { }
             androidx.compose.runtime.withFrameNanos { }
             launch { bgReveal.animateTo(1f, tween(350)) }
-            clock.animateTo(
+            clockAnimation.animateTo(
                 TOTAL_SECONDS,
                 tween((TOTAL_SECONDS * 1000).toInt(), easing = LinearEasing)
             )
