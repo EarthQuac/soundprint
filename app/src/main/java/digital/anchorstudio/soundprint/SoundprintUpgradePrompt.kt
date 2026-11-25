@@ -7,6 +7,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -96,7 +101,10 @@ internal fun SoundprintUpgradePrompt(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         // Outer box centres the card when the window is wider than the card (tablets, landscape).
-        Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
+        BoxWithConstraints(
+            Modifier.fillMaxWidth().fillMaxHeight().padding(horizontal = 24.dp),
+            contentAlignment = Alignment.Center
+        ) {
             Box(
                 modifier = Modifier
                     .widthIn(max = 400.dp)
@@ -113,6 +121,9 @@ internal fun SoundprintUpgradePrompt(
                     feature = feature,
                     primaryLabel = "Explore Pro",
                     onPrimary = onExplore,
+                    modifier = Modifier
+                        .heightIn(max = maxHeight * 0.9f)
+                        .verticalScroll(rememberScrollState()),
                     secondaryLabel = "Not now",
                     onSecondary = onDismiss
                 )
