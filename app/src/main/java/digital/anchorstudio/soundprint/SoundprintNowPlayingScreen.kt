@@ -411,7 +411,7 @@ fun SoundprintNowPlayingScreen(
 
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        if (ambientGlow && artwork != null) {
+        if (ambientGlow && artwork != null && LocalSoundprintDarkTheme.current) {
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().fillMaxHeight(.55f).alpha(.25f)) {
                 TrackArtwork(artwork, title, Modifier.fillMaxSize().blur(42.dp), seed = trackId)
             }
