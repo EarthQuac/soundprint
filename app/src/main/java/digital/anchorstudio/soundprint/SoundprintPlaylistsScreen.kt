@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
@@ -243,7 +244,9 @@ fun SoundprintPlaylistsScreen(
                     Text("SMART MIXES", fontSize = 11.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     mixes.forEach { mix ->
                         Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalSoundprintThemeTokens.current.card)
+                            Modifier.fillMaxWidth()
+                                .then(if (LocalSoundprintDarkTheme.current) Modifier else Modifier.shadow(4.dp, RoundedCornerShape(16.dp), ambientColor = LocalSoundprintThemeTokens.current.shadow, spotColor = LocalSoundprintThemeTokens.current.shadow))
+                                .clip(RoundedCornerShape(16.dp)).background(LocalSoundprintThemeTokens.current.card)
                                 .then(if (LocalSoundprintDarkTheme.current) Modifier else Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.62f), RoundedCornerShape(16.dp)))
                                 .clickable { selectedSmartId = mix.id }.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -317,7 +320,9 @@ fun SoundprintPlaylistsScreen(
                         current?.smartPlaylists.orEmpty().forEach { rule ->
                             val count = current?.smartResults?.get(rule.id)?.size ?: 0
                             Row(
-                                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                                Modifier.fillMaxWidth()
+                                    .then(if (LocalSoundprintDarkTheme.current) Modifier else Modifier.shadow(4.dp, RoundedCornerShape(16.dp), ambientColor = LocalSoundprintThemeTokens.current.shadow, spotColor = LocalSoundprintThemeTokens.current.shadow))
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(LocalSoundprintThemeTokens.current.card)
                                     .then(if (LocalSoundprintDarkTheme.current) Modifier else Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.62f), RoundedCornerShape(16.dp)))
                                     .padding(11.dp),
