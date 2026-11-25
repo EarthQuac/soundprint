@@ -223,7 +223,7 @@ internal fun SoundprintSongsLibraryScreen(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ProFeatureGate(Modifier.weight(1f)) {
+                ProFeatureGate(Modifier.weight(1f), featureKey = "twinsense_batch_edit") {
                 Button(
                     onClick = { if (proAccess.entitled) onOpenTwinSense() else proAccess.onOpenPro() },
                     modifier = Modifier.fillMaxWidth().height(46.dp), shape = RoundedCornerShape(24.dp),
