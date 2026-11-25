@@ -234,7 +234,7 @@ fun SoundprintPlaylistsScreen(
             action = { createPlaylistOpen = true }
         )
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 14.dp, bottom = 26.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 14.dp, bottom = 54.dp),
             verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
             PlaylistSearchBox(query, { query = it }, "Search songs, playlists, artists or albums…")
@@ -244,6 +244,7 @@ fun SoundprintPlaylistsScreen(
                     mixes.forEach { mix ->
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)
+                                .then(if (LocalSoundprintDarkTheme.current) Modifier else Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.62f), RoundedCornerShape(16.dp)))
                                 .clickable { selectedSmartId = mix.id }.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -265,7 +266,7 @@ fun SoundprintPlaylistsScreen(
                 Box(Modifier.fillMaxWidth()) {
                     Column(
                         Modifier.fillMaxWidth()
-                            .graphicsLayer(alpha = if (hasPro) 1f else 0.46f),
+                            .graphicsLayer(alpha = if (hasPro || !LocalSoundprintDarkTheme.current) 1f else 0.46f),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Row(
@@ -288,7 +289,10 @@ fun SoundprintPlaylistsScreen(
                                         softWrap = false,
                                         overflow = TextOverflow.Visible
                                     )
-                                    ProFeatureBadge(sparkleSize = 14.dp)
+                                    ProFeatureBadge(sparkleSize = 12.dp)
+                                    if (!hasPro && !LocalSoundprintDarkTheme.current) {
+                                        SoundprintIcon(SoundprintIcons.Lock, "Pro feature", Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
                                 }
                                 Text(
                                     if (SoundprintListeningPreferences.automaticPlaylistsEnabled(androidx.compose.ui.platform.LocalContext.current)) "Automatically updated from your listening and library" else "Updates paused in Settings · your saved rules are kept",
@@ -302,6 +306,7 @@ fun SoundprintPlaylistsScreen(
                                 onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true },
                                 modifier = Modifier.height(36.dp),
                                 shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 0.dp)
                             ) {
                                 SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(14.dp))
@@ -313,7 +318,9 @@ fun SoundprintPlaylistsScreen(
                             val count = current?.smartResults?.get(rule.id)?.size ?: 0
                             Row(
                                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                                    .background(MaterialTheme.colorScheme.surface).padding(11.dp),
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .then(if (LocalSoundprintDarkTheme.current) Modifier else Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.62f), RoundedCornerShape(16.dp)))
+                                    .padding(11.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(Modifier.weight(1f).clickable { selectedSmartId = rule.id }, verticalAlignment = Alignment.CenterVertically) {
