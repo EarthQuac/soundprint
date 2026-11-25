@@ -710,7 +710,7 @@ fun SoundprintNowPlayingScreen(
                 ) {
                     ApplyCadenceDialogWindow(blurRadiusDp = 2.dp)
                     Box(
-                        Modifier.fillMaxSize().background(Color.Black.copy(alpha = .42f)).clickable { infoOpen = false },
+                        Modifier.fillMaxSize().background((if (LocalSoundprintDarkTheme.current) Color.Black.copy(alpha = .42f) else Color.Black.copy(alpha = .18f))).clickable { infoOpen = false },
                         contentAlignment = Alignment.Center
                     ) {
                         AnimatedVisibility(
@@ -1155,6 +1155,7 @@ fun SoundprintNowPlayingScreen(
 
 @Composable
 private fun ApplyCadenceDialogWindow(blurRadiusDp: androidx.compose.ui.unit.Dp = 3.dp) {
+    val darkTheme = LocalSoundprintDarkTheme.current
     val view = LocalView.current
     val density = LocalDensity.current
     val blurRadius = with(density) { blurRadiusDp.roundToPx() }
@@ -1163,11 +1164,16 @@ private fun ApplyCadenceDialogWindow(blurRadiusDp: androidx.compose.ui.unit.Dp =
         window?.let { dialogWindow ->
             dialogWindow.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             val attributes = dialogWindow.attributes
-            attributes.dimAmount = .10f
+            attributes.dimAmount = if (darkTheme) .10f else .12f
             dialogWindow.attributes = attributes
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                dialogWindow.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                dialogWindow.setBackgroundBlurRadius(blurRadius)
+                if (darkTheme) {
+                    dialogWindow.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                    dialogWindow.setBackgroundBlurRadius(blurRadius)
+                } else {
+                    dialogWindow.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                    dialogWindow.setBackgroundBlurRadius(0)
+                }
             }
         }
     }
@@ -1189,7 +1195,7 @@ private fun SoundprintFloatingDialog(
         ApplyCadenceDialogWindow(blurRadiusDp = 3.dp)
         Box(
             Modifier.fillMaxSize()
-                .background(Color.Black.copy(alpha = .36f))
+                .background(if (LocalSoundprintDarkTheme.current) Color.Black.copy(alpha = .36f) else Color.Black.copy(alpha = .18f))
                 .clickable(onClick = onDismissRequest),
             contentAlignment = Alignment.Center
         ) {
