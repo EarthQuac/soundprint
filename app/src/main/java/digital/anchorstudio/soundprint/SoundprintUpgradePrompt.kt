@@ -105,6 +105,7 @@ internal fun SoundprintUpgradePrompt(
             Modifier.fillMaxWidth().fillMaxHeight().padding(horizontal = 24.dp),
             contentAlignment = Alignment.Center
         ) {
+            val dialogMaxHeight = maxHeight * 0.9f
             Box(
                 modifier = Modifier
                     .widthIn(max = 400.dp)
@@ -122,7 +123,7 @@ internal fun SoundprintUpgradePrompt(
                     primaryLabel = "Explore Pro",
                     onPrimary = onExplore,
                     modifier = Modifier
-                        .heightIn(max = maxHeight * 0.9f)
+                        .heightIn(max = dialogMaxHeight)
                         .verticalScroll(rememberScrollState()),
                     secondaryLabel = "Not now",
                     onSecondary = onDismiss
