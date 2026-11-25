@@ -265,8 +265,7 @@ fun SoundprintPlaylistsScreen(
                 Box(Modifier.fillMaxWidth()) {
                     Column(
                         Modifier.fillMaxWidth()
-                            .graphicsLayer(alpha = if (hasPro) 1f else 0.46f)
-                            .then(if (hasPro) Modifier else Modifier.clip(RoundedCornerShape(18.dp))),
+                            .graphicsLayer(alpha = if (hasPro) 1f else 0.46f),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Row(
@@ -281,13 +280,13 @@ fun SoundprintPlaylistsScreen(
                                 ) {
                                     Text(
                                         "Smart playlists",
-                                        modifier = Modifier.weight(1f, fill = false),
+                                        modifier = Modifier.weight(1f, fill = false).padding(horizontal = 3.dp, vertical = 2.dp),
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         softWrap = false,
-                                        overflow = TextOverflow.Ellipsis
+                                        overflow = TextOverflow.Visible
                                     )
                                     ProFeatureBadge(sparkleSize = 14.dp)
                                 }
