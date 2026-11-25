@@ -34,7 +34,7 @@ internal fun ProFeatureBadge(modifier: Modifier = Modifier, sparkleSize: Dp = 16
         SoundprintProSparkle(
             modifier = modifier.size(sparkleSize),
             contentDescription = "Pro feature",
-            fillColor = if (darkTheme) null else Color(0xFF9A6A00)
+            fillColor = if (darkTheme) null else LocalSoundprintThemeTokens.current.proGold
         )
     }
 }
@@ -63,7 +63,7 @@ internal fun SoundprintProSparkle(
     fillColor: Color? = null
 ) {
     val themeFill = fillColor ?: MaterialTheme.colorScheme.primary
-    val goldOutline = if (LocalSoundprintDarkTheme.current) Color(0xFFE2BE68) else Color(0xFF8A5A00)
+    val goldOutline = LocalSoundprintThemeTokens.current.proGold
     val accessibleModifier = if (contentDescription == null) modifier else {
         modifier.semantics { this.contentDescription = contentDescription }
     }
