@@ -88,6 +88,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -140,8 +141,14 @@ private data class SoundprintPalette(
     val primary: Color,
     val muted: Color,
     val border: Color,
-    val onPrimary: Color
+    val onPrimary: Color,
+    val card: Color = surface,
+    val shadow: Color = primary.copy(alpha = 0.07f),
+    val glow: Color = primary.copy(alpha = 0.045f),
+    val iconSurface: Color = surface2
 )
+
+internal val LocalSoundprintDarkTheme = compositionLocalOf { true }
 
 private val AmberLight = SoundprintPalette(
     background = Color(0xFFFBFAF7), foreground = Color(0xFF17130F),
@@ -720,7 +727,10 @@ class MainActivity : ComponentActivity() {
                 ),
                 shapes = SoundprintShapes
             ) {
-                CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(fontFamily = SoundprintFontFamily)) {
+                CompositionLocalProvider(
+                    LocalSoundprintDarkTheme provides darkTheme,
+                    LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(fontFamily = SoundprintFontFamily)
+                ) {
                 Box(Modifier.fillMaxSize()) {
                 SoundprintApp(
                     libraryManager = libraryManager,
@@ -1740,18 +1750,36 @@ private fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (loadedLibraryTracks != null && libraryTracks.isEmpty()) item {
+                val importCardShape = RoundedCornerShape(28.dp)
                 Column(
-                    Modifier.fillMaxWidth().shadow(12.dp, RoundedCornerShape(28.dp), ambientColor = Color.Black.copy(alpha = .12f))
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(Brush.linearGradient(listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = .10f),
-                            MaterialTheme.colorScheme.surface,
-                            MaterialTheme.colorScheme.surface
-                        )))
-                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .62f), RoundedCornerShape(28.dp))
+                    Modifier.fillMaxWidth()
+                        .then(
+                            if (darkTheme) {
+                                Modifier.shadow(12.dp, importCardShape, ambientColor = Color.Black.copy(alpha = .12f))
+                            } else {
+                                Modifier.shadow(18.dp, importCardShape, ambientColor = colors.shadow, spotColor = colors.shadow)
+                            }
+                        )
+                        .clip(importCardShape)
+                        .background(
+                            if (darkTheme) Brush.linearGradient(listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = .10f),
+                                MaterialTheme.colorScheme.surface,
+                                MaterialTheme.colorScheme.surface
+                            )) else Brush.linearGradient(listOf(colors.glow, colors.surface, colors.surface))
+                        )
+                        .then(
+                            if (darkTheme) Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .62f), importCardShape)
+                            else Modifier.border(1.dp, colors.border.copy(alpha = .82f), importCardShape)
+                        )
                         .padding(22.dp)
                 ) {
-                    Box(Modifier.size(52.dp).clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)).border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .24f), RoundedCornerShape(18.dp)), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier.size(52.dp).clip(RoundedCornerShape(18.dp))
+                            .background(if (darkTheme) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else colors.iconSurface)
+                            .then(if (darkTheme) Modifier.border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .24f), RoundedCornerShape(18.dp)) else Modifier),
+                        contentAlignment = Alignment.Center
+                    ) {
                         SoundprintIcon(SoundprintIcons.FolderOpen, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                     Spacer(Modifier.height(22.dp))
