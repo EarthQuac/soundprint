@@ -3485,7 +3485,7 @@ private fun SettingsActionRow(
     proFeature: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
-    ProFeatureGate(modifier = modifier, enabled = proFeature) {
+    ProFeatureGate(modifier = modifier, enabled = proFeature, featureKey = "settings:$label") {
         Column(Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(end = 8.dp)) {
@@ -3511,7 +3511,7 @@ private fun SettingsValueRow(
     controlBelow: Boolean = false,
     control: @Composable () -> Unit
 ) {
-    ProFeatureGate(modifier = modifier, enabled = proFeature) {
+    ProFeatureGate(modifier = modifier, enabled = proFeature, featureKey = "settings:$label") {
         Column(Modifier.fillMaxWidth()) {
             if (controlBelow) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
@@ -3603,7 +3603,7 @@ private fun PaletteChoice(name: String, selected: Boolean, modifier: Modifier = 
         "Vesper" -> listOf(Color(0xFF241D28), Color(0xFFD9F36A))
         else -> listOf(Color(0xFF24211E), Color(0xFFE6A15D))
     }
-    ProFeatureGate(modifier = modifier, enabled = locked && !proAccess.entitled) {
+    ProFeatureGate(modifier = modifier, enabled = locked, featureKey = "custom_theme_palette") {
     Row(
         modifier = Modifier.fillMaxWidth().height(76.dp).clip(RoundedCornerShape(16.dp))
             .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
