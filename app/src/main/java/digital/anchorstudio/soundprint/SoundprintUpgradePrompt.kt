@@ -144,7 +144,7 @@ internal fun UpgradeCardContent(
 ) {
     val scheme = MaterialTheme.colorScheme
     val darkTheme = LocalSoundprintDarkTheme.current
-    val proGold = if (darkTheme) ProGold else Color(0xFF936200)
+    val proGold = LocalSoundprintThemeTokens.current.proGold
     val shape = RoundedCornerShape(28.dp)
     val benefits = if (feature.equals("Discover music for your mood", ignoreCase = true)) {
         listOf(
