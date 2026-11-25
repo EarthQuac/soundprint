@@ -716,7 +716,7 @@ class MainActivity : ComponentActivity() {
                     surfaceVariant = colors.surface2, onSurfaceVariant = colors.muted,
                     outline = colors.border,
                     outlineVariant = if (selectedPalette == "Lavender") {
-                        if (darkTheme) Color(0xFF444746) else Color(0xFFC4C7C5)
+                        if (darkTheme) Color(0xFF444746) else colors.border
                     } else colors.border
                 ) else lightColorScheme(
                     primary = colors.primary, onPrimary = colors.onPrimary,
@@ -725,7 +725,7 @@ class MainActivity : ComponentActivity() {
                     surfaceVariant = colors.surface2, onSurfaceVariant = colors.muted,
                     outline = colors.border,
                     outlineVariant = if (selectedPalette == "Lavender") {
-                        if (darkTheme) Color(0xFF444746) else Color(0xFFC4C7C5)
+                        if (darkTheme) Color(0xFF444746) else colors.border
                     } else colors.border
                 ),
                 shapes = SoundprintShapes
