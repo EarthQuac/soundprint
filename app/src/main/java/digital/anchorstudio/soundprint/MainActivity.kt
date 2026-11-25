@@ -89,6 +89,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -133,7 +134,7 @@ private val SoundprintShapes = Shapes(
     extraLarge = RoundedCornerShape(34.dp)
 )
 
-private data class SoundprintPalette(
+internal data class SoundprintPalette(
     val background: Color,
     val foreground: Color,
     val surface: Color,
@@ -145,10 +146,12 @@ private data class SoundprintPalette(
     val card: Color = surface,
     val shadow: Color = primary.copy(alpha = 0.07f),
     val glow: Color = primary.copy(alpha = 0.045f),
-    val iconSurface: Color = surface2
+    val iconSurface: Color = surface2,
+    val proGold: Color = Color(0xFFE2BE68)
 )
 
 internal val LocalSoundprintDarkTheme = compositionLocalOf { true }
+internal val LocalSoundprintThemeTokens = staticCompositionLocalOf<SoundprintPalette> { error("Soundprint theme tokens were not provided") }
 
 private val AmberLight = SoundprintPalette(
     background = Color(0xFFFBFAF7), foreground = Color(0xFF17130F),
@@ -729,6 +732,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 CompositionLocalProvider(
                     LocalSoundprintDarkTheme provides darkTheme,
+                    LocalSoundprintThemeTokens provides colors.copy(proGold = if (darkTheme) Color(0xFFE2BE68) else Color(0xFF936200)),
                     LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(fontFamily = SoundprintFontFamily)
                 ) {
                 Box(Modifier.fillMaxSize()) {
