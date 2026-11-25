@@ -39,6 +39,30 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Configure persistent debug keystore
+        env:
+          SOUNDPRINT_DEBUG_KEYSTORE_BASE64: ${{ secrets.SOUNDPRINT_DEBUG_KEYSTORE_BASE64 }}
+          SOUNDPRINT_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.SOUNDPRINT_DEBUG_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SOUNDPRINT_DEBUG_KEYSTORE_BASE64}" || -z "${SOUNDPRINT_DEBUG_KEYSTORE_PASSWORD}" ]]; then
+            echo "Persistent debug keystore secrets are missing."
+            exit 1
+          fi
+          KEYSTORE_PATH="$RUNNER_TEMP/soundprint-debug.keystore"
+          printf '%s' "$SOUNDPRINT_DEBUG_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          chmod 600 "$KEYSTORE_PATH"
+          KEY_ALIAS="$(keytool -list -v -keystore "$KEYSTORE_PATH" -storepass "$SOUNDPRINT_DEBUG_KEYSTORE_PASSWORD" 2>/dev/null | awk -F': ' '/^Alias name: / { print $2; exit }')"
+          if [[ -z "$KEY_ALIAS" ]]; then
+            echo "Could not identify a key alias in the supplied keystore."
+            exit 1
+          fi
+          {
+            echo "SOUNDPRINT_DEBUG_KEYSTORE_PATH=$KEYSTORE_PATH"
+            echo "SOUNDPRINT_DEBUG_KEY_ALIAS=$KEY_ALIAS"
+            echo "SOUNDPRINT_DEBUG_KEY_PASSWORD=$SOUNDPRINT_DEBUG_KEYSTORE_PASSWORD"
+          } >> "$GITHUB_ENV"
+
       - name: Report Android signing fingerprints
         run: ./gradlew --no-daemon signingReport
 
