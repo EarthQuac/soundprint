@@ -1639,6 +1639,8 @@ private fun HomeScreen(
     onOpenTab: (Int) -> Unit,
     onOpenAlbum: (String) -> Unit
 ) {
+    val darkTheme = LocalSoundprintDarkTheme.current
+    val colors = LocalSoundprintThemeTokens.current
     val context = androidx.compose.ui.platform.LocalContext.current
     var historyPreferenceVersion by remember { mutableIntStateOf(0) }
     DisposableEffect(context) {
