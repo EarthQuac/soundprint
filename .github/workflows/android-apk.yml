@@ -57,8 +57,20 @@ jobs:
             echo "Could not identify a key alias in the supplied keystore."
             exit 1
           fi
+
+          KEY_SHA1="$(keytool -list -v -keystore "$KEYSTORE_PATH" -storepass "$SOUNDPRINT_DEBUG_KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" 2>/dev/null | awk -F': ' '/SHA1: / { print toupper($2); exit }')"
+          EXPECTED_SHA1="D0:19:A8:98:B3:4F:C9:45:84:4E:15:CB:D5:D0:6D:C4:A9:6F:DD:CB"
+          if [[ "$KEY_SHA1" != "$EXPECTED_SHA1" ]]; then
+            echo "Persistent keystore certificate SHA-1 does not match the expected certificate."
+            echo "Expected: $EXPECTED_SHA1"
+            echo "Actual:   $KEY_SHA1"
+            exit 1
+          fi
+          echo "Persistent keystore certificate SHA-1 verified: $KEY_SHA1"
+
           {
             echo "SOUNDPRINT_DEBUG_KEYSTORE_PATH=$KEYSTORE_PATH"
+            echo "SOUNDPRINT_DEBUG_KEYSTORE_PASSWORD=$SOUNDPRINT_DEBUG_KEYSTORE_PASSWORD"
             echo "SOUNDPRINT_DEBUG_KEY_ALIAS=$KEY_ALIAS"
             echo "SOUNDPRINT_DEBUG_KEY_PASSWORD=$SOUNDPRINT_DEBUG_KEYSTORE_PASSWORD"
           } >> "$GITHUB_ENV"
