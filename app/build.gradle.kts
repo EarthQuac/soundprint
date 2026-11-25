@@ -1,3 +1,14 @@
+val ciDebugKeystorePath = System.getenv("SOUNDPRINT_DEBUG_KEYSTORE_PATH")
+val ciDebugKeystorePassword = System.getenv("SOUNDPRINT_DEBUG_KEYSTORE_PASSWORD")
+val ciDebugKeyAlias = System.getenv("SOUNDPRINT_DEBUG_KEY_ALIAS")
+val ciDebugKeyPassword = System.getenv("SOUNDPRINT_DEBUG_KEY_PASSWORD")
+val hasCiDebugSigning = listOf(
+    ciDebugKeystorePath,
+    ciDebugKeystorePassword,
+    ciDebugKeyAlias,
+    ciDebugKeyPassword
+).all { !it.isNullOrBlank() }
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -15,6 +26,25 @@ android {
         targetSdk = 36
         versionCode = 6
         versionName = "0.1.5"
+    }
+
+    if (hasCiDebugSigning) {
+        signingConfigs {
+            create("persistentDebug") {
+                storeFile = file(ciDebugKeystorePath!!)
+                storePassword = ciDebugKeystorePassword
+                keyAlias = ciDebugKeyAlias
+                keyPassword = ciDebugKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            if (hasCiDebugSigning) {
+                signingConfig = signingConfigs.getByName("persistentDebug")
+            }
+        }
     }
 
     buildFeatures {
