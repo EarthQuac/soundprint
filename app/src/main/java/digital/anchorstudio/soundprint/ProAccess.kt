@@ -78,11 +78,20 @@ internal fun ProFeatureBadge(modifier: Modifier = Modifier, sparkleSize: Dp = 16
 internal fun ProFeatureGate(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    featureKey: String = "",
     content: @Composable () -> Unit
 ) {
     val access = LocalSoundprintProUiAccess.current
-    if (!enabled || access.entitled) {
+    if (!enabled) {
         Box(modifier) { content() }
+    } else if (access.entitled) {
+        // Every Pro surface uses one shared reveal implementation. The composable
+        // call-site class supplies a stable default key; callers can override it.
+        SoundprintProUnlockReveal(
+            featureKey = featureKey.ifBlank { content.javaClass.name },
+            modifier = modifier,
+            content = content
+        )
     } else {
         val dark = LocalSoundprintDarkTheme.current
         val locked = soundprintProLockedTokens(dark)
