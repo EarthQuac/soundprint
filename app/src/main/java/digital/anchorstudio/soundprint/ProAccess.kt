@@ -1,6 +1,8 @@
 package digital.anchorstudio.soundprint
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.contentDescription
@@ -27,6 +31,35 @@ internal data class SoundprintProUiAccess(
 )
 
 internal val LocalSoundprintProUiAccess = staticCompositionLocalOf { SoundprintProUiAccess() }
+
+internal data class SoundprintProLockedTokens(
+    val surface: Color,
+    val text: Color,
+    val muted: Color,
+    val iconContainer: Color,
+    val icon: Color,
+    val border: Color
+)
+
+internal fun soundprintProLockedTokens(dark: Boolean) = if (dark) {
+    SoundprintProLockedTokens(
+        surface = Color(0xFF211E2A),
+        text = Color(0xFF85818F),
+        muted = Color(0xFF85818F),
+        iconContainer = Color(0xFF2A2634),
+        icon = Color(0xFF8F899E),
+        border = Color(0xFF2F2B38)
+    )
+} else {
+    SoundprintProLockedTokens(
+        surface = Color(0xFFECEBF0),
+        text = Color(0xFF8A8794),
+        muted = Color(0xFF8A8794),
+        iconContainer = Color(0xFFE2DFEA),
+        icon = Color(0xFF8A879F),
+        border = Color(0xFFDDDAE3)
+    )
+}
 
 @Composable
 internal fun ProFeatureBadge(modifier: Modifier = Modifier, sparkleSize: Dp = 16.dp) {
@@ -51,12 +84,41 @@ internal fun ProFeatureGate(
     if (!enabled || access.entitled) {
         Box(modifier) { content() }
     } else {
-        Box(modifier) {
-            Box(Modifier.fillMaxWidth().graphicsLayer(alpha = 0.42f)) { content() }
+        val dark = LocalSoundprintDarkTheme.current
+        val locked = soundprintProLockedTokens(dark)
+        if (dark) {
+            Box(modifier) {
+                Box(Modifier.fillMaxWidth().graphicsLayer(alpha = 0.42f)) { content() }
+                Box(
+                    Modifier.matchParentSize().clickable(onClick = access.onOpenPro),
+                    contentAlignment = Alignment.TopEnd
+                )
+            }
+        } else {
+            val lockedScheme = MaterialTheme.colorScheme.copy(
+                primary = locked.icon,
+                onPrimary = locked.text,
+                primaryContainer = locked.iconContainer,
+                onPrimaryContainer = locked.text,
+                surface = locked.surface,
+                onSurface = locked.text,
+                surfaceVariant = locked.iconContainer,
+                onSurfaceVariant = locked.muted,
+                outline = locked.border,
+                outlineVariant = locked.border
+            )
             Box(
-                Modifier.matchParentSize().clickable(onClick = access.onOpenPro),
-                contentAlignment = Alignment.TopEnd
+                modifier.clip(RoundedCornerShape(16.dp))
+                    .background(locked.surface)
+                    .border(1.dp, locked.border, RoundedCornerShape(16.dp))
             ) {
+                MaterialTheme(colorScheme = lockedScheme) {
+                    content()
+                }
+                Box(
+                    Modifier.matchParentSize().clickable(onClick = access.onOpenPro),
+                    contentAlignment = Alignment.TopEnd
+                )
             }
         }
     }
