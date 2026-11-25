@@ -98,7 +98,7 @@ fun SoundprintAlbumsScreen(
                 Text("Add music to your device and scan your library — albums are grouped from your files' tags.",
                     Modifier.padding(top = 5.dp), fontSize = 12.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 Button(onClick = onImportFiles, modifier = Modifier.padding(top = 16.dp), shape = CircleShape) {
-                    SoundprintIcon(SoundprintIcons.FolderOpen, null, modifier = Modifier.size(16.dp))
+                    SoundprintIcon(SoundprintIcons.AddMusic, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Add music")
                 }
