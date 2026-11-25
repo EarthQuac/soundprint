@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -131,18 +132,20 @@ fun SoundprintToastHost(modifier: Modifier = Modifier) {
             exit = fadeOut() + slideOutVertically(targetOffsetY = { -it / 2 })
         ) {
             displayedMessage?.let { toast ->
+                val darkTheme = LocalSoundprintDarkTheme.current
+                val scheme = MaterialTheme.colorScheme
                 val accent = when (toast.kind) {
-                    SoundprintToastKind.SUCCESS, SoundprintToastKind.WARNING, SoundprintToastKind.LOADING -> Color(0xFFD6A45C)
-                    SoundprintToastKind.ERROR -> Color(0xFFD97968)
-                    SoundprintToastKind.INFO -> Color(0xFF9AABBC)
+                    SoundprintToastKind.SUCCESS, SoundprintToastKind.WARNING, SoundprintToastKind.LOADING -> if (darkTheme) Color(0xFFD6A45C) else Color(0xFF8A5A00)
+                    SoundprintToastKind.ERROR -> if (darkTheme) Color(0xFFD97968) else Color(0xFFB3261E)
+                    SoundprintToastKind.INFO -> if (darkTheme) Color(0xFF9AABBC) else scheme.primary
                 }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .shadow(16.dp, RoundedCornerShape(12.dp))
+                        .then(if (darkTheme) Modifier.shadow(16.dp, RoundedCornerShape(12.dp)) else Modifier.shadow(12.dp, RoundedCornerShape(12.dp), ambientColor = scheme.primary.copy(alpha = 0.06f), spotColor = scheme.primary.copy(alpha = 0.06f)))
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF1B1A18))
+                        .background(if (darkTheme) Color(0xFF1B1A18) else scheme.surface)
                         
                         .heightIn(min = 56.dp, max = maxToastHeight)
                         .semantics { liveRegion = LiveRegionMode.Polite },
@@ -184,7 +187,7 @@ fun SoundprintToastHost(modifier: Modifier = Modifier) {
                         ) {
                             Text(
                                 toast.title,
-                                color = Color(0xFFF3F0E9),
+                                color = if (darkTheme) Color(0xFFF3F0E9) else scheme.onSurface,
                                 fontSize = 13.sp,
                                 lineHeight = 17.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -194,7 +197,7 @@ fun SoundprintToastHost(modifier: Modifier = Modifier) {
                                 Text(
                                     it,
                                     modifier = Modifier.padding(top = 3.dp),
-                                    color = Color(0xFFAAA59B),
+                                    color = if (darkTheme) Color(0xFFAAA59B) else scheme.onSurfaceVariant,
                                     fontSize = 12.sp,
                                     lineHeight = 16.sp,
                                     maxLines = Int.MAX_VALUE
@@ -205,11 +208,11 @@ fun SoundprintToastHost(modifier: Modifier = Modifier) {
                     Box(
                         modifier = Modifier.padding(end = 8.dp).size(26.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.06f))
+                            .background(if (darkTheme) Color.White.copy(alpha = 0.06f) else scheme.surfaceVariant)
                             .clickable { SoundprintToast.dismiss() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("×", color = Color.White.copy(alpha = 0.62f), fontSize = 17.sp, lineHeight = 18.sp)
+                        Text("×", color = if (darkTheme) Color.White.copy(alpha = 0.62f) else scheme.onSurfaceVariant, fontSize = 17.sp, lineHeight = 18.sp)
                     }
                     Spacer(Modifier.width(2.dp))
                 }
