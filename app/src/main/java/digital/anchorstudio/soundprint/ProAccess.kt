@@ -51,9 +51,8 @@ internal fun ProFeatureGate(
     if (!enabled || access.entitled) {
         Box(modifier) { content() }
     } else {
-        val darkTheme = LocalSoundprintDarkTheme.current
         Box(modifier) {
-            Box(Modifier.fillMaxWidth().graphicsLayer(alpha = if (darkTheme) 0.42f else 1f)) { content() }
+            Box(Modifier.fillMaxWidth().graphicsLayer(alpha = 0.42f)) { content() }
             Box(
                 Modifier.matchParentSize().clickable(onClick = access.onOpenPro),
                 contentAlignment = Alignment.TopEnd
