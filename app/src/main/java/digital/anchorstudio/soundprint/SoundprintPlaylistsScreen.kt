@@ -266,10 +266,12 @@ fun SoundprintPlaylistsScreen(
             if (searchTerm.isBlank()) {
                 val proUi = LocalSoundprintProUiAccess.current
                 val hasPro = proUi.entitled
+                val darkTheme = LocalSoundprintDarkTheme.current
+                val lockedColors = soundprintProLockedTokens(darkTheme)
                 Box(Modifier.fillMaxWidth()) {
                     Column(
                         Modifier.fillMaxWidth()
-                            .graphicsLayer(alpha = if (hasPro || !LocalSoundprintDarkTheme.current) 1f else 0.46f),
+                            .graphicsLayer(alpha = if (hasPro || !darkTheme) 1f else 0.46f),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Row(
@@ -287,20 +289,17 @@ fun SoundprintPlaylistsScreen(
                                         modifier = Modifier.weight(1f, fill = false).padding(horizontal = 3.dp, vertical = 2.dp),
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                        color = if (!hasPro && !darkTheme) lockedColors.text else MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         softWrap = false,
                                         overflow = TextOverflow.Visible
                                     )
                                     ProFeatureBadge(sparkleSize = if (LocalSoundprintDarkTheme.current) 14.dp else 12.dp)
-                                    if (!hasPro && !LocalSoundprintDarkTheme.current) {
-                                        SoundprintIcon(SoundprintIcons.Lock, "Pro feature", Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
                                 }
                                 Text(
                                     if (SoundprintListeningPreferences.automaticPlaylistsEnabled(androidx.compose.ui.platform.LocalContext.current)) "Automatically updated from your listening and library" else "Updates paused in Settings · your saved rules are kept",
                                     fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (!hasPro && !darkTheme) lockedColors.muted else MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -309,7 +308,10 @@ fun SoundprintPlaylistsScreen(
                                 onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true },
                                 modifier = Modifier.height(36.dp),
                                 shape = CircleShape,
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (!hasPro && !darkTheme) lockedColors.iconContainer else MaterialTheme.colorScheme.primary,
+                                    contentColor = if (!hasPro && !darkTheme) lockedColors.text else MaterialTheme.colorScheme.onPrimary
+                                ),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 0.dp)
                             ) {
                                 SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(14.dp))
@@ -323,23 +325,27 @@ fun SoundprintPlaylistsScreen(
                                 Modifier.fillMaxWidth()
                                     .then(if (LocalSoundprintDarkTheme.current) Modifier else Modifier.shadow(4.dp, RoundedCornerShape(16.dp), ambientColor = LocalSoundprintThemeTokens.current.shadow, spotColor = LocalSoundprintThemeTokens.current.shadow))
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(LocalSoundprintThemeTokens.current.card)
-                                    .then(if (LocalSoundprintDarkTheme.current) Modifier else Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.62f), RoundedCornerShape(16.dp)))
+                                    .background(if (!hasPro && !darkTheme) lockedColors.surface else LocalSoundprintThemeTokens.current.card)
+                                    .then(
+                                        if (!hasPro && !darkTheme) Modifier.border(1.dp, lockedColors.border, RoundedCornerShape(16.dp))
+                                        else if (darkTheme) Modifier
+                                        else Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.62f), RoundedCornerShape(16.dp))
+                                    )
                                     .padding(11.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(Modifier.weight(1f).clickable { selectedSmartId = rule.id }, verticalAlignment = Alignment.CenterVertically) {
-                                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
-                                        SoundprintIcon(SoundprintIcons.ListMusic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(if (!hasPro && !darkTheme) lockedColors.iconContainer else MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
+                                        SoundprintIcon(SoundprintIcons.ListMusic, null, tint = if (!hasPro && !darkTheme) lockedColors.icon else MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                     }
                                     Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                                        Text(rule.name, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text("$count songs", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(rule.name, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = if (!hasPro && !darkTheme) lockedColors.text else MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text("$count songs", fontSize = 10.sp, color = if (!hasPro && !darkTheme) lockedColors.muted else MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    SoundprintIcon(SoundprintIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                                    SoundprintIcon(SoundprintIcons.ChevronRight, null, tint = if (!hasPro && !darkTheme) lockedColors.icon else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                                 }
                                 if (rule.preset) {
-                                    Text("Preset", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 5.dp))
+                                    Text("Preset", fontSize = 9.sp, color = if (!hasPro && !darkTheme) lockedColors.muted else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 5.dp))
                                 } else {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         SoundprintIcon(SoundprintIcons.Pencil, "Edit ${rule.name}", Modifier.size(17.dp).clip(CircleShape).clickable {
