@@ -29,10 +29,12 @@ internal val LocalSoundprintProUiAccess = staticCompositionLocalOf { SoundprintP
 @Composable
 internal fun ProFeatureBadge(modifier: Modifier = Modifier, sparkleSize: Dp = 16.dp) {
     val access = LocalSoundprintProUiAccess.current
+    val darkTheme = LocalSoundprintDarkTheme.current
     if (!access.entitled) {
         SoundprintProSparkle(
             modifier = modifier.size(sparkleSize),
-            contentDescription = "Pro feature"
+            contentDescription = "Pro feature",
+            fillColor = if (darkTheme) null else Color(0xFF9A6A00)
         )
     }
 }
@@ -57,10 +59,11 @@ internal fun ProFeatureGate(
 @Composable
 internal fun SoundprintProSparkle(
     modifier: Modifier = Modifier,
-    contentDescription: String? = null
+    contentDescription: String? = null,
+    fillColor: Color? = null
 ) {
-    val themeFill = MaterialTheme.colorScheme.primary
-    val goldOutline = Color(0xFFE2BE68)
+    val themeFill = fillColor ?: MaterialTheme.colorScheme.primary
+    val goldOutline = if (LocalSoundprintDarkTheme.current) Color(0xFFE2BE68) else Color(0xFF8A5A00)
     val accessibleModifier = if (contentDescription == null) modifier else {
         modifier.semantics { this.contentDescription = contentDescription }
     }
