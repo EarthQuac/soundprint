@@ -580,7 +580,7 @@ fun SoundprintLyricsPanel(
                         textAlign = TextAlign.Center
                     )
                     if (lines.isNotEmpty()) {
-                        ProFeatureGate(Modifier.fillMaxWidth()) {
+                        ProFeatureGate(Modifier.fillMaxWidth(), featureKey = "lyrics_synced_karaoke") {
                             Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Synced lyrics", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 ProFeatureBadge()
@@ -664,7 +664,7 @@ fun SoundprintLyricsPanel(
                         }
                     }
                 } else if (lines.isNotEmpty()) {
-                    ProFeatureGate(Modifier.fillMaxWidth()) {
+                    ProFeatureGate(Modifier.fillMaxWidth(), featureKey = "lyrics_sync_preview") {
                         Row(
                             Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(16.dp))
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .72f)).padding(14.dp),
