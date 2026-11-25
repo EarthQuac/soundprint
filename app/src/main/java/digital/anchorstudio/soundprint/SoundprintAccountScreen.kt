@@ -133,6 +133,18 @@ internal fun SoundprintAccountScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     var mode by remember { mutableStateOf("sign-in") }
+    var emailPasswordExpanded by remember { mutableStateOf(false) }
+    var lastUsedMethod by remember { mutableStateOf("") }
+    val authMethodPreferences = remember {
+        context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
+    }
+    LaunchedEffect(Unit) {
+        lastUsedMethod = authMethodPreferences.getString("last_auth_method", "").orEmpty()
+    }
+    fun rememberAuthMethod(method: String) {
+        lastUsedMethod = method
+        authMethodPreferences.edit().putString("last_auth_method", method).apply()
+    }
     var message by remember { mutableStateOf<String?>(null) }
     var messageError by remember { mutableStateOf(false) }
     var otpRequested by remember { mutableStateOf(false) }
@@ -530,6 +542,7 @@ internal fun SoundprintAccountScreen(
                     nonce = rawNonce
                 }
                 refreshAccount()
+                rememberAuthMethod("google")
                 message = "You're signed in with Google."
                 messageError = false
             } catch (cancelled: CancellationException) {
@@ -873,6 +886,7 @@ internal fun SoundprintAccountScreen(
                     icon = if (mode == "forgot") SoundprintIcons.Lock else SoundprintIcons.UserRound
                 )
                 if (mode != "forgot") {
+                    val googleLastUsed = lastUsedMethod == "google"
                     OutlinedButton(
                         onClick = { signInWithGoogle() },
                         enabled = !busy,
@@ -882,20 +896,44 @@ internal fun SoundprintAccountScreen(
                         Text("G", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color(0xFF4285F4))
                         Spacer(Modifier.width(12.dp))
                         Text("Continue with Google", fontWeight = FontWeight.SemiBold)
+                        if (googleLastUsed) {
+                            Spacer(Modifier.weight(1f))
+                            Text("Last used", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
                         Text("OR", Modifier.padding(horizontal = 14.dp), fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
                     }
+                    OutlinedButton(
+                        onClick = {
+                            emailPasswordExpanded = !emailPasswordExpanded
+                            if (emailPasswordExpanded) mode = "sign-in"
+                            message = null
+                        },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        SoundprintIcon(SoundprintIcons.Mail, null)
+                        Spacer(Modifier.width(12.dp))
+                        Text("Continue with email and password", fontWeight = FontWeight.SemiBold)
+                        if (lastUsedMethod == "email") {
+                            Spacer(Modifier.weight(1f))
+                            Text("Last used", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
                 }
-                OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true, enabled = !busy && !otpRequested,
+                if (mode == "forgot" || emailPasswordExpanded) {
+                    OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true, enabled = !busy && !otpRequested,
+                        colors = soundprintOutlinedFieldColors()
+                    )
+                }
+                if (emailPasswordExpanded && (mode == "sign-up" || (mode == "sign-in" && !otpRequested))) OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } }, singleLine = true,
                     colors = soundprintOutlinedFieldColors()
                 )
-                if (mode == "sign-up" || (mode == "sign-in" && !otpRequested)) OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } }, singleLine = true,
-                    colors = soundprintOutlinedFieldColors()
-                )
-                if (mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } }, singleLine = true,
+                if (emailPasswordExpanded && mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } }, singleLine = true,
                     colors = soundprintOutlinedFieldColors()
                 )
                 if (otpRequested) {
@@ -923,6 +961,7 @@ internal fun SoundprintAccountScreen(
                                 message = "Code verified. Choose a new password below."
                             } else {
                                 refreshAccount()
+                                rememberAuthMethod("email")
                                 message = "Email verified. You're signed in."
                                 password = ""
                                 confirmPassword = ""
@@ -976,7 +1015,7 @@ internal fun SoundprintAccountScreen(
                         )
                     }
                 }
-                if (!otpRequested) Button(
+                if (!otpRequested && (mode == "forgot" || emailPasswordExpanded)) Button(
                     onClick = {
                         when (mode) {
                             "forgot" -> if (!email.contains("@")) {
@@ -1027,6 +1066,7 @@ internal fun SoundprintAccountScreen(
                                     this.password = password
                                 }
                                 refreshAccount()
+                                rememberAuthMethod("email")
                                 password = ""
                                 message = "You're signed in."
                                 messageError = false
@@ -1039,7 +1079,7 @@ internal fun SoundprintAccountScreen(
                     if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                     else Text(when (mode) { "sign-up" -> "Create account"; "forgot" -> "Send recovery code"; else -> "Sign in" })
                 }
-                if (mode == "sign-in" && !otpRequested) TextButton(
+                if (mode == "sign-in" && emailPasswordExpanded && !otpRequested) TextButton(
                     onClick = {
                         if (!email.contains("@")) {
                             message = "Enter your email address."
@@ -1077,8 +1117,8 @@ internal fun SoundprintAccountScreen(
                         else "Email me a sign-in code"
                     )
                 }
-                if (mode != "forgot" && !otpRequested) TextButton(onClick = { mode = "forgot"; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Forgot password?") }
-                if (!otpRequested) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                if (emailPasswordExpanded && mode != "forgot" && !otpRequested) TextButton(onClick = { mode = "forgot"; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Forgot password?") }
+                if (emailPasswordExpanded && !otpRequested) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     Text(if (mode == "sign-up") "Already have an account?" else "New to SoundPrint?", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = { mode = if (mode == "sign-up") "sign-in" else "sign-up"; message = null }) { Text(if (mode == "sign-up") "Sign in" else "Create account") }
                 }
