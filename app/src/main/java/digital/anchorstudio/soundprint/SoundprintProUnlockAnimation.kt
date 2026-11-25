@@ -5,7 +5,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -45,7 +44,7 @@ internal fun SoundprintProUnlockReveal(
     }
 
     val context = LocalContext.current
-    val userScope = SoundprintProGate.currentUserId().orEmpty().ifBlank { "local" }
+    val userScope = SoundprintProAccess.currentUserId().orEmpty().ifBlank { "local" }
     val preferences = remember(context) {
         context.getSharedPreferences("soundprint_pro_feature_unlocks", android.content.Context.MODE_PRIVATE)
     }
