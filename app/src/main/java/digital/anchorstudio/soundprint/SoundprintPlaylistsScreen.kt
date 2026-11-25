@@ -620,7 +620,7 @@ private fun PlaylistDetailNative(
                     SoundprintIcon(SoundprintIcons.Shuffle, null); Spacer(Modifier.width(5.dp)); Text("Shuffle")
                 }
             }
-            ProFeatureGate(Modifier.fillMaxWidth()) {
+            ProFeatureGate(Modifier.fillMaxWidth(), featureKey = "playlist_intelligence") {
             Column(
                 Modifier.fillMaxWidth().padding(top = 18.dp)
                     .clip(RoundedCornerShape(22.dp))
