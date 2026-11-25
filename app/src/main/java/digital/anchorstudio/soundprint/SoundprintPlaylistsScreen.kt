@@ -675,7 +675,7 @@ private fun PlaylistDetailNative(
             }
             }
             Row(Modifier.fillMaxWidth().padding(top = 7.dp), horizontalArrangement = Arrangement.Center) {
-                TextButton(onClick = { addOpen = true }) { SoundprintIcon(SoundprintIcons.Plus, null); Text("Add songs") }
+                TextButton(onClick = { addOpen = true }) { SoundprintIcon(SoundprintIcons.AddMusic, null); Text("Add songs") }
                 TextButton(onClick = { name = selected.name; renameOpen = true }) { SoundprintIcon(SoundprintIcons.Pencil, null); Text("Rename") }
                 TextButton(onClick = { presetStore.delete(selected.id); libraryManager.deletePlaylist(selected.id); onBack(); onChanged() }) { SoundprintIcon(SoundprintIcons.Trash2, null); Text("Delete") }
             }
@@ -944,7 +944,7 @@ private fun AddSongsDialog(
                                 Text(track.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(track.artist, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            SoundprintIcon(SoundprintIcons.Plus, null, tint = MaterialTheme.colorScheme.primary)
+                            SoundprintIcon(SoundprintIcons.AddMusic, null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                     if (candidates.isEmpty()) Text("No songs match this search.", Modifier.padding(14.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -963,7 +963,7 @@ private fun EmptyPlaylistState(onAdd: () -> Unit) {
         }
         Text("This playlist is empty", Modifier.padding(top = 12.dp), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         Text("Add songs from your library to start building it.", Modifier.padding(top = 4.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Button(onClick = onAdd, modifier = Modifier.padding(top = 12.dp), shape = CircleShape) { Text("Add songs") }
+        Button(onClick = onAdd, modifier = Modifier.padding(top = 12.dp), shape = CircleShape) { SoundprintIcon(SoundprintIcons.AddMusic, null, Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)); Text("Add songs") }
     }
 }
 
