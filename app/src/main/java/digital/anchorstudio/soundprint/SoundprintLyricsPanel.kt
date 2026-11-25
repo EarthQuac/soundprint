@@ -747,14 +747,24 @@ fun SoundprintLyricsPanel(
                                     Text(match.title, Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     if (index == 0) {
                                         val proUi = LocalSoundprintProUiAccess.current
+                                        val darkTheme = LocalSoundprintDarkTheme.current
+                                        val lockedColors = soundprintProLockedTokens(darkTheme)
                                         Row(
-                                            Modifier.graphicsLayer(alpha = if (proUi.entitled) 1f else 0.42f)
+                                            Modifier
+                                                .then(
+                                                    if (!proUi.entitled && darkTheme) Modifier.graphicsLayer(alpha = 0.42f)
+                                                    else if (!proUi.entitled) Modifier.clip(RoundedCornerShape(8.dp))
+                                                        .background(lockedColors.surface)
+                                                        .border(1.dp, lockedColors.border, RoundedCornerShape(8.dp))
+                                                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                                                    else Modifier
+                                                )
                                                 .clickable(enabled = !proUi.entitled, onClick = proUi.onOpenPro),
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(5.dp)
                                         ) {
-                                            Text("Strongest match", fontSize = 10.sp, color = Color(0xFF16865B), fontWeight = FontWeight.SemiBold)
-                                            Text("Auto-fill", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text("Strongest match", fontSize = 10.sp, color = if (!proUi.entitled && !darkTheme) lockedColors.text else Color(0xFF16865B), fontWeight = FontWeight.SemiBold)
+                                            Text("Auto-fill", fontSize = 9.sp, color = if (!proUi.entitled && !darkTheme) lockedColors.muted else MaterialTheme.colorScheme.onSurfaceVariant)
                                             ProFeatureBadge()
                                         }
                                     }
