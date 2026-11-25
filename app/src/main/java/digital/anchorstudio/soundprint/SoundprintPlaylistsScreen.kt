@@ -234,7 +234,7 @@ fun SoundprintPlaylistsScreen(
             action = { createPlaylistOpen = true }
         )
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 14.dp, bottom = 54.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 14.dp, bottom = if (LocalSoundprintDarkTheme.current) 26.dp else 54.dp),
             verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
             PlaylistSearchBox(query, { query = it }, "Search songs, playlists, artists or albums…")
@@ -289,7 +289,7 @@ fun SoundprintPlaylistsScreen(
                                         softWrap = false,
                                         overflow = TextOverflow.Visible
                                     )
-                                    ProFeatureBadge(sparkleSize = 12.dp)
+                                    ProFeatureBadge(sparkleSize = if (LocalSoundprintDarkTheme.current) 14.dp else 12.dp)
                                     if (!hasPro && !LocalSoundprintDarkTheme.current) {
                                         SoundprintIcon(SoundprintIcons.Lock, "Pro feature", Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
