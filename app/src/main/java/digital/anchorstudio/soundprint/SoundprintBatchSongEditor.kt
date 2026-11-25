@@ -156,7 +156,7 @@ internal fun SoundprintSongsLibraryScreen(
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface)
             ) {
-                SoundprintIcon(SoundprintIcons.FolderPlus, null, Modifier.size(18.dp))
+                SoundprintIcon(SoundprintIcons.AddMusic, null, Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Add music", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
