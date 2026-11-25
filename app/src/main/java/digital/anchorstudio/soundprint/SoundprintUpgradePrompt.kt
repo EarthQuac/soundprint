@@ -144,6 +144,13 @@ internal fun UpgradeCardContent(
 ) {
     val scheme = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(28.dp)
+    val benefits = if (feature.equals("Discover music for your mood", ignoreCase = true)) {
+        listOf(
+            "Find songs in your library by mood",
+            "Choose from moods like chill, focus or workout",
+            "Play songs that match the mood you pick"
+        )
+    } else upgradeBenefits
 
     Column(
         modifier = modifier
@@ -226,7 +233,7 @@ internal fun UpgradeCardContent(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            upgradeBenefits.forEach { line ->
+            benefits.forEach { line ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         Modifier.size(20.dp).clip(CircleShape).background(scheme.primary.copy(alpha = 0.18f)),
