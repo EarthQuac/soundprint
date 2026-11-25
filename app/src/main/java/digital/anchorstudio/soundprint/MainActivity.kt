@@ -1786,7 +1786,7 @@ private fun HomeScreen(
                             .then(if (darkTheme) Modifier.border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .24f), RoundedCornerShape(18.dp)) else Modifier),
                         contentAlignment = Alignment.Center
                     ) {
-                        SoundprintIcon(SoundprintIcons.FolderOpen, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                        SoundprintIcon(SoundprintIcons.AddMusic, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                     Spacer(Modifier.height(22.dp))
                     Text("IMPORT YOUR MUSIC", fontSize = 10.sp, letterSpacing = 1.6.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
@@ -2373,7 +2373,7 @@ private fun AddMusicMenuButton(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SoundprintIcon(SoundprintIcons.FolderOpen, null, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
+            SoundprintIcon(SoundprintIcons.AddMusic, null, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(10.dp))
             Text("Add music", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
@@ -2388,7 +2388,7 @@ private fun AddMusicMenuButton(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = .13f)), contentAlignment = Alignment.Center) {
-                        SoundprintIcon(SoundprintIcons.FolderOpen, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                        SoundprintIcon(SoundprintIcons.AddMusic, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                     Column(Modifier.padding(start = 11.dp)) {
                         Text("Import music", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
