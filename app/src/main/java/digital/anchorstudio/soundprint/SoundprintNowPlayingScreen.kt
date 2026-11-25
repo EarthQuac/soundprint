@@ -1112,7 +1112,7 @@ fun SoundprintNowPlayingScreen(
             PlayerToggle("Gapless playback", "Seamless transitions between queued tracks", gapless, proFeature = true) { gapless = it }
             PlayerToggle("Loudness leveling", "Keep volume consistent", loudness, proFeature = true) { loudness = it }
             PlayerToggle("Stop after this song", "Pause at the end of the current track", stopAfterCurrent, proFeature = true) { stopAfterCurrent = it }
-            ProFeatureGate(Modifier.fillMaxWidth()) {
+            ProFeatureGate(Modifier.fillMaxWidth(), featureKey = "crossfade") {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("Crossfade", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -1440,7 +1440,7 @@ private fun PlayerQuickAction(
     proFeature: Boolean = false,
     onClick: () -> Unit
 ) {
-    ProFeatureGate(modifier = modifier, enabled = proFeature) {
+    ProFeatureGate(modifier = modifier, enabled = proFeature, featureKey = "quick_action:$label") {
         Column(
             Modifier.fillMaxWidth().height(84.dp).clip(RoundedCornerShape(16.dp))
                 .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
@@ -1497,7 +1497,7 @@ private fun PlayerChoiceRow(options:List<String>,selected:String,onSelect:(Strin
 }
 @Composable
 private fun PlayerToggle(title: String, detail: String, checked: Boolean, proFeature: Boolean = false, onChange: (Boolean) -> Unit) {
-    ProFeatureGate(Modifier.fillMaxWidth(), enabled = proFeature) {
+    ProFeatureGate(Modifier.fillMaxWidth(), enabled = proFeature, featureKey = "player_toggle:$title") {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
