@@ -1231,7 +1231,13 @@ private fun AccountPanel(content: @Composable ColumnScope.() -> Unit) {
     val shape = RoundedCornerShape(24.dp)
     Column(
         Modifier.fillMaxWidth()
-            .shadow(5.dp, shape, ambientColor = Color.Black.copy(alpha = .12f), spotColor = Color.Black.copy(alpha = .08f))
+            .then(
+                if (LocalSoundprintDarkTheme.current) {
+                    Modifier.shadow(5.dp, shape, ambientColor = Color.Black.copy(alpha = .12f), spotColor = Color.Black.copy(alpha = .08f))
+                } else {
+                    Modifier.shadow(12.dp, shape, ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = .06f), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = .06f))
+                }
+            )
             .clip(shape)
             .background(MaterialTheme.colorScheme.surface)
             .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .72f), shape)
