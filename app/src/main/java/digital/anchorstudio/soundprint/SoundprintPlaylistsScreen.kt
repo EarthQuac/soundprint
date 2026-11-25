@@ -243,7 +243,7 @@ fun SoundprintPlaylistsScreen(
                     Text("SMART MIXES", fontSize = 11.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     mixes.forEach { mix ->
                         Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalSoundprintThemeTokens.current.card)
                                 .then(if (LocalSoundprintDarkTheme.current) Modifier else Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.62f), RoundedCornerShape(16.dp)))
                                 .clickable { selectedSmartId = mix.id }.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -318,7 +318,7 @@ fun SoundprintPlaylistsScreen(
                             val count = current?.smartResults?.get(rule.id)?.size ?: 0
                             Row(
                                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                                    .background(MaterialTheme.colorScheme.surface)
+                                    .background(LocalSoundprintThemeTokens.current.card)
                                     .then(if (LocalSoundprintDarkTheme.current) Modifier else Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.62f), RoundedCornerShape(16.dp)))
                                     .padding(11.dp),
                                 verticalAlignment = Alignment.CenterVertically
