@@ -3420,7 +3420,7 @@ private fun SettingsSearchBox(value: String, onValueChange: (String) -> Unit) {
 
 @Composable
 private fun SettingsToggleRow(label: String, description: String, checked: Boolean, modifier: Modifier = Modifier, proFeature: Boolean = false, onCheckedChange: (Boolean) -> Unit) {
-    ProFeatureGate(modifier = modifier, enabled = proFeature) {
+    ProFeatureGate(modifier = modifier, enabled = proFeature, featureKey = "settings:$label") {
         Column(Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(end = 10.dp)) {
@@ -3448,7 +3448,7 @@ private fun FolderAutoWatchSettingsRow(
     onForget: () -> Unit,
     onScan: () -> Unit
 ) {
-    ProFeatureGate(modifier = modifier) {
+    ProFeatureGate(modifier = modifier, featureKey = "folder_auto_watch") {
         Column(Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(end = 8.dp)) {
