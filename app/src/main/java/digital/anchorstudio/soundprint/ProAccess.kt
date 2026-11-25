@@ -58,14 +58,6 @@ internal fun ProFeatureGate(
                 Modifier.matchParentSize().clickable(onClick = access.onOpenPro),
                 contentAlignment = Alignment.TopEnd
             ) {
-                if (!darkTheme) {
-                    SoundprintIcon(
-                        SoundprintIcons.Lock,
-                        "Pro feature",
-                        Modifier.padding(8.dp).size(12.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
             }
         }
     }
