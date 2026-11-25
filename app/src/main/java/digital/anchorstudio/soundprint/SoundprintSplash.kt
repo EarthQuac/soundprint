@@ -5,24 +5,22 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment as UiAlignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -31,6 +29,7 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.TextStyle
@@ -40,8 +39,8 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import digital.anchorstudio.soundprint.R
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.exp
 import kotlin.math.floor
 import kotlin.math.pow
@@ -51,27 +50,30 @@ import kotlin.math.sin
 /*
  * Soundprint app-open animation (Jetpack Compose).
  *
- * SETUP
- * 1. Uses res/drawable-nodpi/soundprint_logo_bitmap.png (already in the project).
- * 2. Put this file in your project and fix the package + R import above.
- * 3. Show it first when the app opens:
- *
- *    setContent {
- *        var showSplash by remember { mutableStateOf(true) }
- *        if (showSplash) SoundprintSplash(onFinished = { showSplash = false })
- *        else HomeScreen()
- *    }
+ * Smoothness notes
+ *  - The animation clock is only read inside draw / graphicsLayer lambdas, never during
+ *    composition, so nothing recomposes per frame. Each frame only redraws.
+ *  - The old blurred glow layer (a full-screen RenderEffect re-rendered every frame) is replaced by a
+ *    cheap animated gradient glow.
+ *  - The wordmark no longer animates letter spacing (that forced a text re-layout every frame).
+ *  - The clock starts after two rendered frames, so the app's heavy first composition happens before the
+ *    timeline begins instead of eating the start of the animation.
+ *  - The system launch screen (see Theme.SoundprintStarting) is a plain matching colour with no icon, so
+ *    this animation is the first and only thing the person sees.
  *
  * Timeline (seconds): bars rise 0.2-1.5, glow 1.3+, light sweep 2.0-2.9,
- * wordmark 2.4-3.6, then a short hold and onFinished() at ~5.5s.
+ * wordmark 2.4-3.6, short hold, quick fade, then onFinished().
  */
 
 private const val STRIP_PX = 4        // width of each source strip in image pixels
 private const val TOTAL_SECONDS = 5f  // animation clock length
-private const val HOLD_MS = 500L      // pause on the finished logo before onFinished()
+private const val HOLD_MS = 400L      // pause on the finished logo
+private const val FADE_OUT_MS = 280   // fade into the app so it doesn't pop
 
 private val BgCenter = Color(0xFF2D1B5E)
 private val BgEdge = Color(0xFF140D2E)
+private val GlowCyan = Color(0xFF6EE0FF)
+private val GlowPink = Color(0xFFF472B6)
 private val WordmarkBrush = Brush.horizontalGradient(
     listOf(Color(0xFF6EE0FF), Color(0xFFC58AF9), Color(0xFFF472B6))
 )
@@ -107,6 +109,8 @@ fun SoundprintSplash(
         ) == 0f
     }
     val clock = remember { Animatable(if (animationsOff) TOTAL_SECONDS else 0f) }
+    val bgReveal = remember { Animatable(if (animationsOff) 1f else 0f) }
+    val exitFade = remember { Animatable(1f) }
     val finished by rememberUpdatedState(onFinished)
 
     if (image == null) {
@@ -115,28 +119,37 @@ fun SoundprintSplash(
         return
     }
 
+    // Per-strip random offsets never change, so compute them once instead of every frame.
+    val stripCount = image.width / STRIP_PX
+    val stripRandom = remember(stripCount) { FloatArray(stripCount) { rnd(it) } }
+
     LaunchedEffect(Unit) {
         if (!animationsOff) {
+            // Let the first heavy frames (app content composing underneath) finish, then start the clock.
+            androidx.compose.runtime.withFrameNanos { }
+            androidx.compose.runtime.withFrameNanos { }
+            launch { bgReveal.animateTo(1f, tween(350)) }
             clock.animateTo(
                 TOTAL_SECONDS,
                 tween((TOTAL_SECONDS * 1000).toInt(), easing = LinearEasing)
             )
         }
         delay(HOLD_MS)
+        exitFade.animateTo(0f, tween(FADE_OUT_MS))
         finished()
     }
-
-    val t = clock.value
-    val glow = (easeOut((t - 1.3f) / 0.8f) * (0.7f + 0.3f * sin(t * 4f))).coerceIn(0f, 1f)
-    val word = easeOut((t - 2.4f) / 1.2f)
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
+            .graphicsLayer { alpha = exitFade.value }
             .drawBehind {
+                // Starts as the flat launch-screen colour and eases into the radial gradient, so the
+                // hand-off from the system launch screen has no visible jump.
+                val centre = lerp(BgEdge, BgCenter, bgReveal.value)
                 drawRect(
                     Brush.radialGradient(
-                        colors = listOf(BgCenter, BgEdge),
+                        colors = listOf(centre, BgEdge),
                         center = Offset(size.width / 2f, size.height * 0.42f),
                         radius = size.maxDimension * 0.75f
                     )
@@ -150,15 +163,33 @@ fun SoundprintSplash(
             horizontalAlignment = UiAlignment.CenterHorizontally
         ) {
             Box(Modifier.size(logoSize)) {
-                // Soft glow layer (blur needs Android 12+; on older devices it just shows the crisp logo).
-                LogoBars(
-                    image, t,
+                // Cheap animated glow: a static gradient whose alpha follows the clock.
+                Box(
                     Modifier
                         .matchParentSize()
-                        .alpha(glow)
-                        .blur(24.dp, BlurredEdgeTreatment.Unbounded)
+                        .graphicsLayer {
+                            val t = clock.value
+                            alpha = (easeOut((t - 1.3f) / 0.8f) * (0.7f + 0.3f * sin(t * 4f))).coerceIn(0f, 1f)
+                        }
+                        .drawBehind {
+                            val r = size.minDimension * 0.75f
+                            drawCircle(
+                                Brush.radialGradient(
+                                    listOf(GlowCyan.copy(alpha = 0.34f), Color.Transparent),
+                                    center = Offset(size.width * 0.32f, size.height * 0.5f), radius = r
+                                ),
+                                radius = r, center = Offset(size.width * 0.32f, size.height * 0.5f)
+                            )
+                            drawCircle(
+                                Brush.radialGradient(
+                                    listOf(GlowPink.copy(alpha = 0.34f), Color.Transparent),
+                                    center = Offset(size.width * 0.68f, size.height * 0.5f), radius = r
+                                ),
+                                radius = r, center = Offset(size.width * 0.68f, size.height * 0.5f)
+                            )
+                        }
                 )
-                LogoBars(image, t, Modifier.matchParentSize())
+                LogoBars(image, stripRandom, clock, Modifier.matchParentSize())
             }
 
             Spacer(Modifier.height(32.dp))
@@ -166,15 +197,18 @@ fun SoundprintSplash(
             BasicText(
                 text = "soundprint",
                 modifier = Modifier.graphicsLayer {
+                    val word = easeOut((clock.value - 2.4f) / 1.2f)
                     alpha = word
                     translationY = (1f - word) * 16.dp.toPx()
+                    val s = 1.05f - 0.05f * word
+                    scaleX = s
+                    scaleY = s
                 },
                 style = TextStyle(
                     brush = WordmarkBrush,
                     fontSize = 44.sp,
                     fontWeight = FontWeight.SemiBold,
-                    // TODO: set fontFamily = YourBrandFont
-                    letterSpacing = (0.28f - 0.30f * word).em
+                    letterSpacing = (-0.02f).em
                 )
             )
         }
@@ -183,19 +217,20 @@ fun SoundprintSplash(
 
 /** Draws the logo as thin vertical strips that rise from the bottom, equalizer style. */
 @Composable
-private fun LogoBars(image: ImageBitmap, t: Float, modifier: Modifier) {
-    Canvas(modifier) { drawBars(image, t) }
+private fun LogoBars(image: ImageBitmap, random: FloatArray, clock: State<Float>, modifier: Modifier) {
+    // clock.value is read inside the draw lambda only, so this redraws per frame without recomposing.
+    Canvas(modifier) { drawBars(image, random, clock.value) }
 }
 
-private fun DrawScope.drawBars(image: ImageBitmap, t: Float) {
+private fun DrawScope.drawBars(image: ImageBitmap, random: FloatArray, t: Float) {
     val src = image.width
-    val n = src / STRIP_PX
+    val n = random.size
     val k = size.width / src
     val yc = size.height / 2f
     val sweep = (t - 2f) / 0.9f * 1.3f - 0.15f
 
     for (j in 0 until n) {
-        val p = easeOut((t - (0.2f + 0.55f * rnd(j))) / 0.8f)
+        val p = easeOut((t - (0.2f + 0.55f * random[j])) / 0.8f)
         if (p <= 0f) continue
 
         val sy = (src * (1f - p)).toInt().coerceIn(0, src - 1)

@@ -1500,24 +1500,7 @@ private fun PlayerToggle(title: String, detail: String, checked: Boolean, proFea
                 }
                 Text(detail, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Switch(
-                checked = checked,
-                onCheckedChange = onChange,
-                modifier = Modifier.shadow(
-                    elevation = if (checked) 9.dp else 0.dp,
-                    shape = RoundedCornerShape(50),
-                    ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.58f),
-                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
-                ),
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                    checkedTrackColor = MaterialTheme.colorScheme.primary,
-                    checkedBorderColor = MaterialTheme.colorScheme.primary,
-                    uncheckedThumbColor = MaterialTheme.colorScheme.surface,
-                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    uncheckedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
-                )
-            )
+            SoundprintSwitch(checked = checked, onCheckedChange = onChange)
         }
     }
 }
@@ -1559,24 +1542,7 @@ private fun AuraListeningStage(mood:String,preset:String,spatialAudio:Boolean,on
                         Text("3D Audio", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.White)
                         Text("Expand the stereo space", fontSize = 10.sp, color = Color.White.copy(alpha = .55f))
                     }
-                    Switch(
-                        checked = spatialAudio,
-                        onCheckedChange = onSpatialAudio,
-                        modifier = Modifier.shadow(
-                            elevation = if (spatialAudio) 9.dp else 0.dp,
-                            shape = RoundedCornerShape(50),
-                            ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.58f),
-                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
-                        ),
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary,
-                            checkedBorderColor = MaterialTheme.colorScheme.primary,
-                            uncheckedThumbColor = MaterialTheme.colorScheme.surface,
-                            uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                            uncheckedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
-                        )
-                    )
+                    SoundprintSwitch(checked = spatialAudio, onCheckedChange = onSpatialAudio)
                 }
             }
             FlowRow(horizontalArrangement=Arrangement.Center, verticalArrangement=Arrangement.spacedBy(8.dp)){

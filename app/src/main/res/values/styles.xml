@@ -9,4 +9,12 @@
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+
+    <!-- Launch theme: plain colour, no icon, then swaps to Theme.Soundprint once the app draws. -->
+    <style name="Theme.SoundprintStarting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/soundprint_splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_transparent_icon</item>
+        <item name="windowSplashScreenAnimationDuration">0</item>
+        <item name="postSplashScreenTheme">@style/Theme.Soundprint</item>
+    </style>
 </resources>

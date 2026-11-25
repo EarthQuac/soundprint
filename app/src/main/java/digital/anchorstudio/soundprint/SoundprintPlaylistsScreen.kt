@@ -289,8 +289,7 @@ fun SoundprintPlaylistsScreen(
                                         softWrap = false,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                    // Enlarge the actual Pro sparkle beside this heading.
-                                    ProFeatureBadge(sparkleSize = 48.dp)
+                                    ProFeatureBadge(sparkleSize = 14.dp)
                                 }
                                 Text(
                                     if (SoundprintListeningPreferences.automaticPlaylistsEnabled(androidx.compose.ui.platform.LocalContext.current)) "Automatically updated from your listening and library" else "Updates paused in Settings · your saved rules are kept",
@@ -302,12 +301,13 @@ fun SoundprintPlaylistsScreen(
                             }
                             Button(
                                 onClick = { editingId = null; draft = freshSmartPlaylist(); editorOpen = true },
+                                modifier = Modifier.height(36.dp),
                                 shape = CircleShape,
-                                contentPadding = ButtonDefaults.ContentPadding
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 0.dp)
                             ) {
-                                SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(15.dp))
+                                SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(14.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text("New playlist", fontSize = 11.sp, maxLines = 1, softWrap = false)
+                                Text("New playlist", fontSize = 12.sp, maxLines = 1, softWrap = false)
                             }
                         }
                         current?.smartPlaylists.orEmpty().forEach { rule ->
@@ -506,18 +506,7 @@ private fun PlaylistPresetSwitch(
             Text(title, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
             Text(description, modifier = Modifier.padding(top = 3.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 15.sp)
         }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                checkedBorderColor = MaterialTheme.colorScheme.primary,
-                uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                uncheckedBorderColor = Color.Transparent
-            )
-        )
+        SoundprintSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -1015,7 +1004,7 @@ private fun PlaylistSearchBox(value: String, onValueChange: (String) -> Unit, pl
         SoundprintIcon(SoundprintIcons.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp))
         Spacer(Modifier.width(9.dp))
         Box(Modifier.weight(1f)) {
-            if (value.isEmpty()) Text(placeholder, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (value.isEmpty()) Text(placeholder, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             BasicTextField(value, onValueChange, singleLine = true, textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface), modifier = Modifier.fillMaxWidth())
         }
         if (value.isNotEmpty()) SoundprintIcon(SoundprintIcons.X, "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(17.dp).clickable { onValueChange("") })

@@ -30,6 +30,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkInfo
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
@@ -268,6 +269,11 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Must run before super.onCreate. The system launch screen is a plain colour with no icon
+        // (see Theme.SoundprintStarting), and it hands straight over to SoundprintSplash, so the app
+        // icon never flashes before the animation.
+        val systemSplash = installSplashScreen()
+        systemSplash.setOnExitAnimationListener { it.remove() }
         super.onCreate(savedInstanceState)
         handleAccountReturnIntent(intent)
         SoundprintSupabase.client.handleDeeplinks(intent)
@@ -1466,25 +1472,13 @@ private fun SoundprintApp(
             }
         }
         SoundprintProGate.lockedFeature?.let { feature ->
-            AlertDialog(
-                onDismissRequest = { SoundprintProGate.lockedFeature = null },
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SoundprintProSparkle(Modifier.size(20.dp))
-                        Spacer(Modifier.width(9.dp))
-                        Text("$feature is a Pro feature")
-                    }
+            SoundprintUpgradePrompt(
+                feature = feature,
+                onExplore = {
+                    SoundprintProGate.lockedFeature = null
+                    proOpen = true
                 },
-                text = { Text("Explore Soundprint Pro to use $feature. Your music library and basic playback stay free.") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        SoundprintProGate.lockedFeature = null
-                        proOpen = true
-                    }) { Text("Explore Pro") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { SoundprintProGate.lockedFeature = null }) { Text("Not now") }
-                }
+                onDismiss = { SoundprintProGate.lockedFeature = null }
             )
         }
         resumePrompt?.let { prompt ->
@@ -3402,24 +3396,7 @@ private fun SettingsToggleRow(label: String, description: String, checked: Boole
                     }
                     Text(description, modifier = Modifier.padding(top = 4.dp), fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Switch(
-                    checked = checked,
-                    onCheckedChange = onCheckedChange,
-                    modifier = Modifier.shadow(
-                        elevation = if (checked) 9.dp else 0.dp,
-                        shape = RoundedCornerShape(50),
-                        ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.58f),
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
-                    ),
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primary,
-                        checkedBorderColor = MaterialTheme.colorScheme.primary,
-                        uncheckedThumbColor = MaterialTheme.colorScheme.surface,
-                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        uncheckedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
-                    )
-                )
+                SoundprintSwitch(checked = checked, onCheckedChange = onCheckedChange)
             }
             SettingsDivider()
         }

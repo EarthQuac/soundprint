@@ -147,25 +147,17 @@ internal object SoundprintProGate {
 
 @Composable
 internal fun ProFeatureLockedScreen(feature: String, description: String) {
+    // Same card as the modal upgrade prompt so every locked surface looks and behaves the same.
+    val onOpenPro = LocalSoundprintProUiAccess.current.onOpenPro
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Column(
-            modifier = Modifier.clip(RoundedCornerShape(24.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f))
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(modifier = Modifier.padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(feature, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                ProFeatureBadge()
-            }
-            Text(description, modifier = Modifier.padding(top = 8.dp), fontSize = 13.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Button(onClick = { SoundprintProGate.lockedFeature = feature }, modifier = Modifier.padding(top = 18.dp)) {
-                Text("Explore Pro")
-            }
-        }
+        UpgradeCardContent(
+            feature = feature,
+            primaryLabel = "Explore Pro",
+            onPrimary = onOpenPro
+        )
     }
 }
