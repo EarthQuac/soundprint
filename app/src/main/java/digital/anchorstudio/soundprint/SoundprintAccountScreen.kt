@@ -134,6 +134,7 @@ internal fun SoundprintAccountScreen(
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     var mode by remember { mutableStateOf("sign-in") }
     var emailPasswordExpanded by remember { mutableStateOf(false) }
+    var usePassword by remember { mutableStateOf(false) }
     var lastUsedMethod by remember { mutableStateOf("") }
     val authMethodPreferences = remember {
         context.getSharedPreferences("soundprint_account_security", Context.MODE_PRIVATE)
@@ -887,53 +888,68 @@ internal fun SoundprintAccountScreen(
                 )
                 if (mode != "forgot") {
                     val googleLastUsed = lastUsedMethod == "google"
-                    OutlinedButton(
-                        onClick = { signInWithGoogle() },
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Text("G", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color(0xFF4285F4))
-                        Spacer(Modifier.width(12.dp))
-                        Text("Continue with Google", fontWeight = FontWeight.SemiBold)
-                        if (googleLastUsed) {
-                            Spacer(Modifier.weight(1f))
-                            Text("Last used", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                    Box(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                        OutlinedButton(
+                            onClick = { signInWithGoogle() },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text("G", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color(0xFF4285F4))
+                            Spacer(Modifier.width(12.dp))
+                            Text("Continue with Google", fontWeight = FontWeight.SemiBold)
                         }
+                        if (googleLastUsed) LastUsedBadge(Modifier.align(Alignment.TopEnd))
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
                         Text("OR", Modifier.padding(horizontal = 14.dp), fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
                     }
-                    OutlinedButton(
-                        onClick = {
-                            emailPasswordExpanded = !emailPasswordExpanded
-                            if (emailPasswordExpanded) mode = "sign-in"
-                            message = null
-                        },
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        SoundprintIcon(SoundprintIcons.Mail, null)
-                        Spacer(Modifier.width(12.dp))
-                        Text("Continue with email and password", fontWeight = FontWeight.SemiBold)
-                        if (lastUsedMethod == "email") {
-                            Spacer(Modifier.weight(1f))
-                            Text("Last used", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                    Box(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                emailPasswordExpanded = !emailPasswordExpanded
+                                if (emailPasswordExpanded) mode = "sign-in"
+                                message = null
+                            },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            SoundprintIcon(SoundprintIcons.Mail, null)
+                            Spacer(Modifier.width(12.dp))
+                            Text("Continue with email", fontWeight = FontWeight.SemiBold)
                         }
+                        if (lastUsedMethod == "email") LastUsedBadge(Modifier.align(Alignment.TopEnd))
                     }
+                }
+                if (emailPasswordExpanded && mode == "sign-in" && !usePassword && !otpRequested) {
+                    Text(
+                        "No password needed. We'll email you a 6-digit code to sign in, and create your SoundPrint account if you're new.",
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (emailPasswordExpanded && usePassword && mode != "forgot" && !otpRequested) {
+                    Text(
+                        if (mode == "sign-up") "Choose a new password for your SoundPrint account. It's separate from your Google password."
+                        else "Use the email and password you created for SoundPrint. This is not your Google password.",
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 if (mode == "forgot" || emailPasswordExpanded) {
                     OutlinedTextField(email, { email = it.trim() }, Modifier.fillMaxWidth(), label = { Text("Email address") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Mail, null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true, enabled = !busy && !otpRequested,
                         colors = soundprintOutlinedFieldColors()
                     )
                 }
-                if (emailPasswordExpanded && (mode == "sign-up" || (mode == "sign-in" && !otpRequested))) OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } }, singleLine = true,
+                if (emailPasswordExpanded && usePassword && (mode == "sign-up" || (mode == "sign-in" && !otpRequested))) OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text(if (mode == "sign-up") "Create a SoundPrint password" else "SoundPrint password") }, leadingIcon = { SoundprintIcon(SoundprintIcons.Lock, null) }, visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } }, singleLine = true,
                     colors = soundprintOutlinedFieldColors()
                 )
-                if (emailPasswordExpanded && mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } }, singleLine = true,
+                if (emailPasswordExpanded && usePassword && mode == "sign-up") OutlinedTextField(confirmPassword, { confirmPassword = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Text(if (confirmPasswordVisible) "Hide" else "Show") } }, singleLine = true,
                     colors = soundprintOutlinedFieldColors()
                 )
                 if (otpRequested) {
@@ -983,7 +999,7 @@ internal fun SoundprintAccountScreen(
                                         otpIsSignup -> supabase.auth.resendEmail(OtpType.Email.SIGNUP, email.trim())
                                         else -> supabase.auth.signInWith(OTP) {
                                             this.email = email.trim()
-                                            createUser = false
+                                            createUser = true
                                         }
                                     }
                                     if (!otpIsRecovery && !otpIsSignup) startOtpCooldown(email)
@@ -1057,8 +1073,28 @@ internal fun SoundprintAccountScreen(
                             else -> if (!email.contains("@")) {
                                 message = "Enter your email address."
                                 messageError = true
+                            } else if (!usePassword) perform {
+                                try {
+                                    supabase.auth.signInWith(OTP) {
+                                        this.email = email.trim()
+                                        createUser = true
+                                    }
+                                    startOtpCooldown(email)
+                                    otpIsSignup = false
+                                    otpIsRecovery = false
+                                    otpRequested = true
+                                    otpCode = ""
+                                    message = "Code sent. Enter it below to continue."
+                                    messageError = false
+                                } catch (error: Exception) {
+                                    if (isRateLimitError(error)) {
+                                        startOtpCooldown(email)
+                                        message = "Please wait 60 seconds before requesting another code."
+                                        messageError = true
+                                    } else throw error
+                                }
                             } else if (password.isBlank()) {
-                                message = "Enter your password, or choose email sign-in code."
+                                message = "Enter your SoundPrint password, or use an email code instead."
                                 messageError = true
                             } else perform {
                                 supabase.auth.signInWith(Email) {
@@ -1073,52 +1109,24 @@ internal fun SoundprintAccountScreen(
                             }
                         }
                     },
-                    enabled = !busy && email.isNotBlank() && (mode == "forgot" || password.isNotBlank()),
+                    enabled = !busy && email.isNotBlank() && (mode == "forgot" || (mode == "sign-in" && !usePassword && otpCooldownRemaining == 0) || password.isNotBlank()),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    else Text(when (mode) { "sign-up" -> "Create account"; "forgot" -> "Send recovery code"; else -> "Sign in" })
+                    else Text(when (mode) { "sign-up" -> "Create account"; "forgot" -> "Send recovery code"; else -> if (usePassword) "Sign in" else if (otpCooldownRemaining > 0) "Email me a code · ${otpCooldownRemaining}s" else "Email me a code" })
                 }
                 if (mode == "sign-in" && emailPasswordExpanded && !otpRequested) TextButton(
                     onClick = {
-                        if (!email.contains("@")) {
-                            message = "Enter your email address."
-                            messageError = true
-                        } else perform {
-                            try {
-                                supabase.auth.signInWith(OTP) {
-                                    this.email = email.trim()
-                                    createUser = false
-                                }
-                                startOtpCooldown(email)
-                                otpIsSignup = false
-                                otpIsRecovery = false
-                                otpRequested = true
-                                otpCode = ""
-                                message = "Sign-in code sent. Enter it below to sign in."
-                                messageError = false
-                            } catch (error: Exception) {
-                                if (isRateLimitError(error)) {
-                                    startOtpCooldown(email)
-                                    message = "Please wait 60 seconds before requesting another sign-in code."
-                                    messageError = true
-                                } else throw error
-                            }
-                        }
+                        usePassword = !usePassword
+                        password = ""
+                        confirmPassword = ""
+                        message = null
                     },
-                    enabled = !busy && email.isNotBlank() && otpCooldownRemaining == 0,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColors(
-                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .42f)
-                    )
-                ) {
-                    Text(
-                        if (otpCooldownRemaining > 0) "Request sign-in code · ${otpCooldownRemaining}s"
-                        else "Email me a sign-in code"
-                    )
-                }
-                if (emailPasswordExpanded && mode != "forgot" && !otpRequested) TextButton(onClick = { mode = "forgot"; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Forgot password?") }
-                if (emailPasswordExpanded && !otpRequested) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(if (usePassword) "Email me a code instead" else "Use a SoundPrint password instead") }
+                if (emailPasswordExpanded && usePassword && mode != "forgot" && !otpRequested) TextButton(onClick = { mode = "forgot"; message = null }, modifier = Modifier.fillMaxWidth()) { Text("Forgot password?") }
+                if (emailPasswordExpanded && usePassword && !otpRequested) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     Text(if (mode == "sign-up") "Already have an account?" else "New to SoundPrint?", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = { mode = if (mode == "sign-up") "sign-in" else "sign-up"; message = null }) { Text(if (mode == "sign-up") "Sign in" else "Create account") }
                 }
@@ -1263,6 +1271,25 @@ internal fun SoundprintAccountScreen(
                 Text("Cancel")
             }
         }
+    )
+}
+
+@Composable
+private fun LastUsedBadge(modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(9.dp)
+    val accent = MaterialTheme.colorScheme.primary
+    Text(
+        "Last used",
+        modifier = modifier
+            .offset(x = 4.dp, y = (-11).dp)
+            .background(MaterialTheme.colorScheme.surface, shape)
+            .background(accent.copy(alpha = .14f), shape)
+            .border(1.dp, accent.copy(alpha = .55f), shape)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        fontSize = 12.sp,
+        lineHeight = 14.sp,
+        fontWeight = FontWeight.Medium,
+        color = accent
     )
 }
 
