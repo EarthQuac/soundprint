@@ -143,6 +143,8 @@ internal fun UpgradeCardContent(
     onSecondary: (() -> Unit)? = null
 ) {
     val scheme = MaterialTheme.colorScheme
+    val darkTheme = LocalSoundprintDarkTheme.current
+    val proGold = if (darkTheme) ProGold else Color(0xFF936200)
     val shape = RoundedCornerShape(28.dp)
     val benefits = if (feature.equals("Discover music for your mood", ignoreCase = true)) {
         listOf(
@@ -159,18 +161,20 @@ internal fun UpgradeCardContent(
             .background(scheme.surface)
             .border(
                 1.dp,
-                Brush.linearGradient(listOf(scheme.primary.copy(alpha = 0.55f), ProGold.copy(alpha = 0.40f))),
+                Brush.linearGradient(listOf(scheme.primary.copy(alpha = 0.55f), proGold.copy(alpha = 0.40f))),
                 shape
             )
             .drawBehind {
-                // Soft accent glow behind the header.
-                drawRect(
-                    Brush.radialGradient(
-                        colors = listOf(scheme.primary.copy(alpha = 0.26f), Color.Transparent),
-                        center = Offset(size.width / 2f, 0f),
-                        radius = size.width * 0.85f
+                // Keep the existing glow in dark mode; light mode uses a clean, flat surface.
+                if (darkTheme) {
+                    drawRect(
+                        Brush.radialGradient(
+                            colors = listOf(scheme.primary.copy(alpha = 0.26f), Color.Transparent),
+                            center = Offset(size.width / 2f, 0f),
+                            radius = size.width * 0.85f
+                        )
                     )
-                )
+                }
             }
             .padding(horizontal = 24.dp)
             .padding(top = 28.dp, bottom = 16.dp),
@@ -182,11 +186,11 @@ internal fun UpgradeCardContent(
                 .size(68.dp)
                 .clip(CircleShape)
                 .background(
-                    Brush.radialGradient(
+                    if (darkTheme) Brush.radialGradient(
                         listOf(scheme.primary.copy(alpha = 0.30f), scheme.primary.copy(alpha = 0.08f))
-                    )
+                    ) else Brush.linearGradient(listOf(scheme.primary.copy(alpha = 0.12f), scheme.primary.copy(alpha = 0.12f)))
                 )
-                .border(1.dp, ProGold.copy(alpha = 0.55f), CircleShape),
+                .border(1.dp, proGold.copy(alpha = 0.55f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             SoundprintProSparkle(Modifier.size(30.dp))
@@ -199,7 +203,7 @@ internal fun UpgradeCardContent(
             fontSize = 11.sp,
             letterSpacing = 1.8.sp,
             fontWeight = FontWeight.SemiBold,
-            color = ProGold
+            color = proGold
         )
 
         Spacer(Modifier.height(8.dp))
