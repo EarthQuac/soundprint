@@ -29,21 +29,11 @@ android {
     }
 
     if (hasCiDebugSigning) {
-        signingConfigs {
-            create("persistentDebug") {
-                storeFile = file(ciDebugKeystorePath!!)
-                storePassword = ciDebugKeystorePassword
-                keyAlias = ciDebugKeyAlias
-                keyPassword = ciDebugKeyPassword
-            }
-        }
-    }
-
-    buildTypes {
-        getByName("debug") {
-            if (hasCiDebugSigning) {
-                signingConfig = signingConfigs.getByName("persistentDebug")
-            }
+        signingConfigs.getByName("debug") {
+            storeFile = file(ciDebugKeystorePath!!)
+            storePassword = ciDebugKeystorePassword
+            keyAlias = ciDebugKeyAlias
+            keyPassword = ciDebugKeyPassword
         }
     }
 
