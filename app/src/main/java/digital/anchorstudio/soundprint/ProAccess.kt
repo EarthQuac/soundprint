@@ -92,7 +92,7 @@ internal fun ProFeatureGate(
                 Box(
                     Modifier.matchParentSize().clickable(onClick = access.onOpenPro),
                     contentAlignment = Alignment.TopEnd
-                )
+                ) {}
             }
         } else {
             val lockedScheme = MaterialTheme.colorScheme.copy(
