@@ -189,7 +189,7 @@ fun SoundprintSplash(
                             )
                         }
                 )
-                LogoBars(image, stripRandom, clock, Modifier.matchParentSize())
+                SplashLogoBars(image, stripRandom, clock, Modifier.matchParentSize())
             }
 
             Spacer(Modifier.height(32.dp))
@@ -217,12 +217,12 @@ fun SoundprintSplash(
 
 /** Draws the logo as thin vertical strips that rise from the bottom, equalizer style. */
 @Composable
-private fun LogoBars(image: ImageBitmap, random: FloatArray, clock: State<Float>, modifier: Modifier) {
+private fun SplashLogoBars(image: ImageBitmap, random: FloatArray, clock: State<Float>, modifier: Modifier) {
     // clock.value is read inside the draw lambda only, so this redraws per frame without recomposing.
-    Canvas(modifier) { drawBars(image, random, clock.value) }
+    Canvas(modifier) { drawSplashBars(image, random, clock.value) }
 }
 
-private fun DrawScope.drawBars(image: ImageBitmap, random: FloatArray, t: Float) {
+private fun DrawScope.drawSplashBars(image: ImageBitmap, random: FloatArray, t: Float) {
     val src = image.width
     val n = random.size
     val k = size.width / src
