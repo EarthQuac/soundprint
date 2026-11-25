@@ -1770,7 +1770,7 @@ private fun HomeScreen(
                                 MaterialTheme.colorScheme.primary.copy(alpha = .10f),
                                 MaterialTheme.colorScheme.surface,
                                 MaterialTheme.colorScheme.surface
-                            )) else Brush.linearGradient(listOf(colors.glow, colors.surface, colors.surface))
+                            )) else Brush.linearGradient(listOf(colors.glow, colors.card, colors.card))
                         )
                         .then(
                             if (darkTheme) Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .62f), importCardShape)
