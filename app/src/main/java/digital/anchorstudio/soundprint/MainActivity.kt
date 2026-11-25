@@ -228,7 +228,7 @@ private val AuroraDark = SoundprintPalette(
 private val SakuraLight = SoundprintPalette(
     background = Color(0xFFFFF8FA), foreground = Color(0xFF2B1721),
     surface = Color(0xFFFFFFFF), surface2 = Color(0xFFF8E8EE),
-    primary = Color(0xFFC34F78), muted = Color(0xFF806773),
+    primary = Color(0xFFB7436D), muted = Color(0xFF806773),
     border = Color(0xFFEED5DF), onPrimary = Color.White
 )
 private val SakuraDark = SoundprintPalette(
