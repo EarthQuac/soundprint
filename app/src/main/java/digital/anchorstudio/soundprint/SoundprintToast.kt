@@ -134,9 +134,10 @@ fun SoundprintToastHost(modifier: Modifier = Modifier) {
             displayedMessage?.let { toast ->
                 val darkTheme = LocalSoundprintDarkTheme.current
                 val scheme = MaterialTheme.colorScheme
+                val themeTokens = LocalSoundprintThemeTokens.current
                 val accent = when (toast.kind) {
-                    SoundprintToastKind.SUCCESS, SoundprintToastKind.WARNING, SoundprintToastKind.LOADING -> if (darkTheme) Color(0xFFD6A45C) else Color(0xFF8A5A00)
-                    SoundprintToastKind.ERROR -> if (darkTheme) Color(0xFFD97968) else Color(0xFFB3261E)
+                    SoundprintToastKind.SUCCESS, SoundprintToastKind.WARNING, SoundprintToastKind.LOADING -> if (darkTheme) Color(0xFFD6A45C) else themeTokens.proGold
+                    SoundprintToastKind.ERROR -> if (darkTheme) Color(0xFFD97968) else scheme.error
                     SoundprintToastKind.INFO -> if (darkTheme) Color(0xFF9AABBC) else scheme.primary
                 }
                 Row(
