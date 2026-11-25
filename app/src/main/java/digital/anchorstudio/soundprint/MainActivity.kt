@@ -151,7 +151,7 @@ internal data class SoundprintPalette(
 )
 
 internal val LocalSoundprintDarkTheme = compositionLocalOf { true }
-internal val LocalSoundprintThemeTokens = staticCompositionLocalOf<SoundprintPalette> { error("Soundprint theme tokens were not provided") }
+internal val LocalSoundprintThemeTokens = staticCompositionLocalOf { LavenderDark }
 
 private val AmberLight = SoundprintPalette(
     background = Color(0xFFFBFAF7), foreground = Color(0xFF17130F),
