@@ -1467,6 +1467,7 @@ private fun SoundprintApp(
                 // Float the mini player over the content viewport. Keeping this overlay
                 // inside the weighted screen Box prevents fillMaxSize() from consuming
                 // the parent Column's height and pushing the navigation/content off-screen.
+                Column(modifier = Modifier.fillMaxSize()) {
                 androidx.compose.animation.AnimatedVisibility(
                     visible = !nowPlayingOpen && miniPlayerVisible && playbackConnection.controller?.currentMediaItem != null,
                     modifier = Modifier.fillMaxSize(),
@@ -1493,6 +1494,7 @@ private fun SoundprintApp(
                         onCollapse = { miniPlayerExpanded = false },
                         onAnchorChanged = { x, y -> miniAnchor[0] = x; miniAnchor[1] = y }
                     )
+                }
                 }
             }
 
