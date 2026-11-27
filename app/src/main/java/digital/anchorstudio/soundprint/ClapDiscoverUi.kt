@@ -1,5 +1,11 @@
 package digital.anchorstudio.soundprint
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.AnimatedVisibility
 import android.content.Context
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -774,7 +780,11 @@ fun ClapDiscoverScreen(
                             }
                         }
                     }
-                    if (insightTrackId == track.id) {
+                    AnimatedVisibility(
+                        visible = insightTrackId == track.id,
+                        enter = expandVertically(tween(260, easing = FastOutSlowInEasing)) + fadeIn(tween(220)),
+                        exit = shrinkVertically(tween(220, easing = FastOutSlowInEasing)) + fadeOut(tween(140))
+                    ) {
                         val profile = profiles[track.id]
                         Column(Modifier.fillMaxWidth().padding(start = 33.dp, end = 8.dp, bottom = 10.dp)) {
                             Text("SONG INSIGHTS", fontSize = 9.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -163,30 +164,35 @@ fun SoundprintSplash(
             modifier = Modifier.align(UiAlignment.Center),
             horizontalAlignment = UiAlignment.CenterHorizontally
         ) {
-            Box(Modifier.size(logoSize)) {
-                // Cheap animated glow: a static gradient whose alpha follows the clock.
+            Box(Modifier.size(logoSize), contentAlignment = UiAlignment.Center) {
+                // Cheap animated glow. It is drawn on a canvas LARGER than the logo and fades to fully
+                // transparent before its edge. Previously it was exactly logo-sized, so the layer clipped
+                // the glow into a visible square "box" behind the S.
                 Box(
                     Modifier
-                        .matchParentSize()
+                        .requiredSize(logoSize * 2.2f)
                         .graphicsLayer {
                             val t = clock.value
                             alpha = (easeOut((t - 1.3f) / 0.8f) * (0.7f + 0.3f * sin(t * 4f))).coerceIn(0f, 1f)
                         }
                         .drawBehind {
-                            val r = size.minDimension * 0.75f
+                            val unit = size.minDimension / 2.2f   // = logo size in px
+                            val r = unit * 0.62f
+                            val left = Offset(size.width / 2f - unit * 0.18f, size.height / 2f)
+                            val right = Offset(size.width / 2f + unit * 0.18f, size.height / 2f)
                             drawCircle(
                                 Brush.radialGradient(
-                                    listOf(GlowCyan.copy(alpha = 0.34f), Color.Transparent),
-                                    center = Offset(size.width * 0.32f, size.height * 0.5f), radius = r
+                                    listOf(GlowCyan.copy(alpha = 0.30f), Color.Transparent),
+                                    center = left, radius = r
                                 ),
-                                radius = r, center = Offset(size.width * 0.32f, size.height * 0.5f)
+                                radius = r, center = left
                             )
                             drawCircle(
                                 Brush.radialGradient(
-                                    listOf(GlowPink.copy(alpha = 0.34f), Color.Transparent),
-                                    center = Offset(size.width * 0.68f, size.height * 0.5f), radius = r
+                                    listOf(GlowPink.copy(alpha = 0.30f), Color.Transparent),
+                                    center = right, radius = r
                                 ),
-                                radius = r, center = Offset(size.width * 0.68f, size.height * 0.5f)
+                                radius = r, center = right
                             )
                         }
                 )

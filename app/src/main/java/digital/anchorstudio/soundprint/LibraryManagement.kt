@@ -1,5 +1,8 @@
 package digital.anchorstudio.soundprint
 
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -322,7 +325,16 @@ class MusicLibraryManager(context:Context) {
     fun recentlyPlayed(limit:Int=50)=repository.recentlyPlayed(limit)
     fun song(id:String)=repository.track(id)
     suspend fun ensureArtwork(id:String)=repository.ensureArtwork(id)
-    suspend fun setCustomArtworkEnabled(enabled:Boolean)=repository.setCustomArtworkEnabled(enabled)
+    // Bumped whenever artwork is added or removed in bulk, so players showing a song that is already
+    // playing can reload its cover immediately instead of waiting for the next track.
+    private val artworkRevisionState=MutableStateFlow(0)
+    val artworkRevision:StateFlow<Int> = artworkRevisionState.asStateFlow()
+    suspend fun setCustomArtworkEnabled(enabled:Boolean):Int {
+        val changed=repository.setCustomArtworkEnabled(enabled)
+        artworkRevisionState.value=artworkRevisionState.value+1
+        return changed
+    }
+    fun notifyArtworkChanged() { artworkRevisionState.value=artworkRevisionState.value+1 }
     fun saveClapMoodProfile(track:MusicTrack,scores:Map<String,Float>) =
         repository.saveClapMoodProfile(track,CLAP_PROFILE_VERSION,scores)
     fun clapMoodProfile(track:MusicTrack):ClapMoodProfile? =

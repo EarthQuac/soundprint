@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
@@ -39,6 +40,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -260,29 +262,32 @@ internal fun UpgradeCardContent(
 
         Spacer(Modifier.height(22.dp))
 
+        // Pick a label colour that always contrasts with the button, whatever the palette.
+        val buttonLabelColor = if (scheme.primary.luminance() > 0.35f) Color(0xFF1A0F05) else Color.White
         Button(
             onClick = onPrimary,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
+            modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp),
             shape = RoundedCornerShape(28.dp),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = scheme.primary,
-                contentColor = scheme.onPrimary
+                contentColor = buttonLabelColor
             )
         ) {
             Text(
                 primaryLabel,
-                modifier = Modifier.padding(vertical = 2.dp),
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                color = buttonLabelColor,
                 fontSize = 15.sp,
                 lineHeight = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1
+                fontWeight = FontWeight.SemiBold
             )
         }
 
         if (secondaryLabel != null && onSecondary != null) {
             Spacer(Modifier.height(4.dp))
-            TextButton(onClick = onSecondary, modifier = Modifier.fillMaxWidth().height(44.dp)) {
+            TextButton(onClick = onSecondary, modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 44.dp)) {
                 Text(
                     secondaryLabel,
                     fontSize = 14.sp,

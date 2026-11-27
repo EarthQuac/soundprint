@@ -2,6 +2,11 @@ package digital.anchorstudio.soundprint
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
@@ -149,15 +154,25 @@ internal object SoundprintProGate {
 internal fun ProFeatureLockedScreen(feature: String, description: String) {
     // Same card as the modal upgrade prompt so every locked surface looks and behaves the same.
     val onOpenPro = LocalSoundprintProUiAccess.current.onOpenPro
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        UpgradeCardContent(
-            feature = feature,
-            primaryLabel = "Explore Pro",
-            onPrimary = onOpenPro
-        )
+    // The card can be taller than the screen on small phones or with large text. A fixed-height
+    // Column squeezed the last child (the button) until its label vanished, so scroll instead and
+    // centre the card only when it fits.
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val minHeight = if (maxHeight == Dp.Infinity) 0.dp else maxHeight
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = minHeight)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            UpgradeCardContent(
+                feature = feature,
+                primaryLabel = "Explore Pro",
+                onPrimary = onOpenPro
+            )
+        }
     }
 }

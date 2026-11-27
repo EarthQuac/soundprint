@@ -1,9 +1,17 @@
 package digital.anchorstudio.soundprint
 
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.AnimatedVisibility
 import android.os.Bundle
 import android.app.Activity
 import io.github.jan.supabase.auth.handleDeeplinks
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -315,6 +323,14 @@ class MainActivity : ComponentActivity() {
                     preferences.edit().putBoolean("has_seen_launch_landing", true).apply()
                 }
             }
+            // Start from the last verified Pro grant. Without this every cold start briefly looked
+            // like a free account and wiped Pro-only settings (Custom artwork) before the check finished.
+            remember {
+                if (getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).getBoolean("pro_entitled", false)) {
+                    SoundprintProGate.updateEntitlement(true)
+                }
+                true
+            }
             val libraryRepository = remember { MusicLibraryRepository.getInstance(applicationContext) }
             val libraryManager = remember { MusicLibraryManager.getInstance(applicationContext) }
             LaunchedEffect(preferences, libraryManager) {
@@ -424,11 +440,10 @@ class MainActivity : ComponentActivity() {
                             enqueue(false)
                         }
                     } else {
-                        SoundprintProGate.updateEntitlement(false)
-                        getSharedPreferences("soundprint_playback_options", MODE_PRIVATE).edit()
-                            .putBoolean("pro_entitled", false).apply()
-                        enqueue(false)
-                        libraryStatus = "Couldn't verify Pro access, so this import will continue without custom artwork. Try again after reconnecting."
+                        // Offline or the server is unreachable: keep the last verified state and the
+                        // user's saved Custom artwork choice instead of revoking anything.
+                        val cachedPro = SoundprintProGate.isResolved && SoundprintProGate.hasPro
+                        enqueue(cachedPro && preferences.getBoolean("custom_artwork_enabled", false))
                     }
                 }
             }
@@ -1040,6 +1055,9 @@ private fun SoundprintApp(
     var nowPlayingOpen by remember { mutableStateOf(false) }
     var miniPlayerVisible by remember { mutableStateOf(false) }
     var miniPlayerExpanded by remember { mutableStateOf(false) }
+    // Where the floating player currently sits (fractions of the content area). The full player grows
+    // from / shrinks back to this point. A plain array, so updating it never recomposes anything.
+    val miniAnchor = remember { floatArrayOf(0.9f, 0.92f) }
     val clapScanner = remember { ClapLibraryScanner(appContext, libraryManager) }
     val playbackConnection = remember {
         SoundprintPlaybackConnection(
@@ -1088,12 +1106,32 @@ private fun SoundprintApp(
         disableProPlaybackOptions(appContext)
         if (selectedPalette != "Amber" && selectedPalette != "Lavender") onPaletteChange("Lavender")
         if (folderWatchEnabled) onToggleFolderWatch(false)
+        // Pro lapsed or signed out: hide generated covers but KEEP the saved "Custom artwork" choice,
+        // so it comes back by itself if Pro is active again. Only the user turning it off clears it.
         appContext.getSharedPreferences("soundprint_native_preferences", android.content.Context.MODE_PRIVATE)
-            .edit().putBoolean("custom_artwork_enabled", false).apply()
+            .edit().putBoolean("custom_artwork_stripped", true).apply()
+        appContext.getSharedPreferences("soundprint_playback_options", android.content.Context.MODE_PRIVATE)
+            .edit().putBoolean("pro_entitled", false).remove("pro_entitled_user").apply()
         screenScope.launch {
             withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(false) }
         }
         clapScanner.setAutoScanEnabled(false)
+    }
+    fun rememberVerifiedPro() {
+        val nativePrefs = appContext.getSharedPreferences("soundprint_native_preferences", android.content.Context.MODE_PRIVATE)
+        appContext.getSharedPreferences("soundprint_playback_options", android.content.Context.MODE_PRIVATE).edit()
+            .putBoolean("pro_entitled", true)
+            .putString("pro_entitled_user", SoundprintProAccess.currentUserId())
+            .apply()
+        // If covers were hidden while Pro was off and the user's choice is still on, put them back.
+        if (nativePrefs.getBoolean("custom_artwork_stripped", false)) {
+            nativePrefs.edit().putBoolean("custom_artwork_stripped", false).apply()
+            if (nativePrefs.getBoolean("custom_artwork_enabled", false)) {
+                screenScope.launch {
+                    withContext(Dispatchers.IO) { libraryManager.setCustomArtworkEnabled(true) }
+                }
+            }
+        }
     }
     LaunchedEffect(authSessionState, libraryTrackCount, proStatus.hasPro) {
         val userId = SoundprintProAccess.currentUserId()
@@ -1110,18 +1148,29 @@ private fun SoundprintApp(
         }
     }
     LaunchedEffect(authSessionState) {
-        SoundprintProGate.beginVerification()
+        // Wait for the saved session to load, and ignore temporary refresh/network problems.
+        // Neither is evidence that the account lost Pro, so neither may reset any setting.
+        if (authSessionState is SessionStatus.Initializing || authSessionState is SessionStatus.RefreshFailure) {
+            return@LaunchedEffect
+        }
+        val playbackPrefs = appContext.getSharedPreferences("soundprint_playback_options", android.content.Context.MODE_PRIVATE)
         if (SoundprintProAccess.hasSession()) {
+            val userId = SoundprintProAccess.currentUserId()
+            val verifiedUser = playbackPrefs.getString("pro_entitled_user", null)
+            if (verifiedUser != null && userId != null && verifiedUser != userId) {
+                // A different account signed in: drop the previous account's grant before checking.
+                SoundprintProGate.beginVerification()
+                playbackPrefs.edit().putBoolean("pro_entitled", false).remove("pro_entitled_user").apply()
+            }
             runCatching { SoundprintProAccess.refresh() }
                 .onSuccess {
                     proStatus = it
                     SoundprintProGate.updateEntitlement(it.hasPro)
-                    if (!it.hasPro) enforceFreeTierRestrictions()
+                    if (it.hasPro) rememberVerifiedPro() else enforceFreeTierRestrictions()
                 }
                 .onFailure {
-                    proStatus = SoundprintProStatus()
-                    SoundprintProGate.updateEntitlement(false)
-                    enforceFreeTierRestrictions()
+                    // Could not reach the Pro service. Keep the last verified state.
+                    if (!SoundprintProGate.isResolved) SoundprintProGate.updateEntitlement(false)
                 }
         } else {
             proStatus = SoundprintProStatus()
@@ -1150,11 +1199,9 @@ private fun SoundprintApp(
                     .onSuccess {
                         proStatus = it
                         SoundprintProGate.updateEntitlement(it.hasPro)
-                        if (!it.hasPro) enforceFreeTierRestrictions()
+                        if (it.hasPro) rememberVerifiedPro() else enforceFreeTierRestrictions()
                     }
                     .onFailure {
-                        SoundprintProGate.updateEntitlement(false)
-                        enforceFreeTierRestrictions()
                         proMessage = it.message ?: "Could not verify Pro access. Try again."
                     }
             } else {
@@ -1241,12 +1288,29 @@ private fun SoundprintApp(
                 AnimatedContent(
                     targetState = activeScreen,
                     transitionSpec = {
-                        (fadeIn(tween(220)) + slideInHorizontally(
-                            animationSpec = tween(260, easing = FastOutSlowInEasing)
-                        ) { it / 18 }) togetherWith
-                            (fadeOut(tween(160)) + slideOutHorizontally(
-                                animationSpec = tween(200, easing = FastOutSlowInEasing)
-                            ) { -it / 24 }) using SizeTransform(clip = false)
+                        val opening = targetState == "now-playing"
+                        val closing = initialState == "now-playing"
+                        val origin = TransformOrigin(miniAnchor[0], miniAnchor[1])
+                        val transform = when {
+                            // Mini player -> full player: grows out of the player's position.
+                            opening -> (fadeIn(tween(300, easing = LinearOutSlowInEasing)) +
+                                scaleIn(initialScale = 0.72f, transformOrigin = origin, animationSpec = tween(380, easing = FastOutSlowInEasing))) togetherWith
+                                fadeOut(tween(220)) using SizeTransform(clip = false)
+                            // Full player -> mini player: shrinks back into where the player sits.
+                            closing -> fadeIn(tween(280, delayMillis = 60)) togetherWith
+                                (fadeOut(tween(240)) +
+                                    scaleOut(targetScale = 0.72f, transformOrigin = origin, animationSpec = tween(320, easing = FastOutSlowInEasing))) using
+                                SizeTransform(clip = false)
+                            else -> (fadeIn(tween(220)) + slideInHorizontally(
+                                animationSpec = tween(260, easing = FastOutSlowInEasing)
+                            ) { it / 18 }) togetherWith
+                                (fadeOut(tween(160)) + slideOutHorizontally(
+                                    animationSpec = tween(200, easing = FastOutSlowInEasing)
+                                ) { -it / 24 }) using SizeTransform(clip = false)
+                        }
+                        // The full player stays on top while it grows in and while it shrinks out.
+                        transform.targetContentZIndex = if (opening) 1f else 0f
+                        transform
                     },
                     label = "soundprint-screen-transition"
                 ) { screen ->
@@ -1403,7 +1467,20 @@ private fun SoundprintApp(
                 // Float the mini player over the content viewport. Keeping this overlay
                 // inside the weighted screen Box prevents fillMaxSize() from consuming
                 // the parent Column's height and pushing the navigation/content off-screen.
-                if (!nowPlayingOpen && miniPlayerVisible && playbackConnection.controller?.currentMediaItem != null) {
+                AnimatedVisibility(
+                    visible = !nowPlayingOpen && miniPlayerVisible && playbackConnection.controller?.currentMediaItem != null,
+                    modifier = Modifier.fillMaxSize(),
+                    enter = fadeIn(tween(260, delayMillis = 90)) + scaleIn(
+                        initialScale = 0.86f,
+                        transformOrigin = TransformOrigin(miniAnchor[0], miniAnchor[1]),
+                        animationSpec = tween(320, easing = FastOutSlowInEasing)
+                    ),
+                    exit = fadeOut(tween(180)) + scaleOut(
+                        targetScale = 0.9f,
+                        transformOrigin = TransformOrigin(miniAnchor[0], miniAnchor[1]),
+                        animationSpec = tween(220, easing = FastOutSlowInEasing)
+                    )
+                ) {
                     SoundprintMiniPlayer(
                         controller = playbackConnection.controller,
                         library = libraryManager,
@@ -1413,12 +1490,17 @@ private fun SoundprintApp(
                         onNext = { playbackConnection.next() },
                         onClear = { playbackConnection.clearQueue(); miniPlayerVisible = false; miniPlayerExpanded = false },
                         expanded = miniPlayerExpanded,
-                        onCollapse = { miniPlayerExpanded = false }
+                        onCollapse = { miniPlayerExpanded = false },
+                        onAnchorChanged = { x, y -> miniAnchor[0] = x; miniAnchor[1] = y }
                     )
                 }
             }
 
-            if (!nowPlayingOpen && !tagEditorOpen) Column(
+            AnimatedVisibility(
+                visible = !nowPlayingOpen && !tagEditorOpen,
+                enter = expandVertically(tween(300, easing = FastOutSlowInEasing), expandFrom = Alignment.Bottom) + fadeIn(tween(260)),
+                exit = shrinkVertically(tween(260, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Bottom) + fadeOut(tween(160))
+            ) { Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background.copy(alpha = 0.96f))
@@ -1483,7 +1565,7 @@ private fun SoundprintApp(
                         }
                     }
                 }
-            }
+            } }
         }
         SoundprintProGate.lockedFeature?.let { feature ->
             SoundprintUpgradePrompt(
@@ -2578,7 +2660,11 @@ private fun PlaylistsScreen(onBack: () -> Unit) {
                         }
                     }
                 }
-                if (createOpen) {
+                AnimatedVisibility(
+                    visible = createOpen,
+                    enter = expandVertically(tween(240)) + fadeIn(tween(220)),
+                    exit = shrinkVertically(tween(200)) + fadeOut(tween(140))
+                ) {
                     Text("Playlist creation will be connected to your local music library in the next implementation pass.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

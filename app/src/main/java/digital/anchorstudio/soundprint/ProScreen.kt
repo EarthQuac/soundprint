@@ -1,5 +1,14 @@
 package digital.anchorstudio.soundprint
 
+import androidx.compose.ui.draw.rotate
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -281,6 +290,7 @@ private fun ProTutorialSection() {
 @Composable
 private fun ProGuideRow(number: Int, guide: ProGuide) {
     var expanded by remember { mutableStateOf(false) }
+    val chevronAngle by animateFloatAsState(if (expanded) 90f else 0f, tween(220, easing = FastOutSlowInEasing), label = "guide-chevron")
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.background.copy(alpha = 0.5f))
         ) {
         Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -291,9 +301,13 @@ private fun ProGuideRow(number: Int, guide: ProGuide) {
                 Text(guide.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                 Text(guide.where, modifier = Modifier.padding(top = 3.dp), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            SoundprintIcon(SoundprintIcons.ChevronRight, null, modifier = Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            SoundprintIcon(SoundprintIcons.ChevronRight, null, modifier = Modifier.size(17.dp).rotate(chevronAngle), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (expanded) {
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(tween(260, easing = FastOutSlowInEasing)) + fadeIn(tween(220)),
+            exit = shrinkVertically(tween(220, easing = FastOutSlowInEasing)) + fadeOut(tween(140))
+        ) {
             Column(Modifier.fillMaxWidth().padding(start = 53.dp, end = 14.dp, bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 guide.steps.forEachIndexed { index, step ->
                     Row(verticalAlignment = Alignment.Top) {
