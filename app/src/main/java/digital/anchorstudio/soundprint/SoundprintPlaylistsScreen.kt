@@ -816,7 +816,7 @@ private fun SmartPlaylistEditorDialog(
         }
         val condition = base.copy(field = field as SmartField, operator = operator as SmartOperator, value = value as String)
         val group = (draft.groups.firstOrNull() ?: freshGroup()).copy(conditions = listOf(condition))
-        onDraftChange(draft.copy(name = name as String, groups = listOf(group)))
+        onDraftChange(draft.copy(name = name as String, groups = listOf(group), limit = null))
         limitText = ""
     }
 
@@ -913,9 +913,6 @@ private fun SmartPlaylistEditorDialog(
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     if (advancedOpen && draft.groups.size > 1) {
-                                        NativeChoice(group.join.name, listOf("AND" to "All rules", "OR" to "Any rule")) { value ->
-                                            onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(join = SmartJoin.valueOf(value)) else it }))
-                                        }
                                         TextButton(onClick = {
                                             onDraftChange(draft.copy(groups = draft.groups.filterNot { it.id == group.id }))
                                         }) { Text("Remove", color = MaterialTheme.colorScheme.error) }
