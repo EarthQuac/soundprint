@@ -261,6 +261,11 @@ class SoundprintMusicImportWorker(
                 else -> throw IllegalArgumentException("Unknown music import type.")
             }
             notifications.complete(result)
+            if (result.imported > 0 || result.updated > 0) {
+                // The import worker writes directly through the repository, so explicitly
+                // notify the in-process player screens that track artwork may have changed.
+                MusicLibraryManager.getInstance(applicationContext).notifyArtworkChanged()
+            }
             requestFile.delete()
             Result.success(
                 Data.Builder()
