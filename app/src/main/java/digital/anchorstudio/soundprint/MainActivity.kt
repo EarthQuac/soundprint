@@ -761,6 +761,7 @@ class MainActivity : ComponentActivity() {
                     selectedPalette = selectedPalette,
                     onPaletteChange = { name -> selectedPalette = name; preferences.edit().putString("palette", name).apply() },
                     enteredLibrary = enteredLibrary,
+                    appReady = !showSplash,
                     onEnterLibrary = {
                         enteredLibrary = true
                         preferences.edit().putBoolean("has_seen_launch_landing", true).apply()
@@ -1026,6 +1027,7 @@ private fun SoundprintApp(
     selectedPalette: String,
     onPaletteChange: (String) -> Unit,
     enteredLibrary: Boolean,
+    appReady: Boolean,
     onEnterLibrary: () -> Unit,
     libraryTrackCount: Int,
     librarySources: List<MusicLibrarySource>,
@@ -1215,7 +1217,10 @@ private fun SoundprintApp(
     var tagEditorOpen by remember { mutableStateOf(false) }
     var resumePrompt by remember { mutableStateOf<PlaybackResumePrompt?>(null) }
     val playbackQueueStore = remember { PlaybackQueueStore(appContext) }
-    LaunchedEffect(playbackConnection) {
+    LaunchedEffect(playbackConnection, appReady, enteredLibrary) {
+        // The player can reconnect while the launch animation is still covering the app.
+        // Defer reading/showing the resume prompt until the user is inside the actual library.
+        if (!appReady || !enteredLibrary) return@LaunchedEffect
         repeat(120) {
             val controller = playbackConnection.controller
             if (controller != null && controller.mediaItemCount > 0) {
@@ -1579,40 +1584,173 @@ private fun SoundprintApp(
                 onDismiss = { SoundprintProGate.lockedFeature = null }
             )
         }
-        resumePrompt?.let { prompt ->
-            AlertDialog(
-                onDismissRequest = {
-                    playbackQueueStore.clearPendingResumePrompt()
-                    resumePrompt = null
-                },
-                title = { Text("Pick up where you left off?") },
-                text = {
-                    Text("${prompt.title} · ${prompt.artist}\nYou stopped at ${formatPlaybackResumeTime(prompt.positionMs)}. Would you like to continue or restart this song?")
-                },
-                confirmButton = {
-                    TextButton(onClick = {
+        if (appReady && enteredLibrary) {
+            resumePrompt?.let { prompt ->
+                Dialog(
+                    onDismissRequest = {
                         playbackQueueStore.clearPendingResumePrompt()
                         resumePrompt = null
-                        playbackConnection.controller?.play()
-                        nowPlayingOpen = true
-                    }) { Text("Continue") }
-                },
-                dismissButton = {
-                    Row {
-                        TextButton(onClick = {
-                            playbackQueueStore.clearPendingResumePrompt()
-                            resumePrompt = null
-                            playbackConnection.controller?.seekTo(0L)
-                            playbackConnection.controller?.play()
-                            nowPlayingOpen = true
-                        }) { Text("Restart") }
-                        TextButton(onClick = {
-                            playbackQueueStore.clearPendingResumePrompt()
-                            resumePrompt = null
-                        }) { Text("Not now") }
+                    }
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp)
+                            .border(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+                                RoundedCornerShape(28.dp)
+                            ),
+                        shape = RoundedCornerShape(28.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 8.dp
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(0.dp)
+                        ) {
+                            Text(
+                                "PLAYBACK",
+                                fontSize = 10.sp,
+                                letterSpacing = 1.8.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                "Pick up where you left off?",
+                                modifier = Modifier.padding(top = 9.dp),
+                                fontSize = 21.sp,
+                                lineHeight = 26.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "Your last session is ready when you are.",
+                                modifier = Modifier.padding(top = 6.dp),
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 20.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f))
+                                    .padding(horizontal = 15.dp, vertical = 14.dp)
+                            ) {
+                                Text(
+                                    prompt.title,
+                                    fontSize = 15.sp,
+                                    lineHeight = 20.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    prompt.artist,
+                                    modifier = Modifier.padding(top = 3.dp),
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 13.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "STOPPED AT",
+                                        fontSize = 10.sp,
+                                        letterSpacing = 1.1.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        formatPlaybackResumeTime(prompt.positionMs),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 20.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp)
+                                        .clip(RoundedCornerShape(15.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .clickable {
+                                            playbackQueueStore.clearPendingResumePrompt()
+                                            resumePrompt = null
+                                            playbackConnection.controller?.seekTo(0L)
+                                            playbackConnection.controller?.play()
+                                            nowPlayingOpen = true
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "Restart",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1.25f)
+                                        .height(48.dp)
+                                        .clip(RoundedCornerShape(15.dp))
+                                        .background(MaterialTheme.colorScheme.primary)
+                                        .clickable {
+                                            playbackQueueStore.clearPendingResumePrompt()
+                                            resumePrompt = null
+                                            playbackConnection.controller?.play()
+                                            nowPlayingOpen = true
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "Continue",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                            }
+                            TextButton(
+                                onClick = {
+                                    playbackQueueStore.clearPendingResumePrompt()
+                                    resumePrompt = null
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .padding(top = 4.dp)
+                            ) {
+                                Text(
+                                    "Not now",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
-            )
+            }
         }
     }
     }
