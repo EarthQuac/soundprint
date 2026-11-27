@@ -294,12 +294,29 @@ fun SoundprintLyricsPanel(
         val identityTitle = if (proAccess.entitled && foundTitle.isNotBlank()) foundTitle else title
         val identityArtist = if (proAccess.entitled && foundArtist.isNotBlank()) foundArtist else artist
         val savePrefix = "lyrics-v2:${soundprintLyricsIdentity(identityTitle, identityArtist, duration)}"
-        prefs.edit()
-            .putString(savePrefix, value)
+        val editor = prefs.edit()
+        if (savePrefix != stableLyricsPrefix) {
+            // Metadata autofill changes the durable identity. Move the existing sync data
+            // with the lyrics so it remains aligned, and avoid leaving a stale old identity.
+            editor.remove(stableLyricsPrefix)
+                .remove("$stableLyricsPrefix:source")
+                .remove("$stableLyricsPrefix:match-title")
+                .remove("$stableLyricsPrefix:match-artist")
+                .remove("$stableLyricsPrefix:match-album")
+                .remove("$stableLyricsPrefix:offset")
+                .remove("$stableLyricsPrefix:anchors")
+        }
+        editor.putString(savePrefix, value)
             .putString("$savePrefix:source", origin)
             .putString("$savePrefix:match-title", foundTitle)
             .putString("$savePrefix:match-artist", foundArtist)
             .putString("$savePrefix:match-album", foundAlbum)
+            .putFloat("$savePrefix:offset", syncOffset)
+            .putString("$savePrefix:anchors", JSONArray().apply {
+                syncAnchors.forEach { anchor ->
+                    put(JSONObject().put("lyric", anchor.lyricMs).put("audio", anchor.audioMs))
+                }
+            }.toString())
             // Keep the old key too for backwards compatibility with existing app code.
             .putString("lyrics:$trackId", value)
             .putString("lyrics-source:$trackId", origin)
