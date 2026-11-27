@@ -61,6 +61,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -793,120 +795,318 @@ private fun SmartPlaylistEditorDialog(
     onSave: () -> Unit
 ) {
     var advancedOpen by remember(draft.id) { mutableStateOf(false) }
+    var limitText by remember(draft.id) { mutableStateOf(draft.limit?.toString().orEmpty()) }
+
     fun updateCondition(groupId: String, conditionId: String, patch: SmartCondition) {
         onDraftChange(draft.copy(groups = draft.groups.map { group ->
-            if (group.id != groupId) group else group.copy(conditions = group.conditions.map { if (it.id == conditionId) patch else it })
+            if (group.id != groupId) group else group.copy(
+                conditions = group.conditions.map { if (it.id == conditionId) patch else it }
+            )
         }))
     }
-    AlertDialog(
+
+    fun chooseTemplate(template: String) {
+        val base = draft.groups.firstOrNull()?.conditions?.firstOrNull() ?: freshCondition()
+        val (field, operator, value, name) = when (template) {
+            "never" -> listOf(SmartField.NEVER_PLAYED, SmartOperator.EQ, "true", "Never played")
+            "recent" -> listOf(SmartField.DATE_ADDED, SmartOperator.LTE, "7", "Recently added")
+            "favorite" -> listOf(SmartField.FAVORITE, SmartOperator.EQ, "true", "Favorites")
+            "energy" -> listOf(SmartField.ENERGY, SmartOperator.GTE, "70", "High energy")
+            else -> listOf(SmartField.GENRE, SmartOperator.CONTAINS, "", draft.name.ifBlank { "My smart playlist" })
+        }
+        val condition = base.copy(field = field as SmartField, operator = operator as SmartOperator, value = value as String)
+        val group = (draft.groups.firstOrNull() ?: freshGroup()).copy(conditions = listOf(condition))
+        onDraftChange(draft.copy(name = name as String, groups = listOf(group)))
+        limitText = ""
+    }
+
+    val valid = draft.name.isNotBlank() && draft.groups.isNotEmpty() &&
+        draft.groups.all { group -> group.conditions.isNotEmpty() && group.conditions.all { it.value.isNotBlank() } }
+
+    androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (editing) "Edit smart playlist" else "Create smart playlist") },
-        text = {
-            Column(Modifier.fillMaxWidth().heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(value = draft.name, onValueChange = { onDraftChange(draft.copy(name = it)) }, singleLine = true, placeholder = { Text("Playlist name") }, modifier = Modifier.fillMaxWidth(),
-                    colors = soundprintOutlinedFieldColors()
-                )
-                Text("Quick start", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                NativeChoice("Choose a starting point", listOf("never" to "Never played", "recent" to "Recently added", "favorite" to "Favorites", "energy" to "High energy", "custom" to "Start from scratch")) { preset ->
-                    val base = draft.groups.firstOrNull()?.conditions?.firstOrNull() ?: freshCondition()
-                    val (field, operator, value, name) = when (preset) {
-                        "never" -> listOf(SmartField.NEVER_PLAYED, SmartOperator.EQ, "true", "Never Played")
-                        "recent" -> listOf(SmartField.DATE_ADDED, SmartOperator.LTE, "7", "Recently Added")
-                        "favorite" -> listOf(SmartField.FAVORITE, SmartOperator.EQ, "true", "Favorites")
-                        "energy" -> listOf(SmartField.ENERGY, SmartOperator.GTE, "70", "High Energy")
-                        else -> listOf(SmartField.GENRE, SmartOperator.CONTAINS, "", "New smart playlist")
-                    }
-                    val condition = base.copy(field = field as SmartField, operator = operator as SmartOperator, value = value as String)
-                    val group = (draft.groups.firstOrNull() ?: freshGroup()).copy(conditions = listOf(condition))
-                    onDraftChange(draft.copy(name = name as String, groups = listOf(group)))
-                }
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surface).clickable { advancedOpen = !advancedOpen }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        androidx.compose.material3.Surface(
+            modifier = Modifier.fillMaxWidth(.96f).heightIn(max = 760.dp),
+            shape = RoundedCornerShape(26.dp),
+            color = MaterialTheme.colorScheme.background,
+            tonalElevation = 8.dp
+        ) {
+            Column(Modifier.fillMaxWidth()) {
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 20.dp, end = 14.dp, top = 18.dp, bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Column(Modifier.weight(1f)) {
-                        Text("Advanced settings", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Groups, multiple rules, sorting and song limit", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            if (editing) "Edit smart playlist" else "Create smart playlist",
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "Build a playlist that updates as your library changes",
+                            modifier = Modifier.padding(top = 3.dp),
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    Text(if (advancedOpen) "Hide" else "Show", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                    TextButton(onClick = onDismiss) { Text("Close") }
                 }
-                if (advancedOpen) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Match groups", Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        NativeChoice(draft.groupsJoin.name, listOf("AND" to "All groups", "OR" to "Any group")) { value -> onDraftChange(draft.copy(groupsJoin = SmartJoin.valueOf(value))) }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .6f))
+                Column(
+                    Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(15.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("PLAYLIST NAME", fontSize = 10.sp, letterSpacing = 1.1.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OutlinedTextField(
+                            value = draft.name,
+                            onValueChange = { onDraftChange(draft.copy(name = it)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            placeholder = { Text("e.g. Late night favorites") },
+                            colors = soundprintOutlinedFieldColors()
+                        )
                     }
-                }
-                draft.groups.forEachIndexed { groupIndex, group ->
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surface).padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Group ${groupIndex + 1}", Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            if (advancedOpen) NativeChoice(group.join.name, listOf("AND" to "Match all", "OR" to "Match any")) { value ->
-                                onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(join = SmartJoin.valueOf(value)) else it }))
-                            }
-                            if (advancedOpen && draft.groups.size > 1) Text("×", Modifier.clickable { onDraftChange(draft.copy(groups = draft.groups.filterNot { it.id == group.id })) }.padding(7.dp), fontSize = 20.sp)
+
+                    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text("START WITH", fontSize = 10.sp, letterSpacing = 1.1.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Choose a ready-made rule, then adjust it below.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        NativeChoice(
+                            "Choose a starting point",
+                            listOf(
+                                "never" to "Never played",
+                                "recent" to "Added in the last 7 days",
+                                "favorite" to "Favorites",
+                                "energy" to "High energy",
+                                "custom" to "Start from scratch"
+                            )
+                        ) { chooseTemplate(it) }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("MATCH THESE RULES", fontSize = 10.sp, letterSpacing = 1.1.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                "Your playlist includes songs that match the rules below.",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                        group.conditions.forEach { condition ->
-                            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.background).padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                NativeChoice(condition.field.name, smartFields.map { it.first.name to it.second.first }) { value ->
-                                    updateCondition(group.id, condition.id, condition.copy(field = SmartField.valueOf(value), operator = SmartOperator.EQ, value = ""))
-                                }
-                                NativeChoice(condition.operator.name, smartOperators.map { it.first.name to it.second }) { value ->
-                                    updateCondition(group.id, condition.id, condition.copy(operator = SmartOperator.valueOf(value)))
-                                }
-                                if (smartFieldType(condition.field) == "boolean") {
-                                    NativeChoice(condition.value, listOf("true" to "Yes", "false" to "No", "" to "Choose…")) { value ->
-                                        updateCondition(group.id, condition.id, condition.copy(value = value))
+                        draft.groups.forEachIndexed { groupIndex, group ->
+                            Column(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp))
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .7f), RoundedCornerShape(17.dp))
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        if (draft.groups.size == 1) "Rules" else "Rule group ${groupIndex + 1}",
+                                        Modifier.weight(1f),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (advancedOpen && draft.groups.size > 1) {
+                                        NativeChoice(group.join.name, listOf("AND" to "All rules", "OR" to "Any rule")) { value ->
+                                            onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(join = SmartJoin.valueOf(value)) else it }))
+                                        }
+                                        TextButton(onClick = {
+                                            onDraftChange(draft.copy(groups = draft.groups.filterNot { it.id == group.id }))
+                                        }) { Text("Remove", color = MaterialTheme.colorScheme.error) }
+                                    } else if (groupIndex == 0) {
+                                        Text("MATCH", fontSize = 9.sp, letterSpacing = .8.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                     }
-                                } else {
+                                }
+                                group.conditions.forEachIndexed { conditionIndex, condition ->
+                                    Column(
+                                        Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
+                                            .background(MaterialTheme.colorScheme.background)
+                                            .padding(10.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        if (conditionIndex > 0) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text("AND / OR", Modifier.weight(1f), fontSize = 9.sp, letterSpacing = .8.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
+                                                NativeChoice(group.join.name, listOf("AND" to "And", "OR" to "Or")) { value ->
+                                                    onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(join = SmartJoin.valueOf(value)) else it }))
+                                                }
+                                            }
+                                        }
+                                        NativeChoice(
+                                            condition.field.name,
+                                            smartFields.map { it.first.name to it.second.first }
+                                        ) { value ->
+                                            val field = SmartField.valueOf(value)
+                                            val type = smartFieldType(field)
+                                            updateCondition(
+                                                group.id,
+                                                condition.id,
+                                                condition.copy(
+                                                    field = field,
+                                                    operator = if (type == "text") SmartOperator.CONTAINS else SmartOperator.EQ,
+                                                    value = if (type == "boolean") "true" else ""
+                                                )
+                                            )
+                                        }
+                                        NativeChoice(
+                                            condition.operator.name,
+                                            (if (smartFieldType(condition.field) == "boolean") {
+                                                listOf(SmartOperator.EQ to "is", SmartOperator.NEQ to "is not")
+                                            } else if (smartFieldType(condition.field) == "text") {
+                                                smartOperators.filter { it.first in setOf(SmartOperator.EQ, SmartOperator.NEQ, SmartOperator.CONTAINS, SmartOperator.NOT_CONTAINS) }
+                                            } else smartOperators).map { it.first.name to it.second }
+                                        ) { value ->
+                                            updateCondition(group.id, condition.id, condition.copy(operator = SmartOperator.valueOf(value)))
+                                        }
+                                        if (smartFieldType(condition.field) == "boolean") {
+                                            NativeChoice(
+                                                condition.value,
+                                                listOf("true" to "Yes", "false" to "No")
+                                            ) { value ->
+                                                updateCondition(group.id, condition.id, condition.copy(value = value))
+                                            }
+                                        } else {
+                                            OutlinedTextField(
+                                                value = condition.value,
+                                                onValueChange = { value -> updateCondition(group.id, condition.id, condition.copy(value = value)) },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                singleLine = true,
+                                                placeholder = {
+                                                    Text(
+                                                        when (smartFieldType(condition.field)) {
+                                                            "number" -> "Enter a number"
+                                                            else -> "Type a value"
+                                                        }
+                                                    )
+                                                },
+                                                colors = soundprintOutlinedFieldColors()
+                                            )
+                                        }
+                                        if (group.conditions.size > 1) {
+                                            TextButton(
+                                                onClick = {
+                                                    onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(conditions = it.conditions.filterNot { item -> item.id == condition.id }) else it }))
+                                                }
+                                            ) { Text("Remove this rule", color = MaterialTheme.colorScheme.error) }
+                                        }
+                                    }
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(conditions = it.conditions + freshCondition()) else it }))
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(15.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Add another rule", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surface)
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .7f), RoundedCornerShape(16.dp))
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().clickable { advancedOpen = !advancedOpen }.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Advanced options", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                Text("Combine groups, sort songs and set a limit", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(if (advancedOpen) "Hide" else "Show", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        }
+                        if (advancedOpen) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .6f))
+                            Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Text("When there are multiple groups", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                                    NativeChoice(draft.groupsJoin.name, listOf("AND" to "Match every group", "OR" to "Match any group")) { value ->
+                                        onDraftChange(draft.copy(groupsJoin = SmartJoin.valueOf(value)))
+                                    }
+                                }
+                                OutlinedButton(
+                                    onClick = { onDraftChange(draft.copy(groups = draft.groups + freshGroup())) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    SoundprintIcon(SoundprintIcons.Plus, null, modifier = Modifier.size(15.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Add a separate rule group", fontSize = 12.sp)
+                                }
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .6f))
+                                Text("SORT SONGS", fontSize = 10.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                NativeChoice(
+                                    draft.sortField.name,
+                                    SmartSortField.entries.map { it.name to it.name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase) }
+                                ) { value -> onDraftChange(draft.copy(sortField = SmartSortField.valueOf(value))) }
+                                NativeChoice(
+                                    if (draft.ascending) "asc" else "desc",
+                                    listOf("asc" to "Ascending · A to Z / lowest first", "desc" to "Descending · Z to A / highest first")
+                                ) { value -> onDraftChange(draft.copy(ascending = value == "asc")) }
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .6f))
+                                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Text("MAXIMUM SONGS", fontSize = 10.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     OutlinedTextField(
-                                        value = condition.value,
-                                        onValueChange = { updateCondition(group.id, condition.id, condition.copy(value = it)) },
+                                        value = limitText,
+                                        onValueChange = {
+                                            limitText = it.filter(Char::isDigit).take(4)
+                                            onDraftChange(draft.copy(limit = limitText.toIntOrNull()?.coerceIn(1, 1000)))
+                                        },
                                         modifier = Modifier.fillMaxWidth(),
                                         singleLine = true,
-                                        placeholder = { Text(if (smartFieldType(condition.field) == "number") "Number" else "Value") }
-                                    ,
+                                        placeholder = { Text("No limit") },
                                         colors = soundprintOutlinedFieldColors()
                                     )
+                                    Text("Leave empty to include every matching song.", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                if (advancedOpen) TextButton(enabled = group.conditions.size > 1, onClick = {
-                                    onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(conditions = it.conditions.filterNot { c -> c.id == condition.id }) else it }))
-                                }) { Text("Remove condition") }
+                                Text(
+                                    "Mood and energy rules use saved music analysis. Tempo and lyrics filters only match songs with those details available.",
+                                    fontSize = 10.sp,
+                                    lineHeight = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
-                        if (advancedOpen) TextButton(onClick = { onDraftChange(draft.copy(groups = draft.groups.map { if (it.id == group.id) it.copy(conditions = it.conditions + freshCondition()) else it })) }) {
-                            SoundprintIcon(SoundprintIcons.Plus, null); Text("Add condition")
-                        }
+                    }
+                    if (!valid) {
+                        Text(
+                            if (draft.name.isBlank()) "Add a playlist name to continue." else "Complete every rule value before saving.",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
-                if (advancedOpen) Button(
-                    onClick = { onDraftChange(draft.copy(groups = draft.groups + freshGroup())) },
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .6f))
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 13.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SoundprintIcon(SoundprintIcons.Plus, null); Text("Add group")
+                    TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("Cancel") }
+                    Button(
+                        onClick = onSave,
+                        enabled = valid,
+                        modifier = Modifier.weight(1.5f).height(46.dp),
+                        shape = CircleShape
+                    ) {
+                        Text(if (editing) "Save changes" else "Create playlist", fontSize = 12.sp)
+                    }
                 }
-                if (advancedOpen) Text("Sort and limit", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                if (advancedOpen) NativeChoice(draft.sortField.name, SmartSortField.entries.map { it.name to it.name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase) }) { value ->
-                    onDraftChange(draft.copy(sortField = SmartSortField.valueOf(value)))
-                }
-                if (advancedOpen) NativeChoice(if (draft.ascending) "asc" else "desc", listOf("desc" to "Descending", "asc" to "Ascending")) { value ->
-                    onDraftChange(draft.copy(ascending = value == "asc"))
-                }
-                var limitText by remember(draft.id) { mutableStateOf(draft.limit?.toString().orEmpty()) }
-                if (advancedOpen) OutlinedTextField(value = limitText, onValueChange = {
-                    limitText = it.filter(Char::isDigit).take(4)
-                    onDraftChange(draft.copy(limit = limitText.toIntOrNull()?.coerceIn(1, 1000)))
-                }, singleLine = true, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Limit (optional)") },
-                    colors = soundprintOutlinedFieldColors()
-                )
-                if (advancedOpen) Text("Mood and energy rules use saved music matches. Tempo and lyrics filters need those details to be available in your library.", fontSize = 10.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-        },
-        confirmButton = {
-            TextButton(enabled = draft.name.isNotBlank() && draft.groups.isNotEmpty() && draft.groups.all { it.conditions.isNotEmpty() && it.conditions.all { c -> c.value.isNotBlank() } }, onClick = onSave) { Text("Save smart playlist") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
+        }
+    }
 }
 
 @Composable
