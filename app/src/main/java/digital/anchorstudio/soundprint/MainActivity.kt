@@ -1496,7 +1496,7 @@ private fun SoundprintApp(
                 }
             }
 
-            AnimatedVisibility(
+            this.AnimatedVisibility(
                 visible = !nowPlayingOpen && !tagEditorOpen,
                 enter = expandVertically(tween(300, easing = FastOutSlowInEasing), expandFrom = Alignment.Bottom) + fadeIn(tween(260)),
                 exit = shrinkVertically(tween(260, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Bottom) + fadeOut(tween(160))
