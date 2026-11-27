@@ -358,7 +358,7 @@ private fun TwinSenseScannerSection(
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                     ) {
                         if (scanning && !advancedScanning) CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
-                        else SoundprintIcon(SoundprintIcons.ScanLine, null, modifier = Modifier.size(16.dp))
+                        else SoundprintIcon(SoundprintIcons.CopyCheck, null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(if (scanning && !advancedScanning) "Scanning ${progress.percent}%" else if (result != null) "Run again" else "Start scan", fontSize = 11.sp, maxLines = 1)
                     }
