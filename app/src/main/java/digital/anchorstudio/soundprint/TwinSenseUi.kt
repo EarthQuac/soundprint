@@ -86,10 +86,8 @@ internal fun TwinSenseScreen(
         recycleItems = loaded.second
     }
 
-    LaunchedEffect(SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
-        if ((!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) && advancedScanning) {
-            scanJob?.cancel()
-        }
+    LaunchedEffect(advancedScanning, SoundprintProGate.isResolved, SoundprintProGate.hasPro) {
+        if (advancedScanning && SoundprintProGate.isResolved && !SoundprintProGate.hasPro) scanJob?.cancel()
     }
 
     LaunchedEffect(library) {
@@ -99,7 +97,6 @@ internal fun TwinSenseScreen(
         loading = false
     }
 
-    val hasTwinSensePro = SoundprintProGate.isResolved && SoundprintProGate.hasPro
     val cleanupTracks = remember(scanResult) {
         scanResult?.let { TwinSenseCleanupPlanner.tracksToRemove(it) }.orEmpty()
     }
@@ -179,7 +176,6 @@ internal fun TwinSenseScreen(
                 item {
                     TwinSenseScannerSection(
                         songsCount = songs.size,
-                        hasPro = hasTwinSensePro,
                         scanning = scanning,
                         advancedScanning = advancedScanning,
                         progress = scanProgress,
@@ -297,7 +293,6 @@ internal fun TwinSenseScreen(
 @Composable
 private fun TwinSenseScannerSection(
     songsCount: Int,
-    hasPro: Boolean,
     scanning: Boolean,
     advancedScanning: Boolean,
     progress: TwinSenseScanProgress,
@@ -311,94 +306,98 @@ private fun TwinSenseScannerSection(
     onSmartCleanup: () -> Unit,
     onRemove: (MusicTrack) -> Unit
 ) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 20.dp)) {
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         Column(
-            Modifier.fillMaxWidth().padding(vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(0.dp)
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f), RoundedCornerShape(22.dp))
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(
-                    Modifier.size(36.dp).clip(RoundedCornerShape(8.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp)),
+                    Modifier.size(44.dp).clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.11f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    SoundprintIcon(SoundprintIcons.ShieldCheck, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    SoundprintIcon(SoundprintIcons.AudioWaveform, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                 }
-                Column(Modifier.weight(1f)) {
-                    Text("Find duplicate tracks", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                    Text("Find duplicate tracks in your library", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("TwinSense", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                    Text("Find duplicates and alternate versions", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (result != null && !scanning) {
-                    Text("${matches.size} ${if (matches.size == 1) "match" else "matches"}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(matches.size.toString(), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                        Text(if (matches.size == 1) "MATCH" else "MATCHES", fontSize = 9.sp, letterSpacing = 1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
-
-            Row(
-                Modifier.fillMaxWidth().padding(top = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (hasPro) {
-                    OutlinedButton(
-                        onClick = onAdvancedScan,
-                        enabled = !scanning && songsCount >= 2,
-                        modifier = Modifier.height(36.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                    ) {
-                        if (scanning && advancedScanning) CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
-                        else SoundprintIcon(SoundprintIcons.Zap, null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(if (scanning) "Analysing · ${progress.percent}%" else if (result != null) "Run advanced scan" else "Advanced audio scan", fontSize = 12.sp, maxLines = 1)
+            Text(
+                "Choose how deeply to compare your music. Both scans run locally on this device.",
+                fontSize = 12.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f)).padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        SoundprintIcon(SoundprintIcons.CopyCheck, null, Modifier.size(16.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Basic", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                     }
-                } else {
+                    Text("Quick file-signature comparison", fontSize = 11.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, minLines = 2)
                     Button(
-                        onClick = onBasicScan,
-                        enabled = !scanning && songsCount >= 2,
-                        modifier = Modifier.height(36.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                        onClick = onBasicScan, enabled = !scanning && songsCount >= 2,
+                        modifier = Modifier.fillMaxWidth().height(40.dp), shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                     ) {
                         if (scanning && !advancedScanning) CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
-                        else SoundprintIcon(SoundprintIcons.ShieldCheck, null, modifier = Modifier.size(16.dp))
+                        else SoundprintIcon(SoundprintIcons.ScanLine, null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text(if (scanning) "Scanning · ${progress.percent}%" else if (result != null) "Scan again" else "Basic scan", fontSize = 12.sp, maxLines = 1)
+                        Text(if (scanning && !advancedScanning) "Scanning ${progress.percent}%" else if (result != null) "Run again" else "Start scan", fontSize = 11.sp, maxLines = 1)
                     }
                 }
-                if (songsCount < 2 && !scanning) {
-                    Text("Add at least two tracks to scan.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f)).padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        SoundprintIcon(SoundprintIcons.AudioWaveform, null, Modifier.size(16.dp), MaterialTheme.colorScheme.primary)
+                        Text("Advanced", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        if (!SoundprintProGate.hasPro || !SoundprintProGate.isResolved) {
+                            Text("PRO", fontSize = 8.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    Text("Audio analysis for deeper matches", fontSize = 11.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, minLines = 2)
+                    OutlinedButton(
+                        onClick = onAdvancedScan, enabled = !scanning && songsCount >= 2,
+                        modifier = Modifier.fillMaxWidth().height(40.dp), shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        if (scanning && advancedScanning) CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
+                        else SoundprintIcon(SoundprintIcons.AudioWaveform, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (scanning && advancedScanning) "Analysing ${progress.percent}%" else "Advanced scan", fontSize = 11.sp, maxLines = 1)
+                    }
                 }
             }
-
+            if (songsCount < 2 && !scanning) Text("Add at least two tracks to start a scan.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (scanning) {
-                Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                    LinearProgressIndicator(
-                        progress = { progress.percent / 100f },
-                        modifier = Modifier.fillMaxWidth().height(4.dp)
-                    )
-                    Text(
-                        "Checking music stored on this device. Audio files are never uploaded.",
-                        Modifier.padding(top = 8.dp),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LinearProgressIndicator(progress = { progress.percent / 100f }, modifier = Modifier.fillMaxWidth().height(4.dp))
+                    Text("Checking music stored on this device. Audio files are never uploaded.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            if (scanError.isNotBlank()) {
-                Text(scanError, Modifier.fillMaxWidth().padding(top = 12.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (result != null && !scanning && matches.isEmpty()) {
-                Text(
-                    "No duplicate tracks found.",
-                    Modifier.fillMaxWidth().padding(top = 16.dp),
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            if (scanError.isNotBlank()) Text(scanError, Modifier.fillMaxWidth(), fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+            if (result != null && !scanning && matches.isEmpty()) Text("No duplicate tracks found.", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
         if (result != null && !scanning && matches.isNotEmpty()) {
             Column(Modifier.fillMaxWidth().padding(top = 16.dp)) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
