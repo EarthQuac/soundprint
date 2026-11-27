@@ -1318,7 +1318,7 @@ fun SoundprintMiniPlayer(
     LaunchedEffect(trackId, artworkRevision) {
         var attempts = 0
         while (true) {
-            val loaded = if (trackId.isBlank()) null else withContext(Dispatchers.IO) { library.song(trackId) }
+            val loaded = if (trackId.isBlank()) null else withContext(Dispatchers.IO) { library.ensureArtwork(trackId) ?: library.song(trackId) }
             track = loaded
             if (trackId.isBlank() || !loaded?.artworkUri.isNullOrBlank() || attempts >= 30) break
             attempts++
