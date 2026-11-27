@@ -324,7 +324,12 @@ class MusicLibraryManager(context:Context) {
     fun allSongs(query:String="",sort:TrackSort=TrackSort.TITLE,ascending:Boolean=true)=repository.tracks(query,sort,ascending)
     fun recentlyPlayed(limit:Int=50)=repository.recentlyPlayed(limit)
     fun song(id:String)=repository.track(id)
-    suspend fun ensureArtwork(id:String)=repository.ensureArtwork(id)
+    suspend fun ensureArtwork(id:String):MusicTrack? {
+        val previousArtwork = repository.track(id)?.artworkUri
+        val loaded = repository.ensureArtwork(id)
+        if (loaded?.artworkUri != previousArtwork) notifyArtworkChanged()
+        return loaded
+    }
     // Bumped whenever artwork is added or removed in bulk, so players showing a song that is already
     // playing can reload its cover immediately instead of waiting for the next track.
     private val artworkRevisionState=MutableStateFlow(0)
