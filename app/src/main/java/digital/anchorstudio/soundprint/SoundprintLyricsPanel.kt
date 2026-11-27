@@ -50,6 +50,7 @@ import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.abs
@@ -63,6 +64,23 @@ private data class SoundprintLyricLine(
     val words: List<SoundprintLyricWord> = emptyList()
 )
 private data class SoundprintLyricAnchor(val lyricMs: Long, val audioMs: Long)
+
+/**
+ * Lyrics belong to the recording, not to a transient library row or Android content URI.
+ * A five-second duration bucket tolerates small metadata rounding differences while helping
+ * distinguish different recordings that share a title and artist.
+ */
+private fun soundprintLyricsIdentity(title: String, artist: String, durationMs: Long): String {
+    fun normalize(value: String): String = value.lowercase(java.util.Locale.ROOT)
+        .replace(Regex("[^\\p{L}\\p{N}]"), " ")
+        .trim()
+        .replace(Regex("\\s+"), " ")
+    val durationBucket = if (durationMs > 0L) ((durationMs + 2_500L) / 5_000L).toString() else "unknown"
+    val identity = "${normalize(title)}|${normalize(artist)}|$durationBucket"
+    return MessageDigest.getInstance("SHA-256")
+        .digest(identity.toByteArray(Charsets.UTF_8))
+        .joinToString("") { byte -> "%02x".format(byte) }
+}
 
 private fun parseSoundprintLyricTime(minutes: String, seconds: String, fraction: String): Long {
     val fractionMs = when (fraction.length) {
@@ -148,6 +166,10 @@ fun SoundprintLyricsPanel(
     val proAccess = LocalSoundprintProUiAccess.current
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("soundprint_now_playing", 0) }
+    val stableLyricsId = remember(title, artist, duration) {
+        soundprintLyricsIdentity(title, artist, duration)
+    }
+    val stableLyricsPrefix = "lyrics-v2:$stableLyricsId"
     val scope = rememberCoroutineScope()
     val repository = remember { LyricsLookupRepository() }
     var lyrics by remember(trackId) { mutableStateOf("") }
@@ -190,18 +212,31 @@ fun SoundprintLyricsPanel(
         if (!SoundprintProGate.isResolved || !SoundprintProGate.hasPro) karaokeMode = false
     }
 
-    LaunchedEffect(trackId) {
-        lyrics = prefs.getString("lyrics:$trackId", "").orEmpty()
+    LaunchedEffect(trackId, stableLyricsId) {
+        // Prefer the durable song identity. Fall back to the original track-ID cache and
+        // migrate it so lyrics saved by older app versions remain available after re-import.
+        val savedLyrics = prefs.getString(stableLyricsPrefix, null)
+        val legacyLyrics = prefs.getString("lyrics:$trackId", null)
+        lyrics = savedLyrics ?: legacyLyrics.orEmpty()
         onLyricsChanged(lyrics)
-        source = prefs.getString("lyrics-source:$trackId", "").orEmpty()
-        matchedTitle = prefs.getString("lyrics-match-title:$trackId", "").orEmpty()
-        matchedArtist = prefs.getString("lyrics-match-artist:$trackId", "").orEmpty()
-        matchedAlbum = prefs.getString("lyrics-match-album:$trackId", "").orEmpty()
+        source = prefs.getString("$stableLyricsPrefix:source", null)
+            ?: prefs.getString("lyrics-source:$trackId", "").orEmpty()
+        matchedTitle = prefs.getString("$stableLyricsPrefix:match-title", null)
+            ?: prefs.getString("lyrics-match-title:$trackId", "").orEmpty()
+        matchedArtist = prefs.getString("$stableLyricsPrefix:match-artist", null)
+            ?: prefs.getString("lyrics-match-artist:$trackId", "").orEmpty()
+        matchedAlbum = prefs.getString("$stableLyricsPrefix:match-album", null)
+            ?: prefs.getString("lyrics-match-album:$trackId", "").orEmpty()
         error = ""
         draft = lyrics
-        syncOffset = prefs.getFloat("lyrics-offset:$trackId", 0f).coerceIn(-10f, 10f)
+        val stableOffsetKey = "$stableLyricsPrefix:offset"
+        val legacyOffsetKey = "lyrics-offset:$trackId"
+        syncOffset = prefs.getFloat(stableOffsetKey, prefs.getFloat(legacyOffsetKey, 0f)).coerceIn(-10f, 10f)
         val restored = runCatching {
-            val raw = prefs.getString("lyrics-anchors:$trackId", "[]") ?: "[]"
+            val raw = prefs.getString(
+                "$stableLyricsPrefix:anchors",
+                prefs.getString("lyrics-anchors:$trackId", "[]")
+            ) ?: "[]"
             val json = JSONArray(raw)
             (0 until json.length()).mapNotNull { index ->
                 json.optJSONObject(index)?.let {
@@ -210,6 +245,22 @@ fun SoundprintLyricsPanel(
             }.take(100)
         }.getOrDefault(emptyList())
         syncAnchors = restored
+
+        if (savedLyrics == null && legacyLyrics != null) {
+            prefs.edit()
+                .putString(stableLyricsPrefix, legacyLyrics)
+                .putString("$stableLyricsPrefix:source", source)
+                .putString("$stableLyricsPrefix:match-title", matchedTitle)
+                .putString("$stableLyricsPrefix:match-artist", matchedArtist)
+                .putString("$stableLyricsPrefix:match-album", matchedAlbum)
+                .putFloat(stableOffsetKey, syncOffset)
+                .putString("$stableLyricsPrefix:anchors", JSONArray().apply {
+                    restored.forEach { anchor ->
+                        put(JSONObject().put("lyric", anchor.lyricMs).put("audio", anchor.audioMs))
+                    }
+                }.toString())
+                .apply()
+        }
     }
 
     LaunchedEffect(activeIndex, lines.size, karaokeMode, expanded) {
@@ -238,7 +289,18 @@ fun SoundprintLyricsPanel(
         if (foundTitle.isNotBlank() || foundArtist.isNotBlank() || foundAlbum.isNotBlank() || foundYear > 0) {
             if (proAccess.entitled) onMetadataMatch(foundTitle, foundArtist, foundAlbum, foundYear)
         }
+        // If Pro metadata autofill updates the visible title/artist, save against the
+        // metadata that will identify the re-imported file after that update.
+        val identityTitle = if (proAccess.entitled && foundTitle.isNotBlank()) foundTitle else title
+        val identityArtist = if (proAccess.entitled && foundArtist.isNotBlank()) foundArtist else artist
+        val savePrefix = "lyrics-v2:${soundprintLyricsIdentity(identityTitle, identityArtist, duration)}"
         prefs.edit()
+            .putString(savePrefix, value)
+            .putString("$savePrefix:source", origin)
+            .putString("$savePrefix:match-title", foundTitle)
+            .putString("$savePrefix:match-artist", foundArtist)
+            .putString("$savePrefix:match-album", foundAlbum)
+            // Keep the old key too for backwards compatibility with existing app code.
             .putString("lyrics:$trackId", value)
             .putString("lyrics-source:$trackId", origin)
             .putString("lyrics-match-title:$trackId", foundTitle)
@@ -260,6 +322,13 @@ fun SoundprintLyricsPanel(
         karaokeMode = false
         onExpandedChange(false)
         prefs.edit()
+            .remove(stableLyricsPrefix)
+            .remove("$stableLyricsPrefix:source")
+            .remove("$stableLyricsPrefix:match-title")
+            .remove("$stableLyricsPrefix:match-artist")
+            .remove("$stableLyricsPrefix:match-album")
+            .remove("$stableLyricsPrefix:offset")
+            .remove("$stableLyricsPrefix:anchors")
             .remove("lyrics:$trackId")
             .remove("lyrics-source:$trackId")
             .remove("lyrics-match-title:$trackId")
@@ -395,12 +464,18 @@ fun SoundprintLyricsPanel(
                 put(JSONObject().put("lyric", anchor.lyricMs).put("audio", anchor.audioMs))
             }
         }
-        prefs.edit().putString("lyrics-anchors:$trackId", json.toString()).apply()
+        prefs.edit()
+            .putString("$stableLyricsPrefix:anchors", json.toString())
+            .putString("lyrics-anchors:$trackId", json.toString())
+            .apply()
     }
 
     fun changeOffset(delta: Float) {
         syncOffset = (syncOffset + delta).coerceIn(-10f, 10f)
-        prefs.edit().putFloat("lyrics-offset:$trackId", syncOffset).apply()
+        prefs.edit()
+            .putFloat("$stableLyricsPrefix:offset", syncOffset)
+            .putFloat("lyrics-offset:$trackId", syncOffset)
+            .apply()
     }
 
     Column(
@@ -606,7 +681,10 @@ fun SoundprintLyricsPanel(
                             if (syncAnchors.isNotEmpty()) {
                                 TextButton(onClick = {
                                     syncAnchors = emptyList()
-                                    prefs.edit().remove("lyrics-anchors:$trackId").apply()
+                                    prefs.edit()
+                                        .remove("$stableLyricsPrefix:anchors")
+                                        .remove("lyrics-anchors:$trackId")
+                                        .apply()
                                 }, contentPadding = PaddingValues(horizontal = 7.dp, vertical = 2.dp)) { Text("Clear sync points", fontSize = 10.sp) }
                             }
                         }
